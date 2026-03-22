@@ -232,7 +232,7 @@ void SysBackend::setupKeyboard() {
     updateCapsLock();
     if (!m_capsPollTimer) {
         m_capsPollTimer = new QTimer(this);
-        m_capsPollTimer->setInterval(500);
+        m_capsPollTimer->setInterval(200);
         connect(m_capsPollTimer, &QTimer::timeout, this, &SysBackend::updateCapsLock);
         m_capsPollTimer->start();
     }
