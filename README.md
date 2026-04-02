@@ -13,7 +13,7 @@ CPU usage < 2%
 ## Description:
 
 
-https://github.com/user-attachments/assets/306535e1-1a50-4a0f-a979-d056fa510c9e
+Video: https://www.youtube.com/watch?v=SAc6_1Y7QJc
 
 
 #### Clock Mode
@@ -48,6 +48,11 @@ https://github.com/user-attachments/assets/306535e1-1a50-4a0f-a979-d056fa510c9e
 
 
 ####  Music Player
+<div align="left">
+  <img src="Preview/Preview_4.png" width="450" alt="Preview">
+</div>
+
+####  Workspace overview
 <div align="left">
   <img src="Preview/Preview_4.png" width="450" alt="Preview">
 </div>
@@ -114,6 +119,10 @@ cd ../.. && rm -rf Dynamic-Island-on-Hyprland
 ```bash
 QML2_IMPORT_PATH=~/.config/quickshell quickshell -p ~/.config/quickshell/dynamic_island/main.qml
 ```
+## Acknowledgments
+
+- [@end-4](https://github.com/end-4) - For the workspace overview design.
+- [@BEST8OY](https://github.com/BEST8OY) - For providing the lyrics support.
 
 ## Important thing
 
@@ -122,3 +131,4 @@ QML2_IMPORT_PATH=~/.config/quickshell quickshell -p ~/.config/quickshell/dynamic
 - **The backend is hardcoded to read /sys/class/backlight/intel_backlight/. If you are using AMD or a different backlight driver, please update the path (SysBackend.cpp:353).**
 
 - **The status of caps lock is currently polled via hyprctl devices. Ensure hyprctl is in your $PATH.**
+
