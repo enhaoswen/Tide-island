@@ -117,8 +117,6 @@ cp ./build/libIslandBackend.so ~/.config/quickshell/dynamic_island/IslandBackend
 cp ./build/libIslandBackendplugin.so ~/.config/quickshell/dynamic_island/IslandBackend/
 cp ./build/qmldir ~/.config/quickshell/dynamic_island/IslandBackend/
 cp ./build/IslandBackend.qmltypes ~/.config/quickshell/dynamic_island/IslandBackend/
-
-ln -sfn ~/.config/quickshell/dynamic_island/IslandBackend ~/.config/quickshell/IslandBackend
 ```
 
 - Clean 
@@ -129,8 +127,12 @@ cd ../.. && rm -rf Dynamic-Island-on-Hyprland
 
 - To run in Hyprland:
 ```bash
-QML2_IMPORT_PATH=~/.config/quickshell quickshell -p ~/.config/quickshell/dynamic_island/shell.qml
+QML2_IMPORT_PATH=~/.config/quickshell/dynamic_island quickshell -p ~/.config/quickshell/dynamic_island/shell.qml
 ```
+
+> `IslandBackend` is expected to live inside `~/.config/quickshell/dynamic_island/IslandBackend`.
+> You do not need to symlink it to `~/.config/quickshell/IslandBackend` as long as `QML2_IMPORT_PATH`
+> points to `~/.config/quickshell/dynamic_island`.
 ## Acknowledgments
 
 - [@end-4](https://github.com/end-4) - For the workspace overview design.
