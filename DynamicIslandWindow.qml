@@ -27,7 +27,22 @@ PanelWindow {
 
     color: "transparent"
     anchors { top: true; left: true; right: true }
-    mask: Region { item: mainCapsule }
+    mask: Region {
+        item: mainCapsule
+
+        // Keep pointer delivery stable while a side swipe is active, even over empty workspace space.
+        Region {
+            intersection: Intersection.Combine
+            x: 0
+            y: capsuleMouseArea.sideSwipeInteractive
+                ? Math.max(0, Math.floor(mainCapsule.y - capsuleMouseArea.sideSwipeVerticalTolerance))
+                : 0
+            width: capsuleMouseArea.sideSwipeInteractive ? root.width : 0
+            height: capsuleMouseArea.sideSwipeInteractive
+                ? Math.ceil(mainCapsule.height + capsuleMouseArea.sideSwipeVerticalTolerance * 2)
+                : 0
+        }
+    }
     implicitHeight: (root.overviewVisible || root.overviewPreparing)
         ? Math.max(360, Math.ceil(4 + root.overviewCapsuleHeight + 8))
         : 360
@@ -1600,6 +1615,7 @@ PanelWindow {
                 property real swipeStartY: 0
                 property real swipeStartProgress: 0
                 property real swipeLastX: 0
+                readonly property real sideSwipeVerticalTolerance: 24
                 property bool swipeArmed: false
                 property bool swipeMoved: false
                 property bool sideSwipeInteractive: false
@@ -1632,7 +1648,7 @@ PanelWindow {
                     const mappedPoint = capsuleMouseArea.mapToItem(islandContainer, mouse.x, mouse.y);
                     const deltaX = mappedPoint.x - swipeLastX;
                     const deltaY = Math.abs(mappedPoint.y - swipeStartY);
-                    const adjustedDeltaX = deltaY < 24 ? deltaX : 0;
+                    const adjustedDeltaX = deltaY < sideSwipeVerticalTolerance ? deltaX : 0;
                     const nextProgress = islandContainer.advanceSideSwipeProgress(
                         islandContainer.swipeTransitionProgress,
                         adjustedDeltaX

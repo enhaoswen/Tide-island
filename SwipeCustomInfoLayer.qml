@@ -60,6 +60,7 @@ Item {
         x: itemsX
         height: parent.height
         anchors.verticalCenter: parent.verticalCenter
+        opacity: clampedProgress
         spacing: groupSpacing
 
         Repeater {
