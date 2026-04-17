@@ -138,11 +138,16 @@ git clone https://github.com/enhaoswen/Dynamic-Island-on-Hyprland.git && cd Dyna
 
 ```bash
 cmake -S . -B build && cmake --build build -j"$(nproc)" && \
-mkdir -p ~/.config/quickshell/dynamic_island/{IslandBackend,bin} && \
+cmake -S ./ConnectivityBackend -B ./ConnectivityBackend/build && \
+cmake --build ./ConnectivityBackend/build -j"$(nproc)" && \
+mkdir -p ~/.config/quickshell/dynamic_island/{IslandBackend,ConnectivityBackend,bin} && \
 cp ./*.qml ~/.config/quickshell/dynamic_island/ && \
 cp ./bin/* ~/.config/quickshell/dynamic_island/bin/ && \
 cp build/{libIslandBackend.so,libIslandBackendplugin.so,qmldir,IslandBackend.qmltypes} \
-~/.config/quickshell/dynamic_island/IslandBackend/
+~/.config/quickshell/dynamic_island/IslandBackend/ && \
+cp ./ConnectivityBackend/{libConnectivityBackendplugin.so,qmldir} \
+~/.config/quickshell/dynamic_island/ConnectivityBackend/
+
 ```
 
 ### Clean 
