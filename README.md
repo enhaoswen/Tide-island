@@ -112,17 +112,13 @@ Video: https://www.youtube.com/watch?v=vCA8sWLJjiw&list=LL&index=2
 
 - wpctl
 
+- cava
+
 - UPower DBus service and access to /sys/class/power_supply
 
 #### Assets & Scripts
 
 - Any nerd font (for icon) && any font (for text) 
-
-- custom scripts for control center (option)
-
-- cava
-
->Please rewrite the script path in UserConfig.qml
 
 ## Getting Start
 
