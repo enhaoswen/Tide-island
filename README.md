@@ -19,53 +19,29 @@ Video: https://www.youtube.com/watch?v=vCA8sWLJjiw&list=LL&index=2
 
 
 #### Clock Mode
-
-<div align="left">
-  <img src="Preview/Preview_1.png" width="450" alt="Preview">
-</div>
+<div align="left"> <img src="https://raw.githubusercontent.com/enhaoswen/Tide-island/display/Preview/Preview_1.png" width="450" alt="Preview"> </div>
 
 #### System Notifications
+<div align="left"> <img src="https://raw.githubusercontent.com/enhaoswen/Tide-island/display/Preview/Preview_2.png" width="450" alt="Preview"> </div>
 
-<div align="left">
-  <img src="Preview/Preview_2.png" width="450" alt="Preview">
-</div>
-
-####  Workspace Indicator
-
-<div align="left">
-  <img src="Preview/Preview_5.png" width="450" alt="Preview">
-</div>
+#### Workspace Indicator
+<div align="left"> <img src="https://raw.githubusercontent.com/enhaoswen/Tide-island/display/Preview/Preview_5.png" width="450" alt="Preview"> </div>
 
 #### Lyrics
-
-<div align="left">
-  <img src="Preview/Preview_6.png" width="450" alt="Preview">
-</div>
+<div align="left"> <img src="https://raw.githubusercontent.com/enhaoswen/Tide-island/display/Preview/Preview_6.png" width="450" alt="Preview"> </div>
 
 #### Control Center
+<div align="left"> <img src="https://raw.githubusercontent.com/enhaoswen/Tide-island/display/Preview/Preview_3.png" width="450" alt="Preview"> </div> 
+<div align="left"> <img src="https://raw.githubusercontent.com/enhaoswen/Tide-island/display/Preview/Preview_8.png" width="450" alt="Preview"> </div>
 
-<div align="left">
-  <img src="Preview/Preview_3.png" width="450" alt="Preview">
-</div>
+#### Music Player
+<div align="left"> <img src="https://raw.githubusercontent.com/enhaoswen/Tide-island/display/Preview/Preview_4.png" width="450" alt="Preview"> </div>
 
-<div align="left">
-  <img src="Preview/Preview_8.png" width="450" alt="Preview">
-</div>
-
-####  Music Player
-<div align="left">
-  <img src="Preview/Preview_4.png" width="450" alt="Preview">
-</div>
-
-####  Workspace Overview
-<div align="left">
-  <img src="Preview/Preview_7.png" width="450" alt="Preview">
-</div>
+#### Workspace Overview
+<div align="left"> <img src="https://raw.githubusercontent.com/enhaoswen/Tide-island/display/Preview/Preview_7.png" width="450" alt="Preview"> </div>
 
 #### Custom Page
-<div align="left">
-  <img src="Preview/Preview_9.png" width="450" alt="Preview">
-</div>
+<div align="left"> <img src="https://raw.githubusercontent.com/enhaoswen/Tide-island/display/Preview/Preview_9.png" width="450" alt="Preview"> </div>
 
 ### Items that are supported in Custom Page
 - time
