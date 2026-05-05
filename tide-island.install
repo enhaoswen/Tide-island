@@ -2,6 +2,9 @@ post_install() {
   echo ":: Tide Island has been installed."
   echo ":: To start the island and enable it on login, run:"
   echo "   systemctl --user enable --now tide-island"
+  echo ""
+  echo ":: Alternatively, add this to your hyprland.conf:"
+  echo "   exec-once = tide-island"
 }
 
 post_upgrade() {

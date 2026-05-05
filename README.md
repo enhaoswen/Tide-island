@@ -124,10 +124,17 @@ makepkg -si
 ### Starting the Island
 Tide Island includes a systemd user service for automatic startup and background management.
 
-**Enable and start the service:**
+**Enable and start the service (Recommended):**
 ```bash
 systemctl --user enable --now tide-island
 ```
+
+**Hyprland Configuration (Alternative):**
+If you prefer to manage startup via your `hyprland.conf`, add this line:
+```conf
+exec-once = tide-island
+```
+*Note: If you have enabled the systemd service, you don't need to add anything to your hyprland.conf.*
 
 **Manage the service:**
 ```bash
