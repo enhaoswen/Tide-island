@@ -163,7 +163,7 @@ bind = SUPER, TAB, exec, qs ipc -p ~/.config/quickshell/dynamic_island/shell.qml
 
 -  **Please write your password in UserConfig.qml line 16, to make sure tlp switcher works normally**
 
-## Contact me
+## Join the community
 - Discord: https://discord.gg/gEmqgz76
 
 - Gmail: enhaoswen@gmail.com
