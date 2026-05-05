@@ -1,0 +1,14 @@
+post_install() {
+  echo ":: Tide Island has been installed."
+  echo ":: To start the island and enable it on login, run:"
+  echo "   systemctl --user enable --now tide-island"
+}
+
+post_upgrade() {
+  echo ":: Tide Island has been updated."
+  echo ":: Restarting the service..."
+  systemctl --user daemon-reload
+  if systemctl --user is-active --quiet tide-island; then
+    systemctl --user restart tide-island
+  fi
+}

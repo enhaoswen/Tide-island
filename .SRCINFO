@@ -3,6 +3,7 @@ pkgbase = tide-island-git
 	pkgver = r196.783cae2
 	pkgrel = 1
 	url = https://github.com/sai21-learn/Tide-island
+	install = tide-island.install
 	arch = x86_64
 	license = unknown
 	makedepends = cmake
