@@ -12,6 +12,13 @@ Item {
 
     readonly property bool isWifi: panelKind === "wifi"
     readonly property bool isBluetooth: panelKind === "bluetooth"
+    readonly property var bluetoothDevices: provider ? provider.bluetoothDeviceValues || [] : []
+    readonly property var bluetoothConnectedDevices: bluetoothDevicesForSection("connected")
+    readonly property var bluetoothPairedDevices: bluetoothDevicesForSection("paired")
+    readonly property var bluetoothAvailableDevices: bluetoothDevicesForSection("available")
+    readonly property bool bluetoothScanning: provider && provider.bluetoothAdapter
+        ? provider.bluetoothAdapter.discovering
+        : !!(provider && provider.bluetoothListRunning)
 
     function safeString(value) {
         return value === undefined || value === null ? "" : String(value);
@@ -26,6 +33,19 @@ Item {
         return root.provider && root.provider.bluetoothDeviceMatchesSection
             ? root.provider.bluetoothDeviceMatchesSection(device, section)
             : false;
+    }
+
+    function bluetoothDevicesForSection(section) {
+        const devices = root.bluetoothDevices || [];
+        const filtered = [];
+
+        for (let index = 0; index < devices.length; index++) {
+            const device = devices[index];
+            if (root.bluetoothDeviceVisible(device, section))
+                filtered.push(device);
+        }
+
+        return filtered;
     }
 
     function focusPromptField() {
@@ -698,8 +718,7 @@ Item {
                     width: parent.width
                     visible: root.isBluetooth && root.provider
                         && root.provider.bluetoothEnabled
-                        && root.provider.bluetoothAdapter
-                        && root.provider.bluetoothAdapter.discovering
+                        && root.bluetoothScanning
                     text: "Scanning nearby devices..."
                     color: "#9b9da4"
                     font.pixelSize: 12
@@ -709,7 +728,7 @@ Item {
                 Item {
                     width: parent.width
                     height: btConnectedSection.visible ? btConnectedSection.implicitHeight : 0
-                    visible: root.isBluetooth && root.provider && root.provider.countBluetoothDevices("connected") > 0
+                    visible: root.isBluetooth && root.bluetoothConnectedDevices.length > 0
 
                     Column {
                         id: btConnectedSection
@@ -717,74 +736,15 @@ Item {
                         spacing: 8
 
                         Repeater {
-                            model: root.provider ? root.provider.bluetoothDeviceValues || [] : []
+                            model: root.bluetoothConnectedDevices
 
-                            delegate: Rectangle {
+                            delegate: BluetoothDeviceRow {
                                 width: btConnectedSection.width
-                                height: visible ? 52 : 0
-                                radius: 14
-                                color: "transparent"
-                                visible: root.bluetoothDeviceVisible(modelData, "connected")
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    enabled: root.provider && root.provider.bluetoothEnabled
-                                    onClicked: {
-                                        if (root.provider)
-                                            root.provider.handleBluetoothDevicePressed(modelData);
-                                    }
-                                }
-
-                                Item {
-                                    anchors.fill: parent
-                                    anchors.margins: 12
-
-                                    Text {
-                                        anchors.left: parent.left
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        text: root.provider ? root.provider.bluetoothGlyph : ""
-                                        color: "#0a84ff"
-                                        font.pixelSize: 14
-                                        font.family: root.iconFontFamily
-                                    }
-
-                                    Text {
-                                        anchors.left: parent.left
-                                        anchors.leftMargin: 26
-                                        anchors.top: parent.top
-                                        anchors.right: parent.right
-                                        anchors.rightMargin: 24
-                                        text: root.provider ? root.provider.bluetoothDeviceName(modelData) : ""
-                                        color: "#f5f5f7"
-                                        font.pixelSize: 12
-                                        font.family: root.textFontFamily
-                                        font.weight: Font.DemiBold
-                                        elide: Text.ElideRight
-                                    }
-
-                                    Text {
-                                        anchors.left: parent.left
-                                        anchors.leftMargin: 26
-                                        anchors.bottom: parent.bottom
-                                        anchors.right: parent.right
-                                        anchors.rightMargin: 24
-                                        text: "Connected"
-                                        color: "#9b9da4"
-                                        font.pixelSize: 10
-                                        font.family: root.textFontFamily
-                                        elide: Text.ElideRight
-                                    }
-
-                                    Text {
-                                        anchors.right: parent.right
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        text: "✓"
-                                        color: "#34c759"
-                                        font.pixelSize: 18
-                                        font.family: root.textFontFamily
-                                        font.weight: Font.DemiBold
-                                    }
-                                }
+                                provider: root.provider
+                                device: modelData
+                                section: "connected"
+                                iconFontFamily: root.iconFontFamily
+                                textFontFamily: root.textFontFamily
                             }
                         }
                     }
@@ -793,7 +753,7 @@ Item {
                 Item {
                     width: parent.width
                     height: btPairedSection.visible ? btPairedSection.implicitHeight : 0
-                    visible: root.isBluetooth && root.provider && root.provider.countBluetoothDevices("paired") > 0
+                    visible: root.isBluetooth && root.bluetoothPairedDevices.length > 0
 
                     Column {
                         id: btPairedSection
@@ -801,75 +761,15 @@ Item {
                         spacing: 8
 
                         Repeater {
-                            model: root.provider ? root.provider.bluetoothDeviceValues || [] : []
+                            model: root.bluetoothPairedDevices
 
-                            delegate: Rectangle {
+                            delegate: BluetoothDeviceRow {
                                 width: btPairedSection.width
-                                height: visible ? 52 : 0
-                                radius: 14
-                                color: "transparent"
-                                visible: root.bluetoothDeviceVisible(modelData, "paired")
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    enabled: root.provider && root.provider.bluetoothEnabled
-                                    onClicked: {
-                                        if (root.provider)
-                                            root.provider.handleBluetoothDevicePressed(modelData);
-                                    }
-                                }
-
-                                Item {
-                                    anchors.fill: parent
-                                    anchors.margins: 12
-
-                                    Text {
-                                        anchors.left: parent.left
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        text: root.provider ? root.provider.bluetoothGlyph : ""
-                                        color: "#0a84ff"
-                                        font.pixelSize: 14
-                                        font.family: root.iconFontFamily
-                                    }
-
-                                    Text {
-                                        anchors.left: parent.left
-                                        anchors.leftMargin: 26
-                                        anchors.top: parent.top
-                                        anchors.right: actionLabel.left
-                                        anchors.rightMargin: 8
-                                        text: root.provider ? root.provider.bluetoothDeviceName(modelData) : ""
-                                        color: "#f5f5f7"
-                                        font.pixelSize: 12
-                                        font.family: root.textFontFamily
-                                        font.weight: Font.DemiBold
-                                        elide: Text.ElideRight
-                                    }
-
-                                    Text {
-                                        anchors.left: parent.left
-                                        anchors.leftMargin: 26
-                                        anchors.bottom: parent.bottom
-                                        anchors.right: actionLabel.left
-                                        anchors.rightMargin: 8
-                                        text: root.provider ? root.provider.bluetoothDeviceSubtitle(modelData) : ""
-                                        color: "#9b9da4"
-                                        font.pixelSize: 10
-                                        font.family: root.textFontFamily
-                                        elide: Text.ElideRight
-                                    }
-
-                                    Text {
-                                        id: actionLabel
-                                        anchors.right: parent.right
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        text: "Connect"
-                                        color: "#f5f5f7"
-                                        font.pixelSize: 11
-                                        font.family: root.textFontFamily
-                                        font.weight: Font.DemiBold
-                                    }
-                                }
+                                provider: root.provider
+                                device: modelData
+                                section: "paired"
+                                iconFontFamily: root.iconFontFamily
+                                textFontFamily: root.textFontFamily
                             }
                         }
                     }
@@ -878,7 +778,7 @@ Item {
                 Item {
                     width: parent.width
                     height: btAvailableSection.visible ? btAvailableSection.implicitHeight : 0
-                    visible: root.isBluetooth && root.provider && root.provider.countBluetoothDevices("available") > 0
+                    visible: root.isBluetooth && root.bluetoothAvailableDevices.length > 0
 
                     Column {
                         id: btAvailableSection
@@ -886,75 +786,15 @@ Item {
                         spacing: 8
 
                         Repeater {
-                            model: root.provider ? root.provider.bluetoothDeviceValues || [] : []
+                            model: root.bluetoothAvailableDevices
 
-                            delegate: Rectangle {
+                            delegate: BluetoothDeviceRow {
                                 width: btAvailableSection.width
-                                height: visible ? 52 : 0
-                                radius: 14
-                                color: "transparent"
-                                visible: root.bluetoothDeviceVisible(modelData, "available")
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    enabled: root.provider && root.provider.bluetoothEnabled
-                                    onClicked: {
-                                        if (root.provider)
-                                            root.provider.handleBluetoothDevicePressed(modelData);
-                                    }
-                                }
-
-                                Item {
-                                    anchors.fill: parent
-                                    anchors.margins: 12
-
-                                    Text {
-                                        anchors.left: parent.left
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        text: root.provider ? root.provider.bluetoothGlyph : ""
-                                        color: "#7f828a"
-                                        font.pixelSize: 14
-                                        font.family: root.iconFontFamily
-                                    }
-
-                                    Text {
-                                        anchors.left: parent.left
-                                        anchors.leftMargin: 26
-                                        anchors.top: parent.top
-                                        anchors.right: actionLabel.left
-                                        anchors.rightMargin: 8
-                                        text: root.provider ? root.provider.bluetoothDeviceName(modelData) : ""
-                                        color: "#f5f5f7"
-                                        font.pixelSize: 12
-                                        font.family: root.textFontFamily
-                                        font.weight: Font.DemiBold
-                                        elide: Text.ElideRight
-                                    }
-
-                                    Text {
-                                        anchors.left: parent.left
-                                        anchors.leftMargin: 26
-                                        anchors.bottom: parent.bottom
-                                        anchors.right: actionLabel.left
-                                        anchors.rightMargin: 8
-                                        text: root.provider ? root.provider.bluetoothDeviceSubtitle(modelData) : ""
-                                        color: "#9b9da4"
-                                        font.pixelSize: 10
-                                        font.family: root.textFontFamily
-                                        elide: Text.ElideRight
-                                    }
-
-                                    Text {
-                                        id: actionLabel
-                                        anchors.right: parent.right
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        text: modelData && modelData.pairing ? "Pairing" : "Pair"
-                                        color: "#f5f5f7"
-                                        font.pixelSize: 11
-                                        font.family: root.textFontFamily
-                                        font.weight: Font.DemiBold
-                                    }
-                                }
+                                provider: root.provider
+                                device: modelData
+                                section: "available"
+                                iconFontFamily: root.iconFontFamily
+                                textFontFamily: root.textFontFamily
                             }
                         }
                     }

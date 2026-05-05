@@ -33,6 +33,10 @@ PanelWindow {
     readonly property int currentMonitorWorkspaceId: hyprMonitor && hyprMonitor.activeWorkspace
         ? hyprMonitor.activeWorkspace.id
         : 1
+    readonly property bool screenRecordingActive: shellRootController
+        && shellRootController.screenRecordingActive !== undefined
+        ? !!shellRootController.screenRecordingActive
+        : false
 
     UserConfig {
         id: userConfig
@@ -292,6 +296,10 @@ PanelWindow {
             overviewWallpaperCacheLoader.item.refreshNow();
             overviewWallpaperRefreshPending = false;
         }
+    }
+
+    function showNotification(appName, summary, body) {
+        islandContainer.showNotificationCapsule(appName, summary, body);
     }
 
     function handleWorkspaceEvent(event) {
@@ -558,6 +566,7 @@ PanelWindow {
         readonly property bool notificationLayerVisible: !root.overviewVisible && islandState === "notification"
         readonly property bool controlCenterLayerVisible: !root.overviewVisible && islandState === "control_center"
         readonly property string lyricsDisplayText: lyricsBridge.displayText
+        readonly property bool screenRecordingActive: root.screenRecordingActive
         readonly property var overviewView: overviewLoader.item && overviewLoader.item.overviewView
             ? overviewLoader.item.overviewView
             : null
@@ -860,15 +869,13 @@ PanelWindow {
             }
         }
 
-        function buildCustomSwipeItems(rawItems) {
-            const source = Array.isArray(rawItems) ? rawItems : [];
+        function buildCustomSwipeItems(itemIds) {
+            const source = Array.isArray(itemIds) ? itemIds : [];
             const resolved = [];
-            const seen = {};
 
             for (let index = 0; index < source.length; index++) {
-                const itemId = normalizeSwipeItemId(source[index]);
-                if (itemId === "" || seen[itemId]) continue;
-                seen[itemId] = true;
+                const itemId = String(source[index] || "");
+                if (itemId === "") continue;
 
                 const nextItem = buildCustomSwipeItem(itemId);
                 if (nextItem) resolved.push(nextItem);
@@ -1375,14 +1382,12 @@ PanelWindow {
             updatePlainLyric();
         }
         Component.onDestruction: {
-            notificationMonitorRestartTimer.stop();
             cavaRestartTimer.stop();
 
             if (brightnessSnapshot.running) brightnessSnapshot.running = false;
             if (volumeSnapshot.running) volumeSnapshot.running = false;
             if (systemStatsSnapshot.running) systemStatsSnapshot.running = false;
             if (cavaMonitor.running) cavaMonitor.running = false;
-            if (notificationMonitor.running) notificationMonitor.running = false;
         }
 
         Timer { id: btBlockVolTimer; interval: 2000; onTriggered: islandContainer.btJustConnected = false }
@@ -1630,113 +1635,6 @@ PanelWindow {
         property string _lastParsedInlineLyricsRaw: ""
 
         onInlineLyricsRawChanged: updatePlainLyric()
-
-        QtObject {
-            id: notificationBridge
-
-            property bool captureActive: false
-            property int captureStage: -1
-            property string pendingAppName: ""
-            property string pendingSummary: ""
-            property string pendingBody: ""
-
-            function resetCapture() {
-                captureActive = false;
-                captureStage = -1;
-                pendingAppName = "";
-                pendingSummary = "";
-                pendingBody = "";
-            }
-
-            function beginCapture() {
-                resetCapture();
-                captureActive = true;
-                captureStage = 0;
-            }
-
-            function decodeMonitorString(line) {
-                const match = line.match(/^\s*string "(.*)"\s*$/);
-                if (!match) return "";
-
-                try {
-                    return JSON.parse("\"" + match[1] + "\"");
-                } catch (error) {
-                    return match[1]
-                        .replace(/\\"/g, "\"")
-                        .replace(/\\\\/g, "\\");
-                }
-            }
-
-            function commitCapture() {
-                islandContainer.showNotificationCapsule(pendingAppName, pendingSummary, pendingBody);
-                resetCapture();
-            }
-
-            function handleLine(rawLine) {
-                const line = String(rawLine === undefined || rawLine === null ? "" : rawLine).trim();
-                if (line === "") return;
-
-                if (line.indexOf("member=Notify") !== -1) {
-                    beginCapture();
-                    return;
-                }
-
-                if (!captureActive) return;
-
-                switch (captureStage) {
-                case 0:
-                    if (!line.startsWith("string ")) return;
-                    pendingAppName = decodeMonitorString(line);
-                    captureStage = 1;
-                    return;
-                case 1:
-                    if (!line.startsWith("uint32 ")) return;
-                    captureStage = 2;
-                    return;
-                case 2:
-                    if (!line.startsWith("string ")) return;
-                    captureStage = 3;
-                    return;
-                case 3:
-                    if (!line.startsWith("string ")) return;
-                    pendingSummary = decodeMonitorString(line);
-                    captureStage = 4;
-                    return;
-                case 4:
-                    if (!line.startsWith("string ")) return;
-                    pendingBody = decodeMonitorString(line);
-                    commitCapture();
-                    return;
-                default:
-                    resetCapture();
-                }
-            }
-        }
-
-        Timer {
-            id: notificationMonitorRestartTimer
-            interval: 1200
-            repeat: false
-            onTriggered: notificationMonitor.running = true
-        }
-
-        Process {
-            id: notificationMonitor
-            running: true
-            command: [
-                "dbus-monitor",
-                "--session",
-                "type='method_call',interface='org.freedesktop.Notifications',member='Notify'"
-            ]
-            stdout: SplitParser {
-                splitMarker: "\n"
-
-                onRead: function(data) {
-                    notificationBridge.handleLine(data);
-                }
-            }
-            onExited: notificationMonitorRestartTimer.restart()
-        }
 
         QtObject {
             id: lyricsBridge
@@ -2108,6 +2006,7 @@ PanelWindow {
                         minimumWidth: 220
                         maximumWidth: Math.max(220, root.width - 48)
                         transitionProgress: islandContainer.swipeTransitionProgress
+                        recordingActive: islandContainer.screenRecordingActive
                         showSecondaryText: islandContainer.workspaceOriginSide !== "left"
                             && islandContainer.splitOriginSide !== "left"
                         showCondition: true
@@ -2135,6 +2034,7 @@ PanelWindow {
                         minimumWidth: 220
                         maximumWidth: Math.max(220, root.width - 48)
                         transitionProgress: islandContainer.rightSwipeProgress
+                        recordingActive: islandContainer.screenRecordingActive
                         showSecondaryText: islandContainer.workspaceOriginSide !== "right"
                             && islandContainer.splitOriginSide !== "right"
                         showCondition: true

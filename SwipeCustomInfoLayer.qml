@@ -17,6 +17,7 @@ Item {
     property string timeFontFamily: activeConfig.timeFontFamily
     property bool showCondition: false
     property bool showSecondaryText: true
+    property bool recordingActive: false
     property real transitionProgress: 0
     property real minimumWidth: 220
     property real maximumWidth: minimumWidth
@@ -35,6 +36,7 @@ Item {
     property int batteryOuterRadius: 5
     property int batteryInnerRadius: 3
     property real iconVerticalOffset: 1
+    property int recordingDotSpacing: 12
 
     readonly property real clampedProgress: Math.max(0, Math.min(1, -transitionProgress))
     readonly property real textWidth: Math.max(0, width - horizontalPadding * 2)
@@ -47,6 +49,11 @@ Item {
     readonly property real dragDistance: Math.max(timeExitDistance, itemsEntryDistance)
     readonly property real itemsX: centeredItemsX + (1 - clampedProgress) * dragDistance
     readonly property real timeX: centeredTimeX - clampedProgress * dragDistance
+    readonly property real visibleTimeWidth: Math.min(textWidth, Math.max(0, timeMetrics.advanceWidth))
+    readonly property real timeRecordingDotX: Math.max(
+        4,
+        timeX + (textWidth - visibleTimeWidth) / 2 - recordingDotSpacing - timeRecordingIndicator.width
+    )
     readonly property real preferredWidth: Math.max(
         minimumWidth,
         Math.min(Math.max(minimumWidth, maximumWidth), contentRow.implicitWidth + horizontalPadding * 2 + 28)
@@ -61,6 +68,14 @@ Item {
             duration: showCondition ? 220 : 140
             easing.type: Easing.InOutQuad
         }
+    }
+
+    TextMetrics {
+        id: timeMetrics
+        font.family: timeFontFamily
+        font.pixelSize: root.textPixelSize + 1
+        font.weight: Font.Bold
+        text: timeText
     }
 
     Row {
@@ -176,6 +191,17 @@ Item {
                 }
             }
         }
+    }
+
+    RecordingIndicator {
+        id: timeRecordingIndicator
+        active: root.recordingActive
+            && root.showSecondaryText
+            && root.timeText !== ""
+            && root.clampedProgress < 0.001
+        contentOpacity: 1 - root.clampedProgress
+        x: root.timeRecordingDotX
+        anchors.verticalCenter: parent.verticalCenter
     }
 
     Text {

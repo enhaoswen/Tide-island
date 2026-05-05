@@ -38,6 +38,7 @@ Item {
     property bool refreshPending: false
     property string inFlightCachePath: ""
     property string inFlightSourcePath: ""
+    property string lastProcessOutput: ""
     property int consecutiveFailureCount: 0
     readonly property bool busy: refreshPending || refreshDebounceTimer.running || thumbnailProcess.running
 
@@ -113,13 +114,14 @@ Item {
                 "quality=$7",
                 "mkdir -p \"$dir\" || exit 2",
                 "[ -f \"$src\" ] || exit 3",
-                "if [ -f \"$dest\" ] && [ \"$dest\" -nt \"$src\" ]; then exit 0; fi",
+                "if [ -f \"$dest\" ] && [ \"$dest\" -nt \"$src\" ]; then echo unchanged; exit 0; fi",
                 "tmp=$(mktemp \"$dir/.wallpaper-cache.XXXXXX.jpg\") || exit 4",
                 "trap 'rm -f \"$tmp\"' EXIT",
                 "\"$6\" \"$src\" -auto-orient -strip -filter Lanczos -thumbnail \"${width}x${height}^\" "
                     + "-gravity center -extent \"${width}x${height}\" "
                     + "-sampling-factor 4:2:0 -interlace Plane -quality \"$quality\" \"$tmp\" || exit 5",
-                "mv -f \"$tmp\" \"$dest\""
+                "mv -f \"$tmp\" \"$dest\" || exit 6",
+                "echo updated"
             ].join("; "),
             "sh",
             normalizedSourcePath,
@@ -174,6 +176,16 @@ Item {
     Process {
         id: thumbnailProcess
 
+        stdout: StdioCollector {
+            waitForEnd: true
+            onStreamFinished: root.lastProcessOutput = text
+        }
+
+        onRunningChanged: {
+            if (running)
+                root.lastProcessOutput = "";
+        }
+
         onExited: function(exitCode, exitStatus) {
             const targetStillCurrent = root.inFlightCachePath === root.cachePath
                 && root.inFlightSourcePath === root.normalizedSourcePath;
@@ -187,8 +199,11 @@ Item {
                     root.consecutiveFailureCount += 1;
                 }
 
-                if (exitCode === 0 && root.cacheAvailable)
+                if (exitCode === 0
+                        && root.cacheAvailable
+                        && root.lastProcessOutput.indexOf("updated") !== -1) {
                     root.cacheRevision += 1;
+                }
             }
 
             if (!targetStillCurrent) {

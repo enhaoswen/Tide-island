@@ -15,6 +15,7 @@ Item {
     property string timeFontFamily: activeConfig.timeFontFamily
     property bool showCondition: false
     property bool showSecondaryText: true
+    property bool recordingActive: false
     property real transitionProgress: 0
     property int textPixelSize: 16
     property real minimumWidth: 220
@@ -25,6 +26,7 @@ Item {
     property string activeLyricText: lyricText
     property string previousLyricText: ""
     property real lyricChangeProgress: 1
+    property int recordingDotSpacing: 12
 
     readonly property real clampedProgress: Math.max(0, Math.min(1, transitionProgress))
     readonly property bool lyricMostlyVisible: clampedProgress > 0.92
@@ -37,6 +39,12 @@ Item {
     readonly property real dragDistance: Math.max(lyricEntryDistance, timeExitDistance)
     readonly property real lyricX: centeredX - (1 - clampedProgress) * dragDistance
     readonly property real timeX: centeredX + clampedProgress * dragDistance
+    readonly property real visibleLyricWidth: Math.min(textWidth, Math.max(0, lyricMetrics.advanceWidth))
+    readonly property real visibleTimeWidth: Math.min(textWidth, Math.max(0, timeMetrics.advanceWidth))
+    readonly property real timeRecordingDotX: Math.max(
+        4,
+        timeX + (textWidth - visibleTimeWidth) / 2 - recordingDotSpacing - timeRecordingIndicator.width
+    )
     readonly property real preferredWidth: Math.max(
         minimumWidth,
         Math.min(Math.max(minimumWidth, maximumWidth), lyricMetrics.advanceWidth + horizontalPadding * 2 + 28)
@@ -92,6 +100,14 @@ Item {
         font.pixelSize: textPixelSize
         font.weight: Font.DemiBold
         text: activeLyricText !== "" ? activeLyricText : lyricText
+    }
+
+    TextMetrics {
+        id: timeMetrics
+        font.family: timeFontFamily
+        font.pixelSize: textPixelSize + 1
+        font.weight: Font.Bold
+        text: timeText
     }
 
     SequentialAnimation {
@@ -162,5 +178,16 @@ Item {
         horizontalAlignment: Text.AlignHCenter
         elide: Text.ElideRight
         wrapMode: Text.NoWrap
+    }
+
+    RecordingIndicator {
+        id: timeRecordingIndicator
+        active: root.recordingActive
+            && root.showSecondaryText
+            && root.timeText !== ""
+            && root.clampedProgress < 0.001
+        contentOpacity: 1 - root.clampedProgress
+        x: root.timeRecordingDotX
+        anchors.verticalCenter: parent.verticalCenter
     }
 }

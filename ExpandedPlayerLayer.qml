@@ -2,6 +2,8 @@ import QtQuick
 import Quickshell.Services.Mpris
 
 Item {
+    id: root
+
     signal controlPressed()
 
     UserConfig {
@@ -62,7 +64,7 @@ Item {
     }
 
     Timer {
-        interval: 32
+        interval: 64
         repeat: true
         running: showCondition && isPlaying
         onTriggered: {

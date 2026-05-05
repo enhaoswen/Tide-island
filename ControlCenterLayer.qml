@@ -253,9 +253,9 @@ Item {
         const details = trimString(batteryModeLastCommandOutput).toLowerCase();
 
         if (details.indexOf("sorry, try again") >= 0 || details.indexOf("incorrect password attempt") >= 0)
-            return "The stored sudo password did not work.";
+            return "The configured sudo password did not work.";
         if (details.indexOf("sudo:") >= 0 && details.indexOf("password") >= 0)
-            return "sudo needs a password; config it in UserConfig or use the terminal fallback.";
+            return "sudo needs a password; set tlpSudoPassword in UserConfig.";
         if (details.indexOf("sudo:") >= 0 && details.indexOf("no new privileges") >= 0)
             return "sudo is blocked by the current process security flags.";
         if (details.indexOf("sudo:") >= 0 && details.indexOf("a terminal is required") >= 0)
@@ -270,7 +270,7 @@ Item {
         if (exitCode === 127)
             return "TLP is not installed.";
         if (exitCode === 126)
-            return "No supported terminal launcher was found for sudo.";
+            return "Set tlpSudoPassword in UserConfig.";
         return "TLP could not apply that mode.";
     }
 
@@ -325,20 +325,16 @@ Item {
             + "  if [ \"$sudo_rc\" -eq 0 ]; then exit 0; fi; "
             + "fi; ";
 
-        if (trimString(userConfig.tlpSudoPassword).length > 0) {
-            batteryCommand += "printf '%s\\n' " + shellSingleQuote(userConfig.tlpSudoPassword)
+        const configuredPassword = trimString(userConfig.tlpSudoPassword);
+        if (configuredPassword.length > 0) {
+            batteryCommand += "printf '%s\\n' " + shellSingleQuote(configuredPassword)
                 + " | sudo -S -p '' tlp \"$mode\"; "
                 + "sudo_pw_rc=$?; "
-                + "if [ \"$sudo_pw_rc\" -eq 0 ]; then exit 0; fi; ";
+                + "if [ \"$sudo_pw_rc\" -eq 0 ]; then exit 0; fi; "
+                + "exit \"$sudo_pw_rc\"";
+        } else {
+            batteryCommand += "exit 126";
         }
-
-        batteryCommand += "if command -v kitty >/dev/null 2>&1; then "
-            + "  kitty --hold sh -lc \"sudo tlp '$mode'; rc=\\$?; echo; "
-            + "if [ \\$rc -eq 0 ]; then echo 'TLP mode applied.'; else echo 'TLP failed with exit code ' \\$rc'.'; fi; "
-            + "echo; read -r -n 1 -s -p 'Press any key to close...'; exit \\$rc\" >/dev/null 2>&1 & "
-            + "  exit 124; "
-            + "fi; "
-            + "exit 126";
         batteryModeSetter.exec([
             "sh",
             "-lc",
@@ -348,15 +344,6 @@ Item {
 
     function finishBatteryModeApply(exitCode) {
         batteryModeBusy = false;
-
-        if (exitCode === 124) {
-            batteryModeError = "";
-            batteryModeInfoMessage = "Complete sudo in the Kitty window.";
-            batteryModeDragOffset = 0;
-            setBatteryModeVisualIndex(batteryModeAppliedIndex, true);
-            queueBatteryModeStateRefresh(12);
-            return;
-        }
 
         if (exitCode !== 0) {
             rollbackBatteryMode(classifyBatteryModeFailure(exitCode));
@@ -711,18 +698,6 @@ Item {
         return false;
     }
 
-    function countBluetoothDevices(section) {
-        let count = 0;
-        const devices = bluetoothDeviceValues || [];
-
-        for (let index = 0; index < devices.length; index++) {
-            if (bluetoothDeviceMatchesSection(devices[index], section))
-                count += 1;
-        }
-
-        return count;
-    }
-
     function buildBluetoothStatusText() {
         if (!bluetoothAvailable) return "Unavailable";
         if (!bluetoothEnabled) return "Off";
@@ -858,7 +833,7 @@ Item {
     }
 
     Behavior on displayedBrightness {
-        enabled: controlCenter.showCondition && !controlCenter.sliderIntroPending && !brightnessArea.pressed
+        enabled: controlCenter.showCondition && !controlCenter.sliderIntroPending && !brightnessCard.pressed
 
         NumberAnimation {
             duration: 130
@@ -867,7 +842,7 @@ Item {
     }
 
     Behavior on displayedVolume {
-        enabled: controlCenter.showCondition && !controlCenter.sliderIntroPending && !volumeArea.pressed
+        enabled: controlCenter.showCondition && !controlCenter.sliderIntroPending && !volumeCard.pressed
 
         NumberAnimation {
             duration: 130
@@ -1054,147 +1029,6 @@ Item {
                     && controlCenter.bluetoothPairingAgent.registrationError.length > 0
                     && controlCenter.bluetoothPanelOpen) {
                 controlCenter.bluetoothError = controlCenter.bluetoothPairingAgent.registrationError;
-            }
-        }
-    }
-
-    Component {
-        id: bluetoothDeviceDelegate
-
-        Rectangle {
-            id: deviceCard
-            property var modelData
-            property var deviceObject: modelData
-            property string section: ""
-
-            width: parent ? parent.width : 0
-            height: visible ? 60 : 0
-            radius: 16
-            color: deviceObject.connected ? "#1f3554" : controlCenter.moduleColor
-            visible: controlCenter.bluetoothDeviceMatchesSection(deviceObject, section)
-
-            Behavior on color {
-                ColorAnimation {
-                    duration: 130
-                }
-            }
-
-            MouseArea {
-                anchors.fill: parent
-                enabled: controlCenter.bluetoothEnabled
-                onClicked: controlCenter.handleBluetoothDevicePressed(deviceCard.deviceObject)
-            }
-
-            Item {
-                anchors.fill: parent
-                anchors.margins: 12
-
-                Text {
-                    anchors.left: parent.left
-                    anchors.top: parent.top
-                    anchors.right: actionLabel.left
-                    anchors.rightMargin: 8
-                    text: controlCenter.bluetoothDeviceName(deviceCard.deviceObject)
-                    color: controlCenter.textPrimary
-                    font.pixelSize: 13
-                    font.family: controlCenter.textFontFamily
-                    font.weight: Font.DemiBold
-                    elide: Text.ElideRight
-                }
-
-                Text {
-                    anchors.left: parent.left
-                    anchors.bottom: parent.bottom
-                    anchors.right: parent.right
-                    anchors.rightMargin: forgetButton.visible ? 64 : 0
-                    text: controlCenter.bluetoothDeviceSubtitle(deviceCard.deviceObject)
-                    color: controlCenter.textSecondary
-                    font.pixelSize: 11
-                    font.family: controlCenter.textFontFamily
-                    elide: Text.ElideRight
-                }
-
-                Text {
-                    id: actionLabel
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    text: deviceCard.deviceObject.pairing
-                        ? "Pairing"
-                        : (deviceCard.deviceObject.connected
-                            ? "Disconnect"
-                            : ((deviceCard.deviceObject.paired || deviceCard.deviceObject.bonded) ? "Connect" : "Pair"))
-                    color: deviceCard.deviceObject.connected ? "#87b7ff" : "#8e8e93"
-                    font.pixelSize: 11
-                    font.family: controlCenter.textFontFamily
-                    font.weight: Font.DemiBold
-                }
-
-                Rectangle {
-                    id: forgetButton
-                    width: 46
-                    height: 18
-                    radius: 9
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    color: "#2c2c2e"
-                    visible: deviceCard.deviceObject.paired || deviceCard.deviceObject.bonded
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "Forget"
-                        color: "#d0d0d4"
-                        font.pixelSize: 9
-                        font.family: controlCenter.textFontFamily
-                        font.weight: Font.DemiBold
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: function(mouse) {
-                            mouse.accepted = true;
-                            controlCenter.forgetBluetoothDevice(deviceCard.deviceObject);
-                        }
-                    }
-                }
-            }
-
-            Connections {
-                target: deviceObject
-
-                function onPairedChanged() {
-                    if (controlCenter.bluetoothPairAndConnectPath !== deviceCard.deviceObject.dbusPath)
-                        return;
-
-                    if (deviceCard.deviceObject.paired || deviceCard.deviceObject.bonded) {
-                        deviceCard.deviceObject.trusted = true;
-                        deviceCard.deviceObject.connect();
-                        controlCenter.bluetoothInfoMessage = "Connecting to " + controlCenter.bluetoothDeviceName(deviceCard.deviceObject) + "...";
-                    }
-                }
-
-                function onPairingChanged() {
-                    if (controlCenter.bluetoothPairAndConnectPath !== deviceCard.deviceObject.dbusPath)
-                        return;
-
-                    if (!deviceCard.deviceObject.pairing
-                            && !(deviceCard.deviceObject.paired || deviceCard.deviceObject.bonded)) {
-                        controlCenter.bluetoothPairAndConnectPath = "";
-                        controlCenter.bluetoothInfoMessage = "";
-                        if (!controlCenter.bluetoothPairingActive)
-                            controlCenter.bluetoothError = "Pairing failed or was canceled.";
-                    }
-                }
-
-                function onConnectedChanged() {
-                    if (controlCenter.bluetoothPairAndConnectPath !== deviceCard.deviceObject.dbusPath)
-                        return;
-
-                    if (deviceCard.deviceObject.connected) {
-                        controlCenter.bluetoothPairAndConnectPath = "";
-                        controlCenter.bluetoothInfoMessage = "";
-                        controlCenter.bluetoothError = "";
-                    }
-                }
             }
         }
     }
@@ -1872,218 +1706,72 @@ Item {
             }
         }
 
-        Rectangle {
+        ControlSliderCard {
             id: brightnessCard
             width: parent.width
             height: 76
-            radius: 24
-            color: brightnessArea.containsMouse ? moduleHover : moduleColor
+            title: "Display"
+            iconText: userConfig.controlCenterIcons["brightness"]
+            iconFontFamily: controlCenter.iconFontFamily
+            textFontFamily: controlCenter.textFontFamily
+            value: controlCenter.displayedBrightness
+            knobSize: controlCenter.sliderKnobSize
+            moduleColor: controlCenter.moduleColor
+            moduleHover: controlCenter.moduleHover
+            trackColor: controlCenter.trackColor
+            textPrimary: controlCenter.textPrimary
+            textSecondary: controlCenter.textSecondary
 
-            Behavior on color {
-                ColorAnimation {
-                    duration: 130
+            onInteractionStarted: {
+                if (controlCenter.sliderIntroPending) {
+                    sliderIntroTimer.stop();
+                    controlCenter.sliderIntroPending = false;
+                    controlCenter.displayedBrightness = controlCenter.localBrightness;
+                    controlCenter.displayedVolume = controlCenter.localVolume;
                 }
             }
-
-            Item {
-                anchors.fill: parent
-                anchors.margins: 12
-
-                Text {
-                    anchors.left: parent.left
-                    anchors.top: parent.top
-                    text: "Display"
-                    color: textPrimary
-                    font.pixelSize: 13
-                    font.family: textFontFamily
-                    font.weight: Font.DemiBold
-                }
-
-                Rectangle {
-                    id: brightnessTrack
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    height: 22
-                    radius: 11
-                    color: trackColor
-                    clip: true
-
-                    Rectangle {
-                        anchors.left: parent.left
-                        anchors.verticalCenter: parent.verticalCenter
-                        anchors.leftMargin: 10
-                        width: 18
-                        height: 18
-                        radius: 9
-                        color: "transparent"
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: userConfig.controlCenterIcons["brightness"]
-                            color: textSecondary
-                            font.pixelSize: 13
-                            font.family: iconFontFamily
-                        }
-                    }
-
-                    Rectangle {
-                        id: brightnessFill
-                        width: controlCenter.displayedBrightness <= 0.001
-                            ? 0
-                            : Math.max(34, Math.min(brightnessTrack.width, brightnessTrack.width * controlCenter.displayedBrightness + 1))
-                        height: parent.height
-                        radius: parent.radius
-                        color: "#f5f5f7"
-                    }
-
-                    Rectangle {
-                        id: brightnessKnob
-                        x: Math.max(0, Math.min(parent.width - width, parent.width * displayedBrightness - width / 2))
-                        y: -1
-                        width: controlCenter.sliderKnobSize
-                        height: controlCenter.sliderKnobSize
-                        radius: 12
-                        color: "#ffffff"
-                        visible: true
-                    }
-
-                    MouseArea {
-                        id: brightnessArea
-                        anchors.fill: parent
-                        hoverEnabled: true
-
-                        function update(mouseX) {
-                            controlCenter.queueBrightness(controlCenter.clamp01(mouseX / width));
-                        }
-
-                        onPressed: function(mouse) {
-                            if (controlCenter.sliderIntroPending) {
-                                sliderIntroTimer.stop();
-                                controlCenter.sliderIntroPending = false;
-                                controlCenter.displayedBrightness = controlCenter.localBrightness;
-                                controlCenter.displayedVolume = controlCenter.localVolume;
-                            }
-                            update(mouse.x);
-                        }
-                        onPositionChanged: function(mouse) {
-                            if (pressed) update(mouse.x);
-                        }
-                        onReleased: {
-                            brightnessApplyTimer.stop();
-                            controlCenter.flushBrightness(true);
-                        }
-                        onCanceled: brightnessGetter.exec(["brightnessctl", "-m"])
-                    }
-                }
+            onValueMoved: function(value) {
+                controlCenter.queueBrightness(value);
             }
+            onCommitRequested: {
+                brightnessApplyTimer.stop();
+                controlCenter.flushBrightness(true);
+            }
+            onCancelRequested: brightnessGetter.exec(["brightnessctl", "-m"])
         }
 
-        Rectangle {
+        ControlSliderCard {
             id: volumeCard
             width: parent.width
             height: 76
-            radius: 24
-            color: volumeArea.containsMouse ? moduleHover : moduleColor
+            title: "Sound"
+            iconText: userConfig.controlCenterIcons["volume"]
+            iconFontFamily: controlCenter.iconFontFamily
+            textFontFamily: controlCenter.textFontFamily
+            value: controlCenter.displayedVolume
+            knobSize: controlCenter.sliderKnobSize
+            moduleColor: controlCenter.moduleColor
+            moduleHover: controlCenter.moduleHover
+            trackColor: controlCenter.trackColor
+            textPrimary: controlCenter.textPrimary
+            textSecondary: controlCenter.textSecondary
 
-            Behavior on color {
-                ColorAnimation {
-                    duration: 130
+            onInteractionStarted: {
+                if (controlCenter.sliderIntroPending) {
+                    sliderIntroTimer.stop();
+                    controlCenter.sliderIntroPending = false;
+                    controlCenter.displayedBrightness = controlCenter.localBrightness;
+                    controlCenter.displayedVolume = controlCenter.localVolume;
                 }
             }
-
-            Item {
-                anchors.fill: parent
-                anchors.margins: 12
-
-                Text {
-                    anchors.left: parent.left
-                    anchors.top: parent.top
-                    text: "Sound"
-                    color: textPrimary
-                    font.pixelSize: 13
-                    font.family: textFontFamily
-                    font.weight: Font.DemiBold
-                }
-
-                Rectangle {
-                    id: volumeTrack
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    height: 22
-                    radius: 11
-                    color: trackColor
-                    clip: true
-
-                    Rectangle {
-                        anchors.left: parent.left
-                        anchors.verticalCenter: parent.verticalCenter
-                        anchors.leftMargin: 10
-                        width: 18
-                        height: 18
-                        radius: 9
-                        color: "transparent"
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: userConfig.controlCenterIcons["volume"]
-                            color: textSecondary
-                            font.pixelSize: 13
-                            font.family: iconFontFamily
-                        }
-                    }
-
-                    Rectangle {
-                        id: volumeFill
-                        width: controlCenter.displayedVolume <= 0.001
-                            ? 0
-                            : Math.max(34, Math.min(volumeTrack.width, volumeTrack.width * controlCenter.displayedVolume + 1))
-                        height: parent.height
-                        radius: parent.radius
-                        color: "#f5f5f7"
-                    }
-
-                    Rectangle {
-                        id: volumeKnob
-                        x: Math.max(0, Math.min(parent.width - width, parent.width * displayedVolume - width / 2))
-                        y: -1
-                        width: controlCenter.sliderKnobSize
-                        height: controlCenter.sliderKnobSize
-                        radius: 12
-                        color: "#ffffff"
-                        visible: true
-                    }
-
-                    MouseArea {
-                        id: volumeArea
-                        anchors.fill: parent
-                        hoverEnabled: true
-
-                        function update(mouseX) {
-                            controlCenter.queueVolume(controlCenter.clamp01(mouseX / width));
-                        }
-
-                        onPressed: function(mouse) {
-                            if (controlCenter.sliderIntroPending) {
-                                sliderIntroTimer.stop();
-                                controlCenter.sliderIntroPending = false;
-                                controlCenter.displayedBrightness = controlCenter.localBrightness;
-                                controlCenter.displayedVolume = controlCenter.localVolume;
-                            }
-                            update(mouse.x);
-                        }
-                        onPositionChanged: function(mouse) {
-                            if (pressed) update(mouse.x);
-                        }
-                        onReleased: {
-                            volumeApplyTimer.stop();
-                            controlCenter.flushVolume(true);
-                        }
-                        onCanceled: volumeGetter.exec(["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"])
-                    }
-                }
+            onValueMoved: function(value) {
+                controlCenter.queueVolume(value);
             }
+            onCommitRequested: {
+                volumeApplyTimer.stop();
+                controlCenter.flushVolume(true);
+            }
+            onCancelRequested: volumeGetter.exec(["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"])
         }
     }
 
