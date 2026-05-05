@@ -45,21 +45,15 @@ PanelWindow {
     color: "transparent"
     anchors { top: true; left: true; right: true }
     mask: Region {
-        item: mainCapsule
-
-        // Keep pointer delivery stable while a side swipe is active, even over empty workspace space.
+        // Expand the clickable region horizontally to capture trackpad gestures better
         Region {
-            intersection: Intersection.Combine
             x: 0
-            y: capsuleMouseArea.sideSwipeInteractive
-                ? Math.max(0, Math.floor(mainCapsule.y - capsuleMouseArea.sideSwipeVerticalTolerance))
-                : 0
-            width: capsuleMouseArea.sideSwipeInteractive ? root.width : 0
-            height: capsuleMouseArea.sideSwipeInteractive
-                ? Math.ceil(mainCapsule.height + capsuleMouseArea.sideSwipeVerticalTolerance * 2)
-                : 0
+            y: 0
+            width: root.width
+            height: Math.ceil(mainCapsule.y + mainCapsule.height + 20)
         }
-
+        
+        // Add existing detail shells
         Region {
             intersection: Intersection.Combine
             x: Math.floor(wifiConnectivityDetailShell.x)
