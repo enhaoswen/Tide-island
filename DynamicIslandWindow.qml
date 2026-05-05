@@ -2485,7 +2485,8 @@ PanelWindow {
             const dy = wheel.pixelDelta.y !== 0 ? wheel.pixelDelta.y : wheel.angleDelta.y / 4;
             const effectiveDx = Math.abs(dx) > Math.abs(dy) ? dx : dy;
             
-            accumulatedDelta += (effectiveDx * 5.0);
+            // Reduced sensitivity for smoother control
+            accumulatedDelta += (effectiveDx * 0.8);
             
             const nextProgress = islandContainer.advanceSideSwipeProgress(swipeStartProgress, -accumulatedDelta);
             islandContainer.swipeTransitionProgress = nextProgress;
