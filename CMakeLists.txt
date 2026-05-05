@@ -13,6 +13,7 @@ find_library(UDEV_LIB NAMES udev REQUIRED)
 
 # IslandBackend Module
 qt_add_qml_module(IslandBackend
+    STATIC
     URI IslandBackend
     VERSION 1.0
     SOURCES
@@ -39,7 +40,7 @@ file(GLOB QML_FILES "*.qml")
 install(FILES ${QML_FILES} DESTINATION ${CMAKE_INSTALL_DATADIR}/tide-island)
 
 # Install IslandBackend module to Qt6 QML directory
-install(TARGETS IslandBackend IslandBackendplugin
+install(TARGETS IslandBackendplugin
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/qt6/qml/IslandBackend
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
@@ -50,6 +51,7 @@ install(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/IslandBackend.qmltypes
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/qt6/qml/IslandBackend
 )
+
 
 # Install launcher
 install(PROGRAMS tide-island-launcher DESTINATION ${CMAKE_INSTALL_BINDIR} RENAME tide-island)

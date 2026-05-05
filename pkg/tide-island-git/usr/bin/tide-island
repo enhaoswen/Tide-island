@@ -1,0 +1,10 @@
+#!/bin/bash
+# Launcher for Tide Island Quickshell component
+
+# Standard path for system installation
+QML_PATH="/usr/share/tide-island/shell.qml"
+
+# If user has a local version, prefer it?
+# Actually, for a system package, we should just run the system version.
+
+exec quickshell -p "$QML_PATH" "$@"

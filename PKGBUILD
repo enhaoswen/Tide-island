@@ -1,11 +1,11 @@
-# Maintainer: whysooraj <whysooraj@gmail.com>
+# Maintainer: whysooraj <whysooraj.official@gmail.com>
 pkgname=tide-island-git
 _pkgname=Tide-island
-pkgver=r93.b677621
+pkgver=r95.4775fba
 pkgrel=1
 pkgdesc="A dynamic island for Hyprland using Quickshell"
 arch=('x86_64')
-url="https://github.com/whysooraj/Tide-island"
+url="https://github.com/sai21-learn/Tide-island"
 license=('unknown')
 depends=(
     'qt6-base'
@@ -30,7 +30,7 @@ optdepends=(
 )
 provides=('tide-island')
 conflicts=('tide-island')
-source=("git+file://$(pwd)")
+source=("$_pkgname::git+https://github.com/sai21-learn/Tide-island.git")
 sha256sums=('SKIP')
 
 pkgver() {

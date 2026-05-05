@@ -1,0 +1,7 @@
+module IslandBackend
+linktarget IslandBackendplugin
+optional plugin IslandBackendplugin
+classname IslandBackendPlugin
+typeinfo IslandBackend.qmltypes
+prefer :/IslandBackend/
+

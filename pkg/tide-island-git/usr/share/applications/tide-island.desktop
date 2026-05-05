@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Tide Island
+Comment=Dynamic Island for Hyprland
+Exec=tide-island
+Icon=preferences-desktop-notification
+Terminal=false
+Type=Application
+Categories=Utility;
+Keywords=hyprland;quickshell;island;

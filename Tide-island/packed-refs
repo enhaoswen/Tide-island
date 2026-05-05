@@ -1,0 +1,4 @@
+# pack-refs with: peeled fully-peeled sorted 
+4775fbaf104470335c673b40dbc3fd1714702924 refs/heads/main
+4775fbaf104470335c673b40dbc3fd1714702924 refs/heads/pkg/arch-linux
+78104e3f10415f6ebb215bd878ac5504aade4c7b refs/heads/pr/clean-packaging
