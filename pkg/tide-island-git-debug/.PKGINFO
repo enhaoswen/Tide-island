@@ -3,12 +3,12 @@
 pkgname = tide-island-git-debug
 pkgbase = tide-island-git
 xdata = pkgtype=debug
-pkgver = r95.4775fba-1
+pkgver = r193.65ca166-1
 pkgdesc = Detached debugging symbols for tide-island-git
 url = https://github.com/sai21-learn/Tide-island
-builddate = 1778010801
+builddate = 1778011466
 packager = Unknown Packager
-size = 9873156
+size = 3432
 arch = x86_64
 license = unknown
 makedepend = cmake

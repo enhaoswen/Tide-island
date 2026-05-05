@@ -12,7 +12,6 @@ set(CMAKE_AUTOUIC ON)
 find_package(Qt6 REQUIRED COMPONENTS Core DBus Qml)
 
 qt_add_qml_module(ConnectivityBackend
-    STATIC
     URI ConnectivityBackend
     VERSION 1.0
     SOURCES
@@ -32,7 +31,12 @@ target_link_libraries(ConnectivityBackend PRIVATE
     Qt6::Qml
 )
 
-# Installation
+# Install ConnectivityBackend backing library to /usr/lib
+install(TARGETS ConnectivityBackend
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+
+# Install ConnectivityBackend plugin to Qt6 QML directory
 install(TARGETS ConnectivityBackendplugin
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/qt6/qml/ConnectivityBackend
 )

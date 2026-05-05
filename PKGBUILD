@@ -1,7 +1,7 @@
 # Maintainer: whysooraj <whysooraj.official@gmail.com>
 pkgname=tide-island-git
 _pkgname=Tide-island
-pkgver=r95.4775fba
+pkgver=r193.65ca166
 pkgrel=1
 pkgdesc="A dynamic island for Hyprland using Quickshell"
 arch=('x86_64')
