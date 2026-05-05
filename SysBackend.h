@@ -58,7 +58,6 @@ private slots:
     void updateCapsLock();
     void updateBatterySysfs();
     void updateBatteryUpower();
-    void handleAudioRefresh();
     void startLyricsBackend();
     void handleLyricsReadyRead();
     void handleLyricsProcessStateChanged(QProcess::ProcessState state);
