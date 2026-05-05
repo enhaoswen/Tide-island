@@ -69,7 +69,7 @@ Video: https://www.youtube.com/watch?v=vCA8sWLJjiw&list=LL&index=2
 | Caps Lock Toggle | Show status message |
 
 
-Dependencies
+## Dependencies
 
 ### Core Runtime Dependencies
 
