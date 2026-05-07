@@ -118,7 +118,7 @@ yay -S tide-island-git
 
 **Manual Installation:**
 ```bash
-[git clone https://github.com/sai21-learn/Tide-island.git](https://github.com/enhaoswen/Tide-island.git)
+git clone https://github.com/sai21-learn/Tide-island.git
 cd Tide-island
 makepkg -si
 ```
