@@ -1,8 +1,8 @@
 pkgbase = tide-island-git
 	pkgdesc = A dynamic island for Hyprland using Quickshell
-	pkgver = r203.aecf321
+	pkgver = r214.47c8f20
 	pkgrel = 1
-	url = https://github.com/sai21-learn/Tide-island
+	url = https://github.com/enhaoswen/Tide-island
 	install = tide-island.install
 	arch = x86_64
 	license = unknown
@@ -26,7 +26,7 @@ pkgbase = tide-island-git
 	optdepends = iwd: for wifi control
 	provides = tide-island
 	conflicts = tide-island
-	source = Tide-island::git+https://github.com/sai21-learn/Tide-island.git
+	source = Tide-island::git+https://github.com/enhaoswen/Tide-island.git
 	sha256sums = SKIP
 
 pkgname = tide-island-git

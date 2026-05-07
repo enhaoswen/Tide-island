@@ -8,6 +8,7 @@ Scope {
 
     readonly property bool screenRecordingActive: recordingBridge.recordingActive
     property bool shuttingDown: false
+    property bool setupLaunchRequested: false
 
     UserConfig {
         id: userConfig
@@ -91,6 +92,22 @@ Scope {
         name: userConfig.overviewGlobalShortcutName
 
         onPressed: shellRoot.toggleOverviewAll()
+    }
+
+    Process {
+        id: setupCheck
+
+        onExited: function(exitCode, exitStatus) {
+            if (exitCode === 0 || shellRoot.setupLaunchRequested)
+                return;
+
+            shellRoot.setupLaunchRequested = true;
+            setupLauncher.exec([Quickshell.shellDir + "/bin/tide-island-setup", "--launch"]);
+        }
+    }
+
+    Process {
+        id: setupLauncher
     }
 
     QtObject {
@@ -458,7 +475,10 @@ Scope {
             recordingPortalMonitor.running = false;
     }
 
-    Component.onCompleted: recordingBridge.requestSnapshot()
+    Component.onCompleted: {
+        setupCheck.exec([Quickshell.shellDir + "/bin/tide-island-setup", "--check"]);
+        recordingBridge.requestSnapshot();
+    }
 
     Variants {
         id: panelVariants

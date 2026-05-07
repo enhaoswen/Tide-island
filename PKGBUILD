@@ -32,7 +32,7 @@ provides=('tide-island')
 conflicts=('tide-island')
 install='tide-island.install'
 # We'll use the local files directly during the build function
-source=("$_pkgname::git+https://github.com/sai21-learn/Tide-island.git")
+source=("$_pkgname::git+https://github.com/enhaoswen/Tide-island.git")
 sha256sums=('SKIP')
 
 pkgver() {

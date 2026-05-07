@@ -1,0 +1,399 @@
+#!/usr/bin/env python3
+import argparse
+import getpass
+import json
+import os
+from pathlib import Path
+import shlex
+import shutil
+import subprocess
+import sys
+
+
+CONFIG_DIR_NAME = "tide-island"
+CONFIG_FILE_NAME = "userconfig.json"
+OVERVIEW_BIND_COMMAND = "qs ipc -p /usr/share/tide-island call overview toggle"
+OVERVIEW_BIND_LINE = f"bind = SUPER, TAB, exec, {OVERVIEW_BIND_COMMAND}"
+
+
+def config_home() -> Path:
+    override = os.environ.get("TIDE_ISLAND_CONFIG_HOME")
+    if override:
+        return Path(override).expanduser()
+
+    xdg_config_home = os.environ.get("XDG_CONFIG_HOME")
+    if xdg_config_home:
+        return Path(xdg_config_home).expanduser()
+
+    return Path.home() / ".config"
+
+
+def user_config_path() -> Path:
+    override = os.environ.get("TIDE_ISLAND_USER_CONFIG")
+    if override:
+        return Path(override).expanduser()
+
+    return config_home() / CONFIG_DIR_NAME / CONFIG_FILE_NAME
+
+
+def hyprland_config_path() -> Path:
+    override = os.environ.get("TIDE_ISLAND_HYPRLAND_CONFIG")
+    if override:
+        return Path(override).expanduser()
+
+    return config_home() / "hypr" / "hyprland.conf"
+
+
+def load_user_config() -> dict:
+    path = user_config_path()
+    try:
+        with path.open("r", encoding="utf-8") as file:
+            data = json.load(file)
+    except FileNotFoundError:
+        return {}
+    except json.JSONDecodeError:
+        return {}
+    except OSError:
+        return {}
+
+    return data if isinstance(data, dict) else {}
+
+
+def save_user_config(data: dict) -> None:
+    path = user_config_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.parent.chmod(0o700)
+
+    temp_path = path.with_name(path.name + ".tmp")
+    with temp_path.open("w", encoding="utf-8") as file:
+        json.dump(data, file, ensure_ascii=False, indent=2)
+        file.write("\n")
+
+    temp_path.chmod(0o600)
+    os.replace(temp_path, path)
+    path.chmod(0o600)
+
+
+def string_value(data: dict, key: str) -> str:
+    value = data.get(key)
+    return value if isinstance(value, str) else ""
+
+
+def has_wallpaper_path(data: dict) -> bool:
+    value = string_value(data, "wallpaperPath").strip()
+    path = Path(value).expanduser()
+    return bool(value) and path.is_file() and os.access(path, os.R_OK)
+
+
+def has_tlp_sudo_password(data: dict) -> bool:
+    return bool(string_value(data, "tlpSudoPassword"))
+
+
+def strip_comment(line: str) -> str:
+    quoted = False
+    escaped = False
+    result = []
+
+    for char in line:
+        if escaped:
+            result.append(char)
+            escaped = False
+            continue
+
+        if char == "\\":
+            result.append(char)
+            escaped = True
+            continue
+
+        if char == '"':
+            quoted = not quoted
+            result.append(char)
+            continue
+
+        if char == "#" and not quoted:
+            break
+
+        result.append(char)
+
+    return "".join(result).strip()
+
+
+def normalize_space(value: str) -> str:
+    return " ".join(value.strip().split())
+
+
+def read_hyprland_lines() -> list[str]:
+    path = hyprland_config_path()
+    try:
+        return path.read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError:
+        return []
+    except OSError:
+        return []
+
+
+def hyprland_variables(lines: list[str]) -> dict[str, str]:
+    variables = {}
+    for line in lines:
+        clean = strip_comment(line)
+        if not clean.startswith("$") or "=" not in clean:
+            continue
+
+        name, value = clean.split("=", 1)
+        name = name.strip()[1:]
+        value = value.strip()
+        if name:
+            variables[name] = value
+
+    return variables
+
+
+def resolve_hyprland_mods(raw_mods: str, variables: dict[str, str]) -> set[str]:
+    resolved = raw_mods.strip()
+    for name, value in variables.items():
+        resolved = resolved.replace(f"${name}", value)
+
+    normalized = resolved.replace("+", " ").replace("|", " ")
+    return {part.upper() for part in normalized.split() if part}
+
+
+def overview_bind_present() -> bool:
+    lines = read_hyprland_lines()
+    variables = hyprland_variables(lines)
+    target_command = normalize_space(OVERVIEW_BIND_COMMAND)
+
+    for line in lines:
+        clean = strip_comment(line)
+        if not clean.lower().startswith("bind") or "=" not in clean:
+            continue
+
+        _, binding = clean.split("=", 1)
+        parts = [part.strip() for part in binding.split(",", 3)]
+        if len(parts) != 4:
+            continue
+
+        raw_mods, key, dispatcher, command = parts
+        if key.upper() != "TAB" or dispatcher.lower() != "exec":
+            continue
+
+        mods = resolve_hyprland_mods(raw_mods, variables)
+        if mods != {"SUPER"}:
+            continue
+
+        if normalize_space(command).strip("'\"") == target_command:
+            return True
+
+    return False
+
+
+def missing_items() -> list[str]:
+    data = load_user_config()
+    missing = []
+    if not has_wallpaper_path(data):
+        missing.append("wallpaperPath")
+    if not has_tlp_sudo_password(data):
+        missing.append("tlpSudoPassword")
+    if not overview_bind_present():
+        missing.append("hyprlandBind")
+    return missing
+
+
+def print_check(missing: list[str]) -> None:
+    if missing:
+        print("missing " + " ".join(missing))
+    else:
+        print("ok")
+
+
+def terminal_command(base: list[str], script: str) -> list[str]:
+    name = Path(base[0]).name
+    wizard = [script, "--wizard"]
+
+    if name in {"kitty", "foot"}:
+        return base + ["--title", "Tide Island Setup"] + wizard
+    if name == "alacritty":
+        return base + ["--title", "Tide Island Setup", "-e"] + wizard
+    if name == "wezterm":
+        return base + ["start", "--"] + wizard
+    if name == "ghostty":
+        return base + ["-e"] + wizard
+    if name == "konsole":
+        return base + ["--new-tab", "-p", "tabtitle=Tide Island Setup", "-e"] + wizard
+    if name == "gnome-terminal":
+        return base + ["--title=Tide Island Setup", "--"] + wizard
+    if name == "xterm":
+        return base + ["-T", "Tide Island Setup", "-e"] + wizard
+
+    return base + ["-e"] + wizard
+
+
+def launch_wizard() -> int:
+    missing = missing_items()
+    if not missing:
+        return 0
+
+    script = str(Path(__file__).resolve())
+    candidates = []
+    terminal = os.environ.get("TERMINAL")
+    if terminal:
+        candidates.append(shlex.split(terminal))
+
+    for name in ("kitty", "foot", "alacritty", "wezterm", "ghostty", "konsole", "gnome-terminal", "xterm"):
+        path = shutil.which(name)
+        if path:
+            candidates.append([path])
+
+    for candidate in candidates:
+        if not candidate:
+            continue
+        try:
+            subprocess.Popen(terminal_command(candidate, script), start_new_session=True)
+            return 0
+        except OSError:
+            continue
+
+    print("Tide Island setup is missing configuration, but no terminal emulator was found.", file=sys.stderr)
+    print(f"Run this manually: {script} --wizard", file=sys.stderr)
+    return 1
+
+
+def prompt_wallpaper(data: dict) -> None:
+    print("\nWallpaper path")
+    print("This image is used as the workspace overview background and preview wallpaper.")
+
+    current = string_value(data, "wallpaperPath")
+    if current:
+        print(f"Current value is not usable: {current}")
+
+    while True:
+        value = input("Enter a readable wallpaper image path: ").strip().strip("'\"")
+        if value.startswith("~/"):
+            value = str(Path(value).expanduser())
+
+        path = Path(value).expanduser()
+        if value and path.is_file() and os.access(path, os.R_OK):
+            data["wallpaperPath"] = str(path.resolve())
+            save_user_config(data)
+            print("Saved wallpaperPath.")
+            return
+
+        print("That path does not exist or is not readable. Please try again.")
+
+
+def prompt_tlp_password(data: dict) -> None:
+    print("\nTLP sudo password")
+    print("This password is only used by the control center to run sudo -S tlp <mode> when switching TLP modes.")
+    print("Tide Island will not use it to install files, change system configuration, run other sudo commands, or do anything unrelated to TLP mode switching.")
+
+    while True:
+        first = getpass.getpass("Enter your sudo password (input is hidden): ")
+        if not first:
+            print("The password cannot be empty, or this setup will run again next time.")
+            continue
+
+        second = getpass.getpass("Enter it again to confirm: ")
+        if first == second:
+            data["tlpSudoPassword"] = first
+            save_user_config(data)
+            print("Saved tlpSudoPassword.")
+            return
+
+        print("The two entries did not match. Please try again.")
+
+
+def append_hyprland_bind() -> bool:
+    if overview_bind_present():
+        return False
+
+    path = hyprland_config_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    existing = ""
+    if path.exists():
+        existing = path.read_text(encoding="utf-8")
+
+    separator = "" if not existing or existing.endswith("\n") else "\n"
+    addition = "\n# Tide Island workspace overview\n" + OVERVIEW_BIND_LINE + "\n"
+    path.write_text(existing + separator + addition, encoding="utf-8")
+    return True
+
+
+def configure_hyprland_bind() -> None:
+    print("\nHyprland SUPER+TAB overview binding")
+    print("This binding lets SUPER+TAB call Tide Island's overview toggle to open or close the workspace overview.")
+    try:
+        changed = append_hyprland_bind()
+    except OSError as error:
+        print(f"Could not write to {hyprland_config_path()}: {error}")
+        return
+
+    if not changed:
+        print("The Hyprland binding already exists.")
+        return
+
+    print(f"Appended to {hyprland_config_path()}:")
+    print(OVERVIEW_BIND_LINE)
+
+    try:
+        result = subprocess.run(["hyprctl", "reload"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except FileNotFoundError:
+        result = None
+
+    if result is not None and result.returncode == 0:
+        print("Ran hyprctl reload.")
+    else:
+        print("Could not reload Hyprland automatically. Run hyprctl reload manually, or log out and back in.")
+
+
+def run_wizard() -> int:
+    missing = missing_items()
+    if not missing:
+        print("Tide Island setup is already complete.")
+        return 0
+
+    print("Tide Island setup")
+    print("Only missing items will be configured. Existing settings will not be asked again.")
+
+    data = load_user_config()
+    if "wallpaperPath" in missing:
+        prompt_wallpaper(data)
+        data = load_user_config()
+
+    if "tlpSudoPassword" in missing:
+        prompt_tlp_password(data)
+
+    if "hyprlandBind" in missing:
+        configure_hyprland_bind()
+
+    remaining = missing_items()
+    if remaining:
+        print("\nStill missing: " + ", ".join(remaining))
+        return 1
+
+    print("\nSetup complete. This wizard will not appear on the next Tide Island start.")
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Tide Island terminal setup wizard")
+    parser.add_argument("--check", action="store_true", help="check whether required setup items are missing")
+    parser.add_argument("--launch", action="store_true", help="open the setup wizard in a terminal if needed")
+    parser.add_argument("--wizard", action="store_true", help="run the interactive setup wizard")
+    args = parser.parse_args()
+
+    selected = [args.check, args.launch, args.wizard].count(True)
+    if selected != 1:
+        parser.error("choose exactly one of --check, --launch, or --wizard")
+
+    if args.check:
+        missing = missing_items()
+        print_check(missing)
+        return 1 if missing else 0
+
+    if args.launch:
+        return launch_wizard()
+
+    return run_wizard()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
