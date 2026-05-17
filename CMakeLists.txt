@@ -76,7 +76,7 @@ target_link_libraries(IslandBackend PRIVATE
 include(GNUInstallDirs)
 
 # Install QML files to /usr/share/tide-island
-file(GLOB QML_FILES "*.qml")
+file(GLOB QML_FILES CONFIGURE_DEPENDS "*.qml")
 install(FILES ${QML_FILES} DESTINATION ${CMAKE_INSTALL_DATADIR}/tide-island)
 
 # Install IslandBackend backing library to /usr/lib

@@ -684,8 +684,16 @@ Item {
         const parts = [];
         const stateLabel = bluetoothDeviceStateText(device);
         if (stateLabel.length > 0) parts.push(stateLabel);
-        if (device && device.batteryAvailable) parts.push(Math.round(device.battery) + "%");
+        if (device && device.batteryAvailable) parts.push(bluetoothBatteryPercent(device) + "%");
         return parts.join(" • ");
+    }
+
+    function bluetoothBatteryPercent(device) {
+        if (!device || !device.batteryAvailable)
+            return -1;
+
+        const rawValue = Math.max(0, Number(device.battery) || 0);
+        return Math.max(0, Math.min(100, Math.round(rawValue <= 1 ? rawValue * 100 : rawValue)));
     }
 
     function bluetoothDeviceMatchesSection(device, section) {

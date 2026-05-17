@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Bluetooth
 import Quickshell.Hyprland
 import Quickshell.Io
 import Quickshell.Services.Mpris
@@ -506,6 +507,9 @@ PanelWindow {
         property string notificationAppName: ""
         property string notificationSummary: ""
         property string notificationBody: ""
+        property var bluetoothExpandedDevice: null
+        property string bluetoothConnectedSignature: ""
+        property bool bluetoothConnectionBaselineReady: false
         property real _lastCpuTotal: -1
         property real _lastCpuIdle: -1
         property var cavaLevels: [0, 0, 0, 0, 0, 0, 0, 0]
@@ -526,8 +530,10 @@ PanelWindow {
         property bool sideSwipeSettling: false
         readonly property int defaultAutoHideInterval: 1250
         readonly property int notificationAutoHideInterval: 4200
+        readonly property int bluetoothExpandedAutoHideInterval: 2500
         readonly property int swipeAnimationDuration: 220
         readonly property bool blocksTransientSplit: islandState === "expanded"
+            || islandState === "bluetooth_expanded"
             || islandState === "control_center"
             || islandState === "notification"
         readonly property bool splitShowsProgress: islandState === "split" && osdProgress >= 0
@@ -572,13 +578,26 @@ PanelWindow {
             )
         )
         readonly property bool expandedLayerVisible: !root.overviewVisible && islandState === "expanded"
+        readonly property bool bluetoothExpandedLayerVisible: !root.overviewVisible && islandState === "bluetooth_expanded"
         readonly property bool notificationLayerVisible: !root.overviewVisible && islandState === "notification"
         readonly property bool controlCenterLayerVisible: !root.overviewVisible && islandState === "control_center"
         readonly property string lyricsDisplayText: lyricsBridge.displayText
         readonly property bool screenRecordingActive: root.screenRecordingActive
+        readonly property var bluetoothAdapter: Bluetooth.defaultAdapter
+        readonly property var bluetoothDevices: bluetoothAdapter ? bluetoothAdapter.devices.values : []
         readonly property var overviewView: overviewLoader.item && overviewLoader.item.overviewView
             ? overviewLoader.item.overviewView
             : null
+
+        onBluetoothAdapterChanged: {
+            bluetoothExpandedDevice = null;
+            bluetoothConnectedSignature = "";
+            bluetoothConnectionBaselineReady = false;
+            bluetoothConnectionBaselineTimer.restart();
+            syncBluetoothConnectedDevices(false);
+        }
+
+        onBluetoothDevicesChanged: syncBluetoothConnectedDevices(true)
 
         onControlCenterLayerVisibleChanged: {
             if (!controlCenterLayerVisible) {
@@ -994,6 +1013,107 @@ PanelWindow {
             notificationAppName = "";
             notificationSummary = "";
             notificationBody = "";
+            bluetoothExpandedDevice = null;
+        }
+
+        function bluetoothDeviceText(value) {
+            return String(value === undefined || value === null ? "" : value).trim();
+        }
+
+        function bluetoothDeviceName(device) {
+            if (!device) return "Bluetooth device";
+
+            const preferred = bluetoothDeviceText(device.deviceName);
+            if (preferred.length > 0) return preferred;
+
+            const alias = bluetoothDeviceText(device.name);
+            if (alias.length > 0) return alias;
+
+            const address = bluetoothDeviceText(device.address);
+            return address.length > 0 ? address : "Bluetooth device";
+        }
+
+        function bluetoothDeviceKey(device) {
+            if (!device) return "";
+
+            const path = bluetoothDeviceText(device.dbusPath);
+            if (path.length > 0) return path;
+
+            const address = bluetoothDeviceText(device.address);
+            if (address.length > 0) return address;
+
+            return bluetoothDeviceName(device);
+        }
+
+        function connectedBluetoothDevices() {
+            const devices = bluetoothDevices || [];
+            const connectedDevices = [];
+
+            for (let index = 0; index < devices.length; index++) {
+                const device = devices[index];
+                if (device && device.connected)
+                    connectedDevices.push(device);
+            }
+
+            return connectedDevices;
+        }
+
+        function bluetoothConnectedDevicesSignature(devices) {
+            const keys = [];
+
+            for (let index = 0; index < devices.length; index++) {
+                const key = bluetoothDeviceKey(devices[index]);
+                if (key.length > 0)
+                    keys.push(key);
+            }
+
+            keys.sort();
+            return keys.join("\u001f");
+        }
+
+        function previousBluetoothKeyMap() {
+            const previousKeys = {};
+            if (bluetoothConnectedSignature.length === 0)
+                return previousKeys;
+
+            const keys = bluetoothConnectedSignature.split("\u001f");
+            for (let index = 0; index < keys.length; index++) {
+                if (keys[index].length > 0)
+                    previousKeys[keys[index]] = true;
+            }
+
+            return previousKeys;
+        }
+
+        function findNewBluetoothDevice(devices) {
+            const previousKeys = previousBluetoothKeyMap();
+
+            for (let index = 0; index < devices.length; index++) {
+                const key = bluetoothDeviceKey(devices[index]);
+                if (key.length > 0 && !previousKeys[key])
+                    return devices[index];
+            }
+
+            return devices.length > 0 ? devices[0] : null;
+        }
+
+        function syncBluetoothConnectedDevices(showNewConnection) {
+            const connectedDevices = connectedBluetoothDevices();
+            const nextSignature = bluetoothConnectedDevicesSignature(connectedDevices);
+
+            if (!bluetoothConnectionBaselineReady || bluetoothConnectionBaselineTimer.running) {
+                bluetoothConnectedSignature = nextSignature;
+                return;
+            }
+
+            if (nextSignature === bluetoothConnectedSignature)
+                return;
+
+            const newDevice = findNewBluetoothDevice(connectedDevices);
+            bluetoothConnectedSignature = nextSignature;
+
+            if (showNewConnection && newDevice && nextSignature.length > 0)
+                showBluetoothExpanded(newDevice);
         }
 
         function prepareRestingCapsuleGeometry() {
@@ -1231,6 +1351,20 @@ PanelWindow {
             else stopAutoHideTimer();
         }
 
+        function showBluetoothExpanded(device) {
+            if (!device || root.overviewVisible || islandState === "control_center" || islandState === "notification")
+                return;
+
+            cancelSideSwipeSettle();
+            abortSideTransientMode();
+            clearTransientCapsule();
+            bluetoothExpandedDevice = device;
+            islandState = "bluetooth_expanded";
+            mainCapsule.displayedWidth = mainCapsule.baseTargetWidth;
+            expandedByPlayerAutoOpen = false;
+            restartAutoHideTimer(bluetoothExpandedAutoHideInterval);
+        }
+
         function showControlCenter() {
             cancelSideSwipeSettle();
             abortSideTransientMode();
@@ -1278,6 +1412,16 @@ PanelWindow {
         }
 
         Timer { id: autoHideTimer; interval: islandContainer.defaultAutoHideInterval; onTriggered: islandContainer.smartRestoreState() }
+        Timer {
+            id: bluetoothConnectionBaselineTimer
+            interval: 1000
+            repeat: false
+            running: true
+            onTriggered: {
+                islandContainer.bluetoothConnectionBaselineReady = true;
+                islandContainer.syncBluetoothConnectedDevices(false);
+            }
+        }
         Timer {
             id: osdProgressAnimationReset
             interval: 0
@@ -1389,6 +1533,7 @@ PanelWindow {
         Component.onCompleted: {
             syncCustomLeftItems();
             refreshMissingLeftSwipeValues();
+            syncBluetoothConnectedDevices(false);
             updatePlainLyric();
         }
         Component.onDestruction: {
@@ -1478,11 +1623,40 @@ PanelWindow {
             function onBluetoothChanged(isConnected) {
                 islandContainer.btJustConnected = true; 
                 btBlockVolTimer.restart();
+                if (isConnected)
+                    return;
+
                 islandContainer.showTransientCapsule(
                     userConfig.statusIcons["bluetooth"],
                     -1.0,
-                    isConnected ? "Connected" : "Disconnected"
+                    "Disconnected"
                 );
+            }
+        }
+
+        Repeater {
+            model: islandContainer.bluetoothDevices
+
+            delegate: Item {
+                width: 0
+                height: 0
+                visible: false
+
+                property var bluetoothDevice: modelData
+
+                Component.onCompleted: islandContainer.syncBluetoothConnectedDevices(true)
+                Component.onDestruction: Qt.callLater(function() {
+                    islandContainer.syncBluetoothConnectedDevices(true);
+                })
+
+                Connections {
+                    target: bluetoothDevice
+                    ignoreUnknownSignals: true
+
+                    function onConnectedChanged() {
+                        islandContainer.syncBluetoothConnectedDevices(true);
+                    }
+                }
             }
         }
 
@@ -1699,7 +1873,8 @@ PanelWindow {
         onCurrentTrackChanged: {
             if (currentTrack !== ""
                     && islandState !== "control_center"
-                    && islandState !== "notification") {
+                    && islandState !== "notification"
+                    && islandState !== "bluetooth_expanded") {
                 if (islandState === "expanded" && !expandedByPlayerAutoOpen) return;
                 showExpandedPlayer(true);
             }
@@ -1741,6 +1916,7 @@ PanelWindow {
                 case "control_center":
                     return 420;
                 case "expanded":
+                case "bluetooth_expanded":
                     return 400;
                 case "notification":
                     if (!notificationLoader.item) return 272;
@@ -1759,6 +1935,7 @@ PanelWindow {
                 case "control_center":
                     return 320 + (controlCenterLoader.item ? controlCenterLoader.item.controlCenterExtraHeight : 32);
                 case "expanded":
+                case "bluetooth_expanded":
                     return 165;
                 case "notification":
                     return notificationLoader.item
@@ -1775,6 +1952,7 @@ PanelWindow {
                 case "control_center":
                     return 34;
                 case "expanded":
+                case "bluetooth_expanded":
                     return 40;
                 case "notification":
                     return mainCapsule.targetHeight / 2;
@@ -2217,6 +2395,25 @@ PanelWindow {
                         textFontFamily: root.textFontFamily
                         showCondition: islandContainer.expandedLayerVisible
                         onControlPressed: islandContainer.suppressCapsuleClick()
+                    }
+                }
+            }
+
+            Loader {
+                id: bluetoothExpandedLoader
+                anchors.fill: parent
+                active: islandContainer.bluetoothExpandedLayerVisible
+                asynchronous: false
+                visible: active
+
+                sourceComponent: Component {
+                    BluetoothExpandedLayer {
+                        device: islandContainer.bluetoothExpandedDevice
+                        volumeLevel: islandContainer.currentVolume
+                        iconText: ""
+                        iconFontFamily: root.iconFontFamily
+                        textFontFamily: root.textFontFamily
+                        showCondition: islandContainer.bluetoothExpandedLayerVisible
                     }
                 }
             }
