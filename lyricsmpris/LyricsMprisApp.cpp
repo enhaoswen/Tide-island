@@ -27,8 +27,7 @@ constexpr int kPrimaryFallbackDelayMs = 1800;
 constexpr int kRefreshIntervalMs = 1500;
 constexpr int kPositionIntervalMs = 350;
 constexpr int kNetworkTimeoutMs = 7000;
-constexpr int kAcceptScore = 50;
-constexpr int kPlainScore = 42;
+constexpr int kDownloadCandidateLimit = 5;
 constexpr qsizetype kMaxLocalLyricsSize = 1024 * 1024;
 
 QStringList defaultProviders() {
@@ -76,6 +75,10 @@ QByteArray safeBody(QNetworkReply *reply) {
     return body.left(2 * 1024 * 1024);
 }
 
+bool lyricsDebugEnabled() {
+    return !qEnvironmentVariableIsEmpty("LYRICSMPRIS_DEBUG");
+}
+
 } // namespace
 
 LyricsMprisApp::LyricsMprisApp(AppOptions options, QObject *parent)
@@ -97,6 +100,11 @@ LyricsMprisApp::LyricsMprisApp(AppOptions options, QObject *parent)
 }
 
 void LyricsMprisApp::start() {
+    if (m_options.lookupMode) {
+        startLookup();
+        return;
+    }
+
     QDBusConnection bus = QDBusConnection::sessionBus();
     bus.connect(
         QStringLiteral("org.freedesktop.DBus"),
@@ -115,6 +123,18 @@ void LyricsMprisApp::start() {
 
     refreshPlayers();
     m_refreshTimer.start();
+}
+
+void LyricsMprisApp::startLookup() {
+    PlayerInfo player;
+    player.playbackStatus = QStringLiteral("Playing");
+    player.title = m_options.lookupTitle;
+    player.artist = m_options.lookupArtist;
+    player.album = m_options.lookupAlbum;
+    player.lengthMs = m_options.lookupDurationMs;
+    player.trackId = QStringLiteral("lookup");
+    player.valid = true;
+    startTrack(player);
 }
 
 void LyricsMprisApp::refreshPlayers() {
@@ -311,13 +331,16 @@ void LyricsMprisApp::startTrack(const PlayerInfo &player) {
     m_currentTrackKey = trackKeyFor(player);
     m_fallbackStarted = false;
     m_hasAcceptedDocument = false;
+    m_bestSyncedScore = 0;
     m_bestPlainScore = 0;
+    m_bestSyncedDocument.clearAndFree();
     m_bestPlainCandidate = ProviderCandidate();
     emitLine(QString(), false);
     emitStatus(QStringLiteral("searching"));
 
     if (player.title.trimmed().isEmpty()) {
         emitStatus(QStringLiteral("not_found"));
+        maybeQuitLookup();
         return;
     }
 
@@ -476,7 +499,7 @@ void LyricsMprisApp::startNetease() {
     urlQuery.addQueryItem(QStringLiteral("type"), QStringLiteral("1"));
     urlQuery.addQueryItem(QStringLiteral("limit"), QStringLiteral("5"));
     urlQuery.addQueryItem(QStringLiteral("offset"), QStringLiteral("0"));
-    get(withQuery(QStringLiteral("https://music.163.com/api/search/get/web"), urlQuery), QStringLiteral("netease"), QStringLiteral("netease-search"));
+    get(withQuery(QStringLiteral("https://music.163.com/api/search/get"), urlQuery), QStringLiteral("netease"), QStringLiteral("netease-search"));
 }
 
 void LyricsMprisApp::startQq() {
@@ -540,6 +563,7 @@ void LyricsMprisApp::copyCandidateMetadata(QNetworkReply *reply, const ProviderC
     reply->setProperty("candidateArtist", candidate.artist);
     reply->setProperty("candidateAlbum", candidate.album);
     reply->setProperty("candidateDurationMs", candidate.durationMs);
+    reply->setProperty("candidateMetadataTrusted", candidate.metadataTrusted);
 }
 
 ProviderCandidate LyricsMprisApp::candidateFromReply(QNetworkReply *reply, ProviderCandidate candidate) const {
@@ -547,10 +571,8 @@ ProviderCandidate LyricsMprisApp::candidateFromReply(QNetworkReply *reply, Provi
     if (candidate.artist.isEmpty()) candidate.artist = reply->property("candidateArtist").toString();
     if (candidate.album.isEmpty()) candidate.album = reply->property("candidateAlbum").toString();
     if (candidate.durationMs <= 0) candidate.durationMs = reply->property("candidateDurationMs").toInt();
-    if (candidate.title.isEmpty()) candidate.title = m_currentPlayer.title;
-    if (candidate.artist.isEmpty()) candidate.artist = m_currentPlayer.artist;
-    if (candidate.album.isEmpty()) candidate.album = m_currentPlayer.album;
-    if (candidate.durationMs <= 0) candidate.durationMs = int(m_currentPlayer.lengthMs);
+    if (reply->property("candidateMetadataTrusted").isValid())
+        candidate.metadataTrusted = reply->property("candidateMetadataTrusted").toBool();
     return candidate;
 }
 
@@ -575,20 +597,21 @@ void LyricsMprisApp::handleNetworkFinished() {
         } else if (stage == QLatin1String("lrcx-text")) {
             ProviderCandidate candidate;
             candidate.provider = provider;
-            candidate.title = m_currentPlayer.title;
-            candidate.artist = m_currentPlayer.artist;
-            candidate.album = m_currentPlayer.album;
-            candidate.durationMs = int(m_currentPlayer.lengthMs);
+            candidate.metadataTrusted = false;
             candidate.syncedLyrics = QString::fromUtf8(body);
             considerCandidate(candidate);
         } else if (stage == QLatin1String("netease-search")) {
             QList<ProviderCandidate> candidates = parseNeteaseSearchJson(body);
-            std::sort(candidates.begin(), candidates.end(), [this](const ProviderCandidate &left, const ProviderCandidate &right) {
-                return scoreCandidate(queryFor(m_currentPlayer), left) > scoreCandidate(queryFor(m_currentPlayer), right);
+            const TrackQuery trackQuery = queryFor(m_currentPlayer);
+            std::sort(candidates.begin(), candidates.end(), [&trackQuery](const ProviderCandidate &left, const ProviderCandidate &right) {
+                return scoreCandidate(trackQuery, left) > scoreCandidate(trackQuery, right);
             });
-            const int limit = qMin(3, candidates.size());
-            for (int index = 0; index < limit; ++index) {
+            int requested = 0;
+            for (int index = 0; index < candidates.size() && requested < kDownloadCandidateLimit; ++index) {
                 const ProviderCandidate &candidate = candidates.at(index);
+                const CandidateEvaluation evaluation = evaluateCandidate(trackQuery, candidate);
+                debugCandidate(candidate, evaluation, evaluation.accepted ? QStringLiteral("download") : QStringLiteral("skip"));
+                if (!evaluation.accepted) continue;
                 QUrlQuery query;
                 query.addQueryItem(QStringLiteral("os"), QStringLiteral("pc"));
                 query.addQueryItem(QStringLiteral("id"), candidate.syncedLyrics);
@@ -596,34 +619,44 @@ void LyricsMprisApp::handleNetworkFinished() {
                 query.addQueryItem(QStringLiteral("tv"), QStringLiteral("-1"));
                 QNetworkReply *next = get(withQuery(QStringLiteral("https://music.163.com/api/song/lyric"), query), provider, QStringLiteral("netease-lyric"));
                 copyCandidateMetadata(next, candidate);
+                requested++;
             }
         } else if (stage == QLatin1String("netease-lyric")) {
             considerCandidate(candidateFromReply(reply, parseNeteaseLyricJson(body)));
         } else if (stage == QLatin1String("qq-search")) {
             QList<ProviderCandidate> candidates = parseQqSearchJson(body);
-            std::sort(candidates.begin(), candidates.end(), [this](const ProviderCandidate &left, const ProviderCandidate &right) {
-                return scoreCandidate(queryFor(m_currentPlayer), left) > scoreCandidate(queryFor(m_currentPlayer), right);
+            const TrackQuery trackQuery = queryFor(m_currentPlayer);
+            std::sort(candidates.begin(), candidates.end(), [&trackQuery](const ProviderCandidate &left, const ProviderCandidate &right) {
+                return scoreCandidate(trackQuery, left) > scoreCandidate(trackQuery, right);
             });
-            const int limit = qMin(3, candidates.size());
-            for (int index = 0; index < limit; ++index) {
+            int requested = 0;
+            for (int index = 0; index < candidates.size() && requested < kDownloadCandidateLimit; ++index) {
                 const ProviderCandidate &candidate = candidates.at(index);
+                const CandidateEvaluation evaluation = evaluateCandidate(trackQuery, candidate);
+                debugCandidate(candidate, evaluation, evaluation.accepted ? QStringLiteral("download") : QStringLiteral("skip"));
+                if (!evaluation.accepted) continue;
                 QUrlQuery query;
                 query.addQueryItem(QStringLiteral("songmid"), candidate.syncedLyrics);
                 query.addQueryItem(QStringLiteral("format"), QStringLiteral("json"));
                 query.addQueryItem(QStringLiteral("nobase64"), QStringLiteral("1"));
                 QNetworkReply *next = get(withQuery(QStringLiteral("https://c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg"), query), provider, QStringLiteral("qq-lyric"));
                 copyCandidateMetadata(next, candidate);
+                requested++;
             }
         } else if (stage == QLatin1String("qq-lyric")) {
             considerCandidate(candidateFromReply(reply, parseQqLyricJson(body)));
         } else if (stage == QLatin1String("kugou-song-search")) {
             QList<ProviderCandidate> candidates = parseKugouSongSearchJson(body);
-            std::sort(candidates.begin(), candidates.end(), [this](const ProviderCandidate &left, const ProviderCandidate &right) {
-                return scoreCandidate(queryFor(m_currentPlayer), left) > scoreCandidate(queryFor(m_currentPlayer), right);
+            const TrackQuery trackQuery = queryFor(m_currentPlayer);
+            std::sort(candidates.begin(), candidates.end(), [&trackQuery](const ProviderCandidate &left, const ProviderCandidate &right) {
+                return scoreCandidate(trackQuery, left) > scoreCandidate(trackQuery, right);
             });
-            const int limit = qMin(3, candidates.size());
-            for (int index = 0; index < limit; ++index) {
+            int requested = 0;
+            for (int index = 0; index < candidates.size() && requested < kDownloadCandidateLimit; ++index) {
                 const ProviderCandidate &candidate = candidates.at(index);
+                const CandidateEvaluation evaluation = evaluateCandidate(trackQuery, candidate);
+                debugCandidate(candidate, evaluation, evaluation.accepted ? QStringLiteral("download") : QStringLiteral("skip"));
+                if (!evaluation.accepted) continue;
                 QUrlQuery query;
                 query.addQueryItem(QStringLiteral("ver"), QStringLiteral("1"));
                 query.addQueryItem(QStringLiteral("man"), QStringLiteral("yes"));
@@ -633,6 +666,7 @@ void LyricsMprisApp::handleNetworkFinished() {
                 query.addQueryItem(QStringLiteral("hash"), candidate.syncedLyrics);
                 QNetworkReply *next = get(withQuery(QStringLiteral("https://lyrics.kugou.com/search"), query), provider, QStringLiteral("kugou-lyric-search"));
                 copyCandidateMetadata(next, candidate);
+                requested++;
             }
         } else if (stage == QLatin1String("kugou-lyric-search")) {
             const QList<QJsonObject> candidates = parseKugouLyricSearchJson(body);
@@ -667,17 +701,33 @@ void LyricsMprisApp::handleNetworkFinished() {
 }
 
 void LyricsMprisApp::considerCandidate(ProviderCandidate candidate) {
-    const int score = scoreCandidate(queryFor(m_currentPlayer), candidate);
+    if (m_currentDocument.hasSyncedLines()) return;
+
+    const CandidateEvaluation evaluation = evaluateCandidate(queryFor(m_currentPlayer), candidate);
+    debugCandidate(candidate, evaluation, evaluation.accepted ? QStringLiteral("candidate") : QStringLiteral("reject"));
+    if (!evaluation.accepted) return;
+
     LyricDocument document = documentFromCandidate(candidate);
     if (document.isEmpty()) return;
 
-    if (document.hasSyncedLines() && score >= kAcceptScore) {
-        acceptDocument(std::move(document), QStringLiteral("synced"), true);
+    if (document.hasSyncedLines()) {
+        if (evaluation.highConfidence) {
+            acceptDocument(std::move(document), QStringLiteral("synced"), true);
+            return;
+        }
+        rememberSyncedCandidate(std::move(document), evaluation.score);
         return;
     }
 
-    if (document.hasPlainLines() && score >= kPlainScore)
-        rememberPlainCandidate(std::move(candidate), score);
+    if (document.hasPlainLines())
+        rememberPlainCandidate(std::move(candidate), evaluation.score);
+}
+
+void LyricsMprisApp::rememberSyncedCandidate(LyricDocument document, int score) {
+    if (score <= m_bestSyncedScore) return;
+    m_bestSyncedScore = score;
+    m_bestSyncedDocument.clearAndFree();
+    m_bestSyncedDocument = std::move(document);
 }
 
 void LyricsMprisApp::rememberPlainCandidate(ProviderCandidate candidate, int score) {
@@ -697,11 +747,17 @@ void LyricsMprisApp::acceptDocument(LyricDocument document, const QString &statu
         abortNetwork();
         m_fallbackTimer.stop();
     }
+    maybeQuitLookup();
 }
 
 void LyricsMprisApp::maybeFinishSearch() {
     if (m_pendingReplies > 0 || !m_fallbackStarted || m_currentTrackKey.isEmpty()) return;
     if (m_currentDocument.hasSyncedLines()) return;
+
+    if (m_bestSyncedDocument.hasSyncedLines()) {
+        acceptDocument(std::move(m_bestSyncedDocument), QStringLiteral("synced"), true);
+        return;
+    }
 
     if (!m_bestPlainCandidate.plainLyrics.isEmpty()) {
         LyricDocument plain = documentFromCandidate(m_bestPlainCandidate);
@@ -714,6 +770,7 @@ void LyricsMprisApp::maybeFinishSearch() {
     if (!m_hasAcceptedDocument) {
         emitLine(QString(), false);
         emitStatus(QStringLiteral("not_found"));
+        maybeQuitLookup();
     }
 }
 
@@ -755,6 +812,7 @@ void LyricsMprisApp::clearCurrentTrack() {
     m_positionTimer.stop();
     abortNetwork();
     releaseCurrentDocument();
+    m_bestSyncedDocument.clearAndFree();
     m_currentTrackKey.clear();
     m_currentTrackKey.squeeze();
     m_currentPlayer = PlayerInfo();
@@ -763,6 +821,7 @@ void LyricsMprisApp::clearCurrentTrack() {
     m_startedProviders.clear();
     m_fallbackStarted = false;
     m_hasAcceptedDocument = false;
+    m_bestSyncedScore = 0;
     m_bestPlainScore = 0;
     m_bestPlainCandidate = ProviderCandidate();
     emitLine(QString(), false);
@@ -782,6 +841,33 @@ void LyricsMprisApp::abortNetwork() {
     }
     m_replies.clear();
     m_pendingReplies = 0;
+}
+
+void LyricsMprisApp::maybeQuitLookup() {
+    if (m_options.lookupMode)
+        QTimer::singleShot(0, QCoreApplication::instance(), &QCoreApplication::quit);
+}
+
+void LyricsMprisApp::debugCandidate(const ProviderCandidate &candidate, const CandidateEvaluation &evaluation, const QString &action) const {
+    if (!lyricsDebugEnabled()) return;
+
+    QTextStream stream(stderr);
+    stream << "[LyricsMatch] " << action
+           << " provider=" << candidate.provider
+           << " title=\"" << candidate.title << "\""
+           << " artist=\"" << candidate.artist << "\""
+           << " album=\"" << candidate.album << "\""
+           << " durationMs=" << candidate.durationMs
+           << " trusted=" << (candidate.metadataTrusted ? "true" : "false")
+           << " score=" << evaluation.score
+           << " accepted=" << (evaluation.accepted ? "true" : "false")
+           << " high=" << (evaluation.highConfidence ? "true" : "false")
+           << " reason=" << evaluation.reason;
+    if (!evaluation.lyricMetadata.isEmpty()) {
+        stream << " lrcTitle=\"" << evaluation.lyricMetadata.title << "\""
+               << " lrcArtist=\"" << evaluation.lyricMetadata.artist << "\"";
+    }
+    stream << Qt::endl;
 }
 
 bool LyricsMprisApp::serviceBlocked(const QString &service) const {

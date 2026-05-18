@@ -34,6 +34,14 @@ struct LyricDocument {
     void clearAndFree();
 };
 
+struct LyricMetadata {
+    QString title;
+    QString artist;
+    QString album;
+
+    bool isEmpty() const;
+};
+
 struct ProviderCandidate {
     QString provider;
     QString title;
@@ -43,15 +51,26 @@ struct ProviderCandidate {
     QString syncedLyrics;
     QString plainLyrics;
     bool instrumental = false;
+    bool metadataTrusted = true;
+};
+
+struct CandidateEvaluation {
+    int score = 0;
+    bool accepted = false;
+    bool highConfidence = false;
+    QString reason;
+    LyricMetadata lyricMetadata;
 };
 
 QString cleanLyricText(QString text);
 QString normalizedTitle(QString title);
 QString normalizedArtist(QString artist);
 QStringList significantTokens(const QString &value);
+LyricMetadata lyricMetadataFromText(const QString &lyrics);
 LyricDocument parseLyrics(const QString &lyrics, const QString &provider = QString());
 LyricDocument documentFromCandidate(const ProviderCandidate &candidate);
 QString selectLineAt(const LyricDocument &document, qint64 positionMs);
+CandidateEvaluation evaluateCandidate(const TrackQuery &query, const ProviderCandidate &candidate);
 int scoreCandidate(const TrackQuery &query, const ProviderCandidate &candidate);
 
 QList<ProviderCandidate> parseLrclibJson(const QByteArray &payload);

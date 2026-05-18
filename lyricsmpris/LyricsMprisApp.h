@@ -16,7 +16,12 @@ namespace lyricsmpris {
 
 struct AppOptions {
     bool pipe = true;
+    bool lookupMode = false;
     QString preferredService;
+    QString lookupTitle;
+    QString lookupArtist;
+    QString lookupAlbum;
+    int lookupDurationMs = 0;
     QStringList providers;
     QSet<QString> blockedServices;
 };
@@ -59,6 +64,7 @@ private:
     void clearCurrentTrack();
     void releaseCurrentDocument();
     void abortNetwork();
+    void startLookup();
     void chooseActivePlayer();
     void updatePlayer(const QString &service);
     void startTrack(const PlayerInfo &player);
@@ -80,7 +86,10 @@ private:
     void considerCandidate(ProviderCandidate candidate);
     void acceptDocument(LyricDocument document, const QString &status, bool finalSynced);
     void maybeFinishSearch();
+    void rememberSyncedCandidate(LyricDocument document, int score);
     void rememberPlainCandidate(ProviderCandidate candidate, int score);
+    void maybeQuitLookup();
+    void debugCandidate(const ProviderCandidate &candidate, const CandidateEvaluation &evaluation, const QString &action) const;
     bool serviceBlocked(const QString &service) const;
     static QVariant unwrapDbusVariant(const QVariant &value);
     static QString variantToString(const QVariant &value);
@@ -97,7 +106,9 @@ private:
     QString m_currentTrackKey;
     PlayerInfo m_currentPlayer;
     LyricDocument m_currentDocument;
+    LyricDocument m_bestSyncedDocument;
     ProviderCandidate m_bestPlainCandidate;
+    int m_bestSyncedScore = 0;
     int m_bestPlainScore = 0;
     int m_generation = 0;
     int m_pendingReplies = 0;

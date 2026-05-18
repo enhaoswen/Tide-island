@@ -39,6 +39,10 @@ int main(int argc, char *argv[]) {
     const QCommandLineOption noKaraokeOption(QStringLiteral("no-karaoke"), QStringLiteral("Accepted for compatibility; per-word karaoke rendering is not used in pipe mode"));
     const QCommandLineOption visibleLinesOption(QStringLiteral("visible-lines"), QStringLiteral("Accepted for compatibility; pipe mode emits one current line"), QStringLiteral("COUNT"));
     const QCommandLineOption listProvidersOption(QStringLiteral("list-providers"), QStringLiteral("Print supported provider names and exit"));
+    const QCommandLineOption lookupTitleOption(QStringLiteral("lookup-title"), QStringLiteral("Run one lyrics lookup without MPRIS"), QStringLiteral("TITLE"));
+    const QCommandLineOption lookupArtistOption(QStringLiteral("lookup-artist"), QStringLiteral("Artist for --lookup-title"), QStringLiteral("ARTIST"));
+    const QCommandLineOption lookupAlbumOption(QStringLiteral("lookup-album"), QStringLiteral("Album for --lookup-title"), QStringLiteral("ALBUM"));
+    const QCommandLineOption lookupDurationOption(QStringLiteral("lookup-duration-ms"), QStringLiteral("Duration in milliseconds for --lookup-title"), QStringLiteral("MS"));
 
     parser.addOption(pipeOption);
     parser.addOption(blockOption);
@@ -47,6 +51,10 @@ int main(int argc, char *argv[]) {
     parser.addOption(noKaraokeOption);
     parser.addOption(visibleLinesOption);
     parser.addOption(listProvidersOption);
+    parser.addOption(lookupTitleOption);
+    parser.addOption(lookupArtistOption);
+    parser.addOption(lookupAlbumOption);
+    parser.addOption(lookupDurationOption);
     parser.process(app);
 
     if (parser.isSet(listProvidersOption)) {
@@ -56,6 +64,11 @@ int main(int argc, char *argv[]) {
 
     AppOptions options;
     options.pipe = true;
+    options.lookupMode = parser.isSet(lookupTitleOption);
+    options.lookupTitle = parser.value(lookupTitleOption);
+    options.lookupArtist = parser.value(lookupArtistOption);
+    options.lookupAlbum = parser.value(lookupAlbumOption);
+    options.lookupDurationMs = parser.value(lookupDurationOption).toInt();
     options.providers = parser.isSet(providersOption)
         ? splitCommaList(parser.value(providersOption))
         : QStringList();
