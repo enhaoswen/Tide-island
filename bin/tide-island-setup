@@ -55,15 +55,35 @@ def load_user_config() -> dict:
     path = user_config_path()
     try:
         with path.open("r", encoding="utf-8") as file:
-            data = json.load(file)
+            text = file.read()
     except FileNotFoundError:
-        return {}
-    except json.JSONDecodeError:
+        ensure_user_config_file()
         return {}
     except OSError:
         return {}
 
+    if not text.strip():
+        ensure_user_config_file()
+        return {}
+
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        return {}
+
     return data if isinstance(data, dict) else {}
+
+
+def ensure_user_config_file() -> None:
+    path = user_config_path()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.parent.chmod(0o700)
+        if path.exists() and path.read_text(encoding="utf-8").strip():
+            return
+        save_user_config({})
+    except OSError:
+        pass
 
 
 def save_user_config(data: dict) -> None:
