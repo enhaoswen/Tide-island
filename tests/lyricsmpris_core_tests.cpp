@@ -19,6 +19,7 @@ private slots:
     void rejectsWrongVersionsAndDurations();
     void rejectsConflictingLyricMetadata();
     void requiresTrustedOrLyricMetadata();
+    void acceptsMusixmatchWithRequestMetadata();
     void parsesNeteaseSearchShapes();
     void parsesProviderFixtures();
     void releasesDocumentStorage();
@@ -207,6 +208,39 @@ void LyricsMprisCoreTests::requiresTrustedOrLyricMetadata() {
     untrusted.syncedLyrics = "[ti:Song Title]\n[ar:Main Artist]\n[00:01.00]Hello";
     const CandidateEvaluation evaluation = evaluateCandidate(query, untrusted);
     QVERIFY2(evaluation.accepted, qPrintable(evaluation.reason));
+}
+
+void LyricsMprisCoreTests::acceptsMusixmatchWithRequestMetadata() {
+    TrackQuery query;
+    query.title = "Song Title";
+    query.artist = "Main Artist";
+    query.album = "Album";
+    query.durationMs = 180000;
+
+    const QByteArray payload = R"({
+        "message": {
+            "body": {
+                "subtitle": {
+                    "subtitle_body": "[00:01.00]Hello"
+                }
+            }
+        }
+    })";
+
+    QList<ProviderCandidate> candidates = parseMusixmatchJson(payload, QStringLiteral("musixmatch"));
+    QCOMPARE(candidates.size(), 1);
+    QCOMPARE(evaluateCandidate(query, candidates.first()).reason, QString("untrusted_metadata"));
+
+    ProviderCandidate candidate = candidates.first();
+    candidate.title = query.title;
+    candidate.artist = query.artist;
+    candidate.album = query.album;
+    candidate.durationMs = query.durationMs;
+    candidate.metadataTrusted = true;
+
+    const CandidateEvaluation evaluation = evaluateCandidate(query, candidate);
+    QVERIFY2(evaluation.accepted, qPrintable(evaluation.reason));
+    QVERIFY(documentFromCandidate(candidate).hasSyncedLines());
 }
 
 void LyricsMprisCoreTests::parsesNeteaseSearchShapes() {

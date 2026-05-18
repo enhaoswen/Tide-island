@@ -526,14 +526,24 @@ void LyricsMprisApp::startMusixmatch() {
     if (apiKey.isEmpty()) return;
 
     const TrackQuery query = queryFor(m_currentPlayer);
+    ProviderCandidate requestMetadata;
+    requestMetadata.provider = QStringLiteral("musixmatch");
+    requestMetadata.title = query.title;
+    requestMetadata.artist = query.artist;
+    requestMetadata.album = query.album;
+    requestMetadata.durationMs = query.durationMs;
+    requestMetadata.metadataTrusted = true;
+
     QUrlQuery subtitleQuery;
     subtitleQuery.addQueryItem(QStringLiteral("q_track"), query.title);
     subtitleQuery.addQueryItem(QStringLiteral("q_artist"), query.artist);
     subtitleQuery.addQueryItem(QStringLiteral("apikey"), apiKey);
-    get(withQuery(QStringLiteral("https://api.musixmatch.com/ws/1.1/matcher.subtitle.get"), subtitleQuery), QStringLiteral("musixmatch"), QStringLiteral("musixmatch-subtitle"));
+    QNetworkReply *subtitleReply = get(withQuery(QStringLiteral("https://api.musixmatch.com/ws/1.1/matcher.subtitle.get"), subtitleQuery), QStringLiteral("musixmatch"), QStringLiteral("musixmatch-subtitle"));
+    copyCandidateMetadata(subtitleReply, requestMetadata);
 
     QUrlQuery lyricsQuery = subtitleQuery;
-    get(withQuery(QStringLiteral("https://api.musixmatch.com/ws/1.1/matcher.lyrics.get"), lyricsQuery), QStringLiteral("musixmatch"), QStringLiteral("musixmatch-lyrics"));
+    QNetworkReply *lyricsReply = get(withQuery(QStringLiteral("https://api.musixmatch.com/ws/1.1/matcher.lyrics.get"), lyricsQuery), QStringLiteral("musixmatch"), QStringLiteral("musixmatch-lyrics"));
+    copyCandidateMetadata(lyricsReply, requestMetadata);
 }
 
 QNetworkReply *LyricsMprisApp::get(const QUrl &url, const QString &provider, const QString &stage) {
