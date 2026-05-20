@@ -52,21 +52,6 @@ It's built with Quickshell, QML, and C++/Qt 6. Most of the effort went into maki
 
 ---
 
-## Performance
-
-Current target usage:
-
-| Metric    | Target                      |
-| --------- | --------------------------- |
-| Memory    | `< 200 MB PSS`              |
-| CPU       | `< 2%` during normal use    |
-| Rendering | Event-driven where possible |
-| Desktop   | Hyprland                    |
-
-Performance may vary depending on enabled modules, lyrics providers, animations, and system configuration.
-
----
-
 ## Preview
 
 <!--
@@ -159,6 +144,21 @@ The custom page can display:
 - CPU
 - RAM
 - CAVA audio visualizer
+
+---
+
+## Performance
+
+Current target usage:
+
+| Metric    | Target                      |
+| --------- | --------------------------- |
+| Memory    | `< 200 MB PSS`              |
+| CPU       | `< 2%` during normal use    |
+| Rendering | Event-driven where possible |
+| Desktop   | Hyprland                    |
+
+Performance may vary depending on enabled modules, lyrics providers, animations, and system configuration.
 
 ---
 
