@@ -23,7 +23,8 @@
     <img alt="AUR package" src="https://img.shields.io/aur/version/tide-island?style=flat-square&label=AUR&color=8aadf4">
   </a>
   <img alt="Hyprland" src="https://img.shields.io/badge/Hyprland-111111?style=flat-square&color=8aadf4">
-  <img alt="Quickshell + Qt" src="https://img.shields.io/badge/Quickshell%20%2B%20Qt-111111?style=flat-square&color=8aadf4">
+  </a>
+  <img alt="C++ + Qt" src="https://img.shields.io/badge/C%2B%2B%20%2B%20Qt-111111?style=flat-square&color=8aadf4">
 </p>
 
 <p align="center">

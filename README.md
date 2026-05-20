@@ -23,7 +23,8 @@
     <img alt="AUR package" src="https://img.shields.io/aur/version/tide-island?style=flat-square&label=AUR&color=8aadf4">
   </a>
   <img alt="Hyprland" src="https://img.shields.io/badge/Hyprland-111111?style=flat-square&color=8aadf4">
-  <img alt="Quickshell + Qt" src="https://img.shields.io/badge/Quickshell%20%2B%20Qt-111111?style=flat-square&color=8aadf4">
+  </a>
+  <img alt="C++ + Qt" src="https://img.shields.io/badge/C%2B%2B%20%2B%20Qt-111111?style=flat-square&color=8aadf4">
 </p>
 
 <p align="center">
@@ -42,11 +43,12 @@
 
 ## About Tide Island
 
-**Tide Island** is a dynamic island-style desktop component designed for **Hyprland** users.
+Tide Island is a small desktop widget for Hyprland, styled like the Dynamic Island.
 
-It stays small when nothing needs your attention, then expands into focused surfaces for music, lyrics, workspaces, system controls, notifications, and custom status pages.
+When nothing much is going on, it just sits in the corner, staying out of the way. When you need to check some information, it expands into a panel where you can view lyrics, switch workspaces, adjust system settings, check notifications, or put in some custom content.
 
-Tide Island is built with **Quickshell**, **QML**, and **C++ / Qt 6**, with a focus on smooth animation, low-latency interaction, and reasonable resource usage.
+It's built with Quickshell, QML, and C++/Qt 6. Most of the effort went into making the animations as smooth as possible, interactions responsive, and resource usage kept in check. I can't claim it's anything special, but I hope it's comfortable to use.
+
 
 ---
 
