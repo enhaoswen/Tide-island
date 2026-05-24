@@ -167,6 +167,16 @@ cd Tide-island
 makepkg -si
 ```
 
+### Ubuntu / Debian
+
+克隆仓库后运行安装脚本：
+
+```bash
+git clone https://github.com/enhaoswen/Tide-island.git
+cd Tide-island
+./scripts/install-debian-ubuntu.sh
+```
+
 <br>
 
 ## 启动 Tide Island
