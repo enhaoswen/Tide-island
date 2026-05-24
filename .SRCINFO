@@ -1,7 +1,7 @@
 pkgbase = tide-island
 	pkgdesc = A dynamic island for Hyprland using Quickshell
 	pkgver = 1.0.9
-	pkgrel = 1
+	pkgrel = 2
 	url = https://github.com/enhaoswen/Tide-island
 	install = tide-island.install
 	arch = x86_64
@@ -25,7 +25,7 @@ pkgbase = tide-island
 	optdepends = iwd: for wifi control
 	conflicts = tide-island-git
 	options = !debug
-	source = tide-island-1.0.9.tar.gz::https://github.com/enhaoswen/Tide-island/archive/refs/tags/1.0.9.tar.gz
+	source = tide-island-2b8c2463c4caa59f99091c99d0a73d1e6c6573a8.tar.gz::https://github.com/enhaoswen/Tide-island/archive/2b8c2463c4caa59f99091c99d0a73d1e6c6573a8.tar.gz
 	sha256sums = SKIP
 
 pkgname = tide-island
