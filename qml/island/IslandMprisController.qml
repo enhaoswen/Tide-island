@@ -160,7 +160,6 @@ Item {
         id: lyricsBridge
 
         readonly property string title: root.currentTrack
-        readonly property string artist: root.currentArtist
         readonly property string currentLyric: SysBackend && SysBackend.lyricsCurrentLyric !== undefined
             ? SysBackend.lyricsCurrentLyric
             : ""
@@ -176,9 +175,7 @@ Item {
             if (backendStatus === "missing" || backendStatus === "error") return "no lyrics";
             if (isSynced && currentLyric !== "") return currentLyric;
             if (plainLyric !== "") return plainLyric;
-            return artist !== "" && artist !== "Unknown"
-                ? title + " - " + artist
-                : title;
+            return title;
         }
     }
 
