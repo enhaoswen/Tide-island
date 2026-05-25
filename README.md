@@ -173,6 +173,36 @@ cd Tide-island
 ./scripts/install-debian-ubuntu.sh
 ```
 
+Debian / Ubuntu installer also applies common desktop integration fixes by
+default:
+
+- disables common Waybar systemd startup paths and comments direct
+  `exec-once = waybar` entries in `~/.config/hypr`
+- mutes SwayNC notification popups so Tide Island does not show duplicate
+  notifications
+- adds a `Ctrl + Super + Alt + B` Hyprland binding to toggle the Tide Island
+  user service
+- sets a user service drop-in with `TIDE_ISLAND_SKIP_SETUP=1` so the setup
+  wizard does not keep reopening after installation
+
+Backups are written next to modified user config files with a
+`.tide-island.bak.<timestamp>` suffix.
+
+If you manage those pieces yourself, disable the integration step:
+
+```bash
+./scripts/install-debian-ubuntu.sh --no-desktop-integration
+```
+
+Or disable only one part:
+
+```bash
+./scripts/install-debian-ubuntu.sh --no-disable-waybar
+./scripts/install-debian-ubuntu.sh --no-mute-swaync
+./scripts/install-debian-ubuntu.sh --no-toggle-bind
+./scripts/install-debian-ubuntu.sh --keep-setup-wizard
+```
+
 <br>
 
 ## Starting Tide Island

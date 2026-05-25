@@ -969,6 +969,9 @@ void printUsage()
 int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);
+    if (!envString("TIDE_ISLAND_SKIP_SETUP").isEmpty())
+        return 0;
+
     const QStringList args = app.arguments().mid(1);
     if (args.size() != 1) {
         printUsage();
