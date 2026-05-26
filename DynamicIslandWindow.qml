@@ -100,8 +100,11 @@ PanelWindow {
     readonly property string textFontFamily: userConfig.textFontFamily
     readonly property string heroFontFamily: userConfig.heroFontFamily
     readonly property string timeFontFamily: userConfig.timeFontFamily
+    readonly property string defaultSplitIcon: "\ud83c\udfa7"
+    readonly property string notificationStatusIcon: "\uf0f3"
+    readonly property real overviewWindowCornerRadius: 12
     readonly property int dynamicIslandAcceptedButtons: userConfig.mouseButtonsMask([
-        userConfig.dynamicIslandSwipeButton,
+        1,
         userConfig.dynamicIslandPrimaryButton,
         userConfig.dynamicIslandSecondaryButton
     ])
@@ -358,7 +361,7 @@ PanelWindow {
         focus: root.monitorFocused && (root.overviewVisible || root.connectivityPromptActive)
 
         property string islandState: "normal"
-        property string splitIcon: userConfig.statusIcons["default"]
+        property string splitIcon: root.defaultSplitIcon
         property real osdProgress: -1.0
         property bool osdProgressAnimationEnabled: true
         property string osdCustomText: ""
@@ -489,7 +492,6 @@ PanelWindow {
         IslandSystemState {
             id: systemState
 
-            statusIcons: userConfig.statusIcons
             configuredLeftSwipeItems: userConfig.dynamicIslandLeftSwipeItems
             timeText: timeObj.currentTime
             dateText: timeObj.currentDateLabel
@@ -532,13 +534,10 @@ PanelWindow {
         Keys.onPressed: (event) => {
             if (!root.overviewVisible) return;
 
-            if (userConfig.overviewCloseKey && event.key === userConfig.overviewCloseKey) {
-                root.closeOverviewEverywhere();
-                event.accepted = true;
-            } else if ((userConfig.overviewPreviousWorkspaceKey && event.key === userConfig.overviewPreviousWorkspaceKey) || (event.key === Qt.Key_Tab && (event.modifiers & Qt.ShiftModifier)) || event.key === Qt.Key_Backtab) {
+            if ((event.key === Qt.Key_Tab && (event.modifiers & Qt.ShiftModifier)) || event.key === Qt.Key_Backtab) {
                 hyprDispatch.focusWorkspace("r-1");
                 event.accepted = true;
-            } else if ((userConfig.overviewNextWorkspaceKey && event.key === userConfig.overviewNextWorkspaceKey) || event.key === Qt.Key_Tab) {
+            } else if (event.key === Qt.Key_Tab) {
                 hyprDispatch.focusWorkspace("r+1");
                 event.accepted = true;
             }
@@ -1207,7 +1206,7 @@ PanelWindow {
                     swipeStartX = mappedPoint.x;
                     swipeStartY = mappedPoint.y;
                     islandContainer.cancelSideSwipeSettle();
-                    swipeArmed = mouse.button === userConfig.mouseButton(userConfig.dynamicIslandSwipeButton)
+                    swipeArmed = mouse.button === Qt.LeftButton
                         && islandContainer.canShowSideSwipe;
                     swipeStartProgress = islandContainer.swipeTransitionProgress;
                     swipeLastX = mappedPoint.x;
@@ -1577,7 +1576,7 @@ PanelWindow {
                         appName: islandContainer.notificationAppName
                         summary: islandContainer.notificationSummary
                         body: islandContainer.notificationBody
-                        iconText: userConfig.statusIcons["notification"]
+                        iconText: root.notificationStatusIcon
                         iconFontFamily: root.iconFontFamily
                         textFontFamily: root.textFontFamily
                         heroFontFamily: root.heroFontFamily
@@ -1638,7 +1637,7 @@ PanelWindow {
                         textFontFamily: root.textFontFamily
                         heroFontFamily: root.heroFontFamily
                         wallpaperPath: root.overviewWallpaperSource
-                        windowCornerRadius: userConfig.workspaceOverviewWindowRadius
+                        windowCornerRadius: root.overviewWindowCornerRadius
                         onCloseRequested: root.closeOverviewEverywhere()
                     }
                 }

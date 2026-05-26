@@ -38,14 +38,9 @@ void UserConfigBackendTests::loadsTypedValuesFromJson()
 
     const QString configPath = writeConfig(configHome, R"json({
         "wallpaperPath": "/tmp/test-wallpaper.jpg",
-        "workspaceOverviewWindowRadius": 18.5,
         "textFontFamily": "Test Text",
         "tlpPermissionMode": "skip",
-        "overviewCloseKey": 7,
-        "dynamicIslandLeftSwipeItems": ["time", "ram"],
-        "controlCenterIcons": {
-            "charging": "C"
-        }
+        "dynamicIslandLeftSwipeItems": ["time", "ram"]
     })json");
     QVERIFY(!configPath.isEmpty());
 
@@ -53,12 +48,9 @@ void UserConfigBackendTests::loadsTypedValuesFromJson()
     QCOMPARE(config.userConfigPath(), configPath);
     QCOMPARE(config.configError(), QString());
     QCOMPARE(config.wallpaperPath(), QStringLiteral("/tmp/test-wallpaper.jpg"));
-    QCOMPARE(config.workspaceOverviewWindowRadius(), 18.5);
     QCOMPARE(config.textFontFamily(), QStringLiteral("Test Text"));
     QCOMPARE(config.tlpPermissionMode(), QStringLiteral("skip"));
-    QCOMPARE(config.overviewCloseKey(), 7);
     QCOMPARE(config.dynamicIslandLeftSwipeItems(), QVariantList({QStringLiteral("time"), QStringLiteral("ram")}));
-    QCOMPARE(config.controlCenterIcons().value(QStringLiteral("charging")).toString(), QStringLiteral("C"));
 }
 
 void UserConfigBackendTests::exposesParseErrorsAndFallsBackToDefaults()

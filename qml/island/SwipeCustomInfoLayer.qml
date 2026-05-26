@@ -36,6 +36,7 @@ Item {
     property int batteryInnerRadius: 3
     property real iconVerticalOffset: 1
     property int recordingDotSpacing: 12
+    readonly property string chargingIconGlyph: "\uf0e7"
 
     readonly property real clampedProgress: Math.max(0, Math.min(1, -transitionProgress))
     readonly property real textWidth: Math.max(0, width - horizontalPadding * 2)
@@ -113,7 +114,7 @@ Item {
                     visible: parent.isBattery && modelData.isCharging
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    text: userConfig.statusIcons["charging"]
+                    text: root.chargingIconGlyph
                     color: "white"
                     font.pixelSize: root.iconPixelSize - 1
                     font.family: root.iconFontFamily

@@ -10,7 +10,6 @@ Item {
 
     signal transientRequested(string icon, real progress, string text)
 
-    property var statusIcons: ({})
     property var configuredLeftSwipeItems: []
     property string timeText: "00:00"
     property string dateText: "Mon, Jan 01"
@@ -23,6 +22,17 @@ Item {
     readonly property bool usesCavaModule: configuredLeftSwipeIds.indexOf("cava") !== -1
     readonly property bool hasCustomLeftItems: customLeftItems.length > 0
     readonly property string systemServicesClientId: "island-system-state-" + Math.random().toString(36).slice(2)
+    readonly property string defaultStatusIcon: "\ud83c\udfa7"
+    readonly property string volumeStatusIcon: "\uf057e"
+    readonly property string muteStatusIcon: "\uf075f"
+    readonly property string brightnessLowStatusIcon: "\uf00de"
+    readonly property string brightnessMediumStatusIcon: "\uf00df"
+    readonly property string brightnessHighStatusIcon: "\uf00e0"
+    readonly property string chargingStatusIcon: "\uf0e7"
+    readonly property string dischargingStatusIcon: "\uf244"
+    readonly property string cpuStatusIcon: "\uf035b"
+    readonly property string ramStatusIcon: "\uf061a"
+    readonly property string bluetoothStatusIcon: "\uf02cb"
 
     property int batteryCapacity: SysBackend.batteryCapacity
     property bool isCharging: SysBackend.batteryStatus === "Charging" || SysBackend.batteryStatus === "Full"
@@ -60,8 +70,6 @@ Item {
     onCurrentWorkspaceChanged: syncCustomLeftItems()
     onTimeTextChanged: syncCustomLeftItems()
     onDateTextChanged: syncCustomLeftItems()
-    onStatusIconsChanged: syncCustomLeftItems()
-
     Component.onCompleted: {
         syncCustomLeftItems();
         refreshMissingValues();
@@ -73,10 +81,32 @@ Item {
     }
 
     function statusIcon(name) {
-        if (!statusIcons)
+        switch (name) {
+        case "default":
+            return defaultStatusIcon;
+        case "volume":
+            return volumeStatusIcon;
+        case "mute":
+            return muteStatusIcon;
+        case "brightnessLow":
+            return brightnessLowStatusIcon;
+        case "brightnessMedium":
+            return brightnessMediumStatusIcon;
+        case "brightnessHigh":
+            return brightnessHighStatusIcon;
+        case "charging":
+            return chargingStatusIcon;
+        case "discharging":
+            return dischargingStatusIcon;
+        case "cpu":
+            return cpuStatusIcon;
+        case "ram":
+            return ramStatusIcon;
+        case "bluetooth":
+            return bluetoothStatusIcon;
+        default:
             return "";
-        const iconValue = statusIcons[name];
-        return iconValue === undefined || iconValue === null ? "" : String(iconValue);
+        }
     }
 
     function normalizeSwipeItemId(rawId) {

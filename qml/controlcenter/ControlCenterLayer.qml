@@ -99,6 +99,9 @@ Item {
     readonly property color buttonFillPressed: StyleTokens.buttonFillPressed
     readonly property string wifiGlyph: ""
     readonly property string bluetoothGlyph: ""
+    readonly property string chargingIconGlyph: "\uf0e7"
+    readonly property string brightnessIconGlyph: "\uf00df"
+    readonly property string volumeIconGlyph: "\uf057e"
     readonly property var batteryModeGlyphs: ["", "", ""]
     readonly property real batteryDrawerHandleHeight: 20
     readonly property real batteryDrawerContentGap: 8
@@ -1068,7 +1071,7 @@ Item {
                 spacing: 5
 
                 Text {
-                    text: userConfig.controlCenterIcons["charging"]
+                    text: controlCenter.chargingIconGlyph
                     color: StyleTokens.white
                     font.pixelSize: 13
                     font.family: iconFontFamily
@@ -1700,7 +1703,7 @@ Item {
             width: parent.width
             height: 76
             title: "Display"
-            iconText: userConfig.controlCenterIcons["brightness"]
+            iconText: controlCenter.brightnessIconGlyph
             iconFontFamily: controlCenter.iconFontFamily
             textFontFamily: controlCenter.textFontFamily
             value: controlCenter.displayedBrightness
@@ -1734,7 +1737,7 @@ Item {
             width: parent.width
             height: 76
             title: "Sound"
-            iconText: userConfig.controlCenterIcons["volume"]
+            iconText: controlCenter.volumeIconGlyph
             iconFontFamily: controlCenter.iconFontFamily
             textFontFamily: controlCenter.textFontFamily
             value: controlCenter.displayedVolume

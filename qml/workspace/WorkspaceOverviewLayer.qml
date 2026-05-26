@@ -51,11 +51,11 @@ Item {
     readonly property real outerPadding: 14
     readonly property real largeWorkspaceRadius: 30
     readonly property real smallWorkspaceRadius: 16
-    readonly property int workspaceOverviewCellAcceptedButtons: userConfig.mouseButtonsMask(userConfig.workspaceOverviewWorkspaceActivateButton)
+    readonly property int workspaceOverviewCellAcceptedButtons: Qt.LeftButton
     readonly property int workspaceOverviewWindowAcceptedButtons: userConfig.mouseButtonsMask([
         userConfig.workspaceOverviewWindowDragButton,
-        userConfig.workspaceOverviewWindowFocusButton,
-        userConfig.workspaceOverviewWindowCloseButton
+        1,
+        3
     ])
     readonly property color activeBorderColor: StyleTokens.workspaceActiveBorder
     readonly property color cardColor: StyleTokens.overviewCard
@@ -543,7 +543,7 @@ Item {
                                     acceptedButtons: root.workspaceOverviewCellAcceptedButtons
 
                                     onPressed: (mouse) => {
-                                        if (mouse.button !== userConfig.mouseButton(userConfig.workspaceOverviewWorkspaceActivateButton))
+                                        if (mouse.button !== Qt.LeftButton)
                                             return;
                                         if (root.draggingFromWorkspace !== -1)
                                             return;
@@ -842,11 +842,11 @@ Item {
                                     return;
                                 }
 
-                                if (mouse.button === userConfig.mouseButton(userConfig.workspaceOverviewWindowFocusButton)) {
+                                if (mouse.button === Qt.LeftButton) {
                                     root.closeRequested();
                                     hyprDispatch.focusWindow(windowTile.address);
                                     mouse.accepted = true;
-                                } else if (mouse.button === userConfig.mouseButton(userConfig.workspaceOverviewWindowCloseButton)) {
+                                } else if (mouse.button === Qt.RightButton) {
                                     hyprDispatch.closeWindow(windowTile.address);
                                     mouse.accepted = true;
                                 }

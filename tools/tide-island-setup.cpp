@@ -37,11 +37,6 @@ struct SetupStep {
     QString label;
 };
 
-QString glyph(char32_t codepoint)
-{
-    return QString::fromUcs4(&codepoint, 1);
-}
-
 QString envString(const char *name)
 {
     return QString::fromLocal8Bit(qgetenv(name));
@@ -114,61 +109,24 @@ QJsonArray stringArray(std::initializer_list<QString> values)
     return result;
 }
 
-QJsonObject controlCenterIconsDefaults()
-{
-    return {
-        {QStringLiteral("charging"), glyph(0xf0e7)},
-        {QStringLiteral("brightness"), glyph(0xf00df)},
-        {QStringLiteral("volume"), glyph(0xf057e)},
-    };
-}
-
-QJsonObject statusIconsDefaults()
-{
-    return {
-        {QStringLiteral("default"), glyph(0x1f3a7)},
-        {QStringLiteral("notification"), glyph(0xf0f3)},
-        {QStringLiteral("volume"), glyph(0xf057e)},
-        {QStringLiteral("mute"), glyph(0xf075f)},
-        {QStringLiteral("brightnessLow"), glyph(0xf00de)},
-        {QStringLiteral("brightnessMedium"), glyph(0xf00df)},
-        {QStringLiteral("brightnessHigh"), glyph(0xf00e0)},
-        {QStringLiteral("charging"), glyph(0xf0e7)},
-        {QStringLiteral("discharging"), glyph(0xf244)},
-        {QStringLiteral("cpu"), glyph(0xf035b)},
-        {QStringLiteral("ram"), glyph(0xf061a)},
-        {QStringLiteral("bluetooth"), glyph(0xf02cb)},
-    };
-}
-
 QJsonObject defaultUserConfig()
 {
     return {
         {QString::fromLatin1(wallpaperPathKey), QString()},
-        {QStringLiteral("workspaceOverviewWindowRadius"), 12.0},
         {QStringLiteral("iconFontFamily"), QStringLiteral("JetBrainsMono Nerd Font")},
         {QStringLiteral("textFontFamily"), QStringLiteral("Inter Display")},
         {QStringLiteral("heroFontFamily"), QStringLiteral("Inter Display")},
         {QStringLiteral("timeFontFamily"), QStringLiteral("Inter Display")},
         {QString::fromLatin1(tlpSudoPasswordKey), QString()},
         {QString::fromLatin1(tlpPermissionModeKey), QString()},
-        {QStringLiteral("overviewCloseKey"), 16777216},
-        {QStringLiteral("overviewPreviousWorkspaceKey"), 16777234},
-        {QStringLiteral("overviewNextWorkspaceKey"), 16777236},
         {QStringLiteral("overviewGlobalShortcutAppid"), QStringLiteral("quickshell")},
         {QStringLiteral("overviewGlobalShortcutName"), QStringLiteral("dynamic-island-overview")},
-        {QStringLiteral("workspaceOverviewWorkspaceActivateButton"), 1},
         {QStringLiteral("workspaceOverviewWindowDragButton"), 1},
-        {QStringLiteral("workspaceOverviewWindowFocusButton"), 1},
-        {QStringLiteral("workspaceOverviewWindowCloseButton"), 3},
-        {QStringLiteral("dynamicIslandSwipeButton"), 1},
         {QStringLiteral("dynamicIslandPrimaryButton"), 1},
         {QStringLiteral("dynamicIslandPrimaryAction"), QStringLiteral("toggleExpandedPlayer")},
         {QStringLiteral("dynamicIslandSecondaryButton"), 3},
         {QStringLiteral("dynamicIslandSecondaryAction"), QStringLiteral("toggleControlCenter")},
         {QStringLiteral("dynamicIslandLeftSwipeItems"), stringArray({QStringLiteral("cava"), QStringLiteral("battery")})},
-        {QStringLiteral("controlCenterIcons"), controlCenterIconsDefaults()},
-        {QStringLiteral("statusIcons"), statusIconsDefaults()},
     };
 }
 
@@ -268,6 +226,17 @@ void mergeUserConfigDefaults(QJsonObject *data)
 
         data->insert(key, fallback);
     }
+
+    data->remove(QStringLiteral("controlCenterIcons"));
+    data->remove(QStringLiteral("statusIcons"));
+    data->remove(QStringLiteral("workspaceOverviewWindowRadius"));
+    data->remove(QStringLiteral("overviewCloseKey"));
+    data->remove(QStringLiteral("overviewPreviousWorkspaceKey"));
+    data->remove(QStringLiteral("overviewNextWorkspaceKey"));
+    data->remove(QStringLiteral("workspaceOverviewWorkspaceActivateButton"));
+    data->remove(QStringLiteral("workspaceOverviewWindowFocusButton"));
+    data->remove(QStringLiteral("workspaceOverviewWindowCloseButton"));
+    data->remove(QStringLiteral("dynamicIslandSwipeButton"));
 }
 
 QString configString(const QJsonObject &data, const QString &key)
