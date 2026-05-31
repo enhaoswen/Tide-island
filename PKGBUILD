@@ -1,8 +1,8 @@
 # Maintainer: whysooraj <whysooraj.official@gmail.com>
 pkgname=tide-island
-pkgver=1.0.10
+pkgver=1.0.11
 pkgrel=1
-_commit=d8025e64216e973849513954e9d7fb5965eb4d33
+_commit=4d19c33be53c41d01af78889e8442b3bd3d60935
 _srcdir=Tide-island-$_commit
 pkgdesc="A dynamic island for Hyprland using Quickshell"
 arch=('x86_64')
