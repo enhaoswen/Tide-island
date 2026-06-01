@@ -241,6 +241,61 @@ tide-island-setup --wizard
 
 ## Configuration
 
+you can adjust configuration to your liking in `~/.config/tide-island/userconfig.json`.
+
+| Option | Meaning | Type | Default |
+|---|---|---|---|
+| `wallpaperPath` | Wallpaper image path for workspace overview background | string | `""` |
+| `iconFontFamily` | Font family for icons/glyphs throughout the island | string | `"JetBrainsMono Nerd Font"` |
+| `textFontFamily` | Font family for general body/UI text | string | `"Inter Display"` |
+| `heroFontFamily` | Font family for large headings (track title, control center titles) | string | `"Inter Display"` |
+| `timeFontFamily` | Font family for clock/time display text | string | `"Inter Display"` |
+| `tlpPermissionMode` | How to obtain sudo permissions for TLP battery mode switching | string | `"ask"` |
+| `tlpSudoPassword` | Sudo password used when `tlpPermissionMode` is `"password"` | string | `""` |
+| `overviewGlobalShortcutAppid` | App ID for registering the overview global shortcut | string | `"quickshell"` |
+| `overviewGlobalShortcutName` | Shortcut name for overview toggle | string | `"dynamic-island-overview"` |
+| `workspaceOverviewWindowDragButton` | Mouse button used to drag window tiles in workspace overview | int | `1` (Left) |
+| `dynamicIslandPrimaryButton` | Primary mouse button for clicking the island capsule | int | `1` (Left) |
+| `dynamicIslandPrimaryAction` | Action triggered by primary button click on the island | string | `"toggleExpandedPlayer"` |
+| `dynamicIslandSecondaryButton` | Secondary mouse button for clicking the island capsule | int | `3` (Right) |
+| `dynamicIslandSecondaryAction` | Action triggered by secondary button click on the island | string | `"toggleControlCenter"` |
+| `dynamicIslandLeftSwipeItems` | Cards shown when swiping left on the island pill | array | `["cava", "battery"]` |
+| `disableAutoExpandOnTrackChange` | Prevent auto-expanding the player when track changes | bool | `false` |
+
+<br>
+
+You can also change the key binding.
+
+| Action | Behavior |
+|---|---|
+| `""` / `"none"` | Do nothing |
+| `"toggleExpandedPlayer"` | Show/hide the expanded music player |
+| `"openExpandedPlayer"` | Open the expanded music player |
+| `"closeExpandedPlayer"` | Close the expanded music player |
+| `"toggleControlCenter"` | Show/hide the control center panel |
+| `"openControlCenter"` | Open the control center panel |
+| `"closeControlCenter"` | Close the control center panel |
+| `"toggleOverview"` | Show/hide the workspace overview |
+| `"openOverview"` | Open the workspace overview |
+| `"closeOverview"` | Close the workspace overview |
+| `"toggleLyrics"` | Show/hide the lyrics capsule |
+| `"showLyrics"` | Show the lyrics capsule |
+| `"showTime"` | Show the time capsule |
+| `"restoreRestingCapsule"` | Restore default resting capsule state |
+
+Example:
+
+```
+"dynamicIslandPrimaryButton": 1,
+"dynamicIslandPrimaryAction": "toggleExpandedPlayer",
+"dynamicIslandSecondaryButton": 3,
+"dynamicIslandSecondaryAction": "toggleControlCenter"
+```
+
+1 = Left click, 2 = Middle click, 3 = Right click
+
+<br>
+
 The default user configuration file is located at:
 
 ```text
