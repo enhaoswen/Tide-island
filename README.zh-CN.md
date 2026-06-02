@@ -294,6 +294,31 @@ tide-island-setup --wizard
 
 <br>
 
+## 快携键
+Not required, you can adjust based on your preferences.
+
+Shortcuts for ~/.config/hypr/hyprland.conf.
+
+```
+bind = $mainMod, right, exec, qs ipc -p /usr/share/tide-island call tide showLyrics
+bind = $mainMod, left,  exec, qs ipc -p /usr/share/tide-island call tide showCustom
+bind = $mainMod, down,  exec, qs ipc -p /usr/share/tide-island call tide showClock
+bind = $mainMod, M, exec, qs ipc -p /usr/share/tide-island call tide togglePlayer
+bind = $mainMod, C, exec, qs ipc -p /usr/share/tide-island call tide toggleControlCenter
+```
+
+Shortcuts for ~/.config/hypr/hyprland.lua.
+
+```
+hyprland.bind("SUPER", "right", "exec", "qs ipc -p /usr/share/tide-island call tide showLyrics")
+hyprland.bind("SUPER", "left",  "exec", "qs ipc -p /usr/share/tide-island call tide showCustom")
+hyprland.bind("SUPER", "down",  "exec", "qs ipc -p /usr/share/tide-island call tide showClock")
+hyprland.bind("SUPER", "M", "exec", "qs ipc -p /usr/share/tide-island call tide togglePlayer")
+hyprland.bind("SUPER", "C", "exec", "qs ipc -p /usr/share/tide-island call tide toggleControlCenter")
+```
+
+<br>
+
 默认用户配置文件位于：
 
 ```text
