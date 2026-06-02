@@ -118,18 +118,6 @@ Scope {
         function toggleControlCenter() {
             shellRoot.forFocusedWindow((window) => window.toggleControlCenterWindow());
         }
-
-        function playPause() {
-            shellRoot.forFocusedWindow((window) => window.playerPlayPauseWindow());
-        }
-
-        function nextTrack() {
-            shellRoot.forFocusedWindow((window) => window.playerNextWindow());
-        }
-
-        function prevTrack() {
-            shellRoot.forFocusedWindow((window) => window.playerPreviousWindow());
-        }
     }
 
     GlobalShortcut {

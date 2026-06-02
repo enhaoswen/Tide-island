@@ -292,27 +292,6 @@ PanelWindow {
             islandContainer.showControlCenter();
     }
 
-    function playerPlayPauseWindow() {
-        var player = islandContainer.mediaController.activePlayer;
-        if (!player || !player.canControl) return;
-        if (player.canTogglePlaying) { player.togglePlaying(); return; }
-        if (player.playbackState === MprisPlaybackState.Playing) {
-            if (player.canPause) player.pause();
-        } else if (player.canPlay) {
-            player.play();
-        }
-    }
-
-    function playerNextWindow() {
-        var player = islandContainer.mediaController.activePlayer;
-        if (player) player.next();
-    }
-
-    function playerPreviousWindow() {
-        var player = islandContainer.mediaController.activePlayer;
-        if (player) player.previous();
-    }
-
     onOverviewVisibleChanged: {
         if (overviewVisible && monitorFocused) overviewFocusTimer.restart();
     }
