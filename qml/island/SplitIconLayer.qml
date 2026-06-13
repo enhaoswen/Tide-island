@@ -46,7 +46,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         text: iconText
         color: "white"
-        font.pixelSize: 18
+        font.pixelSize: userConfig.iconFontSize
         font.family: iconFontFamily
         horizontalAlignment: Text.AlignHCenter
     }

@@ -128,6 +128,12 @@ QJsonObject defaultUserConfig()
         {QStringLiteral("dynamicIslandSecondaryAction"), QStringLiteral("toggleControlCenter")},
         {QStringLiteral("dynamicIslandLeftSwipeItems"), stringArray({QStringLiteral("cava"), QStringLiteral("battery")})},
         {QStringLiteral("disableAutoExpandOnTrackChange"), false},
+        {QStringLiteral("islandWidth"), 140},
+        {QStringLiteral("islandHeight"), 38},
+        {QStringLiteral("islandPositionX"), 50},
+        {QStringLiteral("bodyFontSize"), 16},
+        {QStringLiteral("titleFontSize"), 20},
+        {QStringLiteral("iconFontSize"), 18},
     };
 }
 
@@ -162,17 +168,192 @@ QJsonObject loadUserConfig()
     return document.object();
 }
 
+QString formatJsonArray(const QJsonArray &arr)
+{
+    QStringList items;
+    for (const QJsonValue &value : arr) {
+        if (value.isString())
+            items.append(QStringLiteral("\"%1\"").arg(value.toString()));
+    }
+    return QStringLiteral("[%1]").arg(items.join(QStringLiteral(", ")));
+}
+
+QString formatUserConfig(const QJsonObject &data)
+{
+    auto str = [&](const QString &key, const QString &fallback = QString()) {
+        const QJsonValue v = data.value(key);
+        return v.isString() ? v.toString() : fallback;
+    };
+    auto num = [&](const QString &key, int fallback = 0) {
+        const QJsonValue v = data.value(key);
+        return v.isDouble() ? qRound(v.toDouble()) : fallback;
+    };
+    auto boolean = [&](const QString &key, bool fallback = false) {
+        const QJsonValue v = data.value(key);
+        return v.isBool() ? v.toBool() : fallback;
+    };
+    auto array = [&](const QString &key) {
+        return formatJsonArray(data.value(key).toArray());
+    };
+
+    QString result;
+    QTextStream t(&result);
+
+    t << "// =============================================================================\n"
+         "//  Tide Island - User Configuration\n"
+         "// =============================================================================\n"
+         "//  Changes take effect immediately when this file is saved.\n"
+         "//  This file supports // line comments and /* block comments */.\n"
+         "\n"
+         "{\n"
+         "    // ===========================================================================\n"
+         "    //  APPEARANCE  - Island capsule size & position\n"
+         "    // ===========================================================================\n"
+         "\n"
+         "    // Capsule width in resting (collapsed) state, in pixels.\n"
+         "    \"islandWidth\": " << num("islandWidth", 140) << ",\n"
+         "\n"
+         "    // Capsule height in resting state, in pixels.\n"
+         "    \"islandHeight\": " << num("islandHeight", 38) << ",\n"
+         "\n"
+         "    // Horizontal position as percentage of screen width.\n"
+         "    // 0 = left edge, 50 = center, 100 = right edge.\n"
+         "    \"islandPositionX\": " << num("islandPositionX", 50) << ",\n"
+         "\n"
+         "\n"
+         "    // ===========================================================================\n"
+         "    //  FONTS - Families\n"
+         "    // ===========================================================================\n"
+         "\n"
+         "    // Icon font (requires a Nerd Font for full icon coverage).\n"
+         "    \"iconFontFamily\": \"" << str("iconFontFamily", "JetBrainsMono Nerd Font") << "\",\n"
+         "\n"
+         "    // Body / paragraph text font.\n"
+         "    \"textFontFamily\": \"" << str("textFontFamily", "Inter Display") << "\",\n"
+         "\n"
+         "    // Heading / hero text font.\n"
+         "    \"heroFontFamily\": \"" << str("heroFontFamily", "Inter Display") << "\",\n"
+         "\n"
+         "    // Clock / time display font.\n"
+         "    \"timeFontFamily\": \"" << str("timeFontFamily", "Inter Display") << "\",\n"
+         "\n"
+         "\n"
+         "    // ===========================================================================\n"
+         "    //  FONTS - Sizes\n"
+         "    // ===========================================================================\n"
+         "\n"
+         "    // Base pixel size for body text. Small text derives from this (e.g. bodyFontSize - 4).\n"
+         "    \"bodyFontSize\": " << num("bodyFontSize", 16) << ",\n"
+         "\n"
+         "    // Base pixel size for headings / hero text.\n"
+         "    \"titleFontSize\": " << num("titleFontSize", 20) << ",\n"
+         "\n"
+         "    // Base pixel size for icon glyphs.\n"
+         "    \"iconFontSize\": " << num("iconFontSize", 18) << ",\n"
+         "\n"
+         "\n"
+         "    // ===========================================================================\n"
+         "    //  INTERACTION - Click\n"
+         "    // ===========================================================================\n"
+         "\n"
+         "    // Mouse button for primary click. Qt numbering: 1 = left, 2 = middle, 3 = right.\n"
+         "    \"dynamicIslandPrimaryButton\": " << num("dynamicIslandPrimaryButton", 1) << ",\n"
+         "\n"
+         "    // Action for primary click. See the list of available actions below.\n"
+         "    \"dynamicIslandPrimaryAction\": \"" << str("dynamicIslandPrimaryAction", "toggleExpandedPlayer") << "\",\n"
+         "\n"
+         "    // Mouse button for secondary click.\n"
+         "    \"dynamicIslandSecondaryButton\": " << num("dynamicIslandSecondaryButton", 3) << ",\n"
+         "\n"
+         "    // Action for secondary click.\n"
+         "    \"dynamicIslandSecondaryAction\": \"" << str("dynamicIslandSecondaryAction", "toggleControlCenter") << "\",\n"
+         "\n"
+         "    // ---- Available click actions -----------------------------------------------\n"
+         "    //  \"none\"                       Do nothing\n"
+         "    //  \"toggleExpandedPlayer\"       Toggle music player\n"
+         "    //  \"openExpandedPlayer\"         Open music player\n"
+         "    //  \"closeExpandedPlayer\"        Close music player\n"
+         "    //  \"toggleControlCenter\"        Toggle control center\n"
+         "    //  \"openControlCenter\"          Open control center\n"
+         "    //  \"closeControlCenter\"         Close control center\n"
+         "    //  \"toggleOverview\"             Toggle workspace overview\n"
+         "    //  \"openOverview\"               Open workspace overview\n"
+         "    //  \"closeOverview\"              Close workspace overview\n"
+         "    //  \"toggleLyrics\"               Toggle lyrics / time\n"
+         "    //  \"showLyrics\"                 Show lyrics view\n"
+         "    //  \"showTime\"                   Show time capsule\n"
+         "    //  \"restoreRestingCapsule\"      Collapse to resting state\n"
+         "\n"
+         "\n"
+         "    // ===========================================================================\n"
+         "    //  INTERACTION - Left Swipe\n"
+         "    // ===========================================================================\n"
+         "\n"
+         "    // Components shown when swiping left on the island capsule.\n"
+         "    // Available:  time, date, battery, volume, brightness,\n"
+         "    //             workspace, cpu, ram, cava\n"
+         "    \"dynamicIslandLeftSwipeItems\": " << array("dynamicIslandLeftSwipeItems") << ",\n"
+         "\n"
+         "\n"
+         "    // ===========================================================================\n"
+         "    //  WORKSPACE OVERVIEW\n"
+         "    // ===========================================================================\n"
+         "\n"
+         "    // Quickshell app-id for the global shortcut.\n"
+         "    \"overviewGlobalShortcutAppid\": \"" << str("overviewGlobalShortcutAppid", "quickshell") << "\",\n"
+         "\n"
+         "    // Quickshell shortcut name (registered as SUPER+TAB in Hyprland).\n"
+         "    \"overviewGlobalShortcutName\": \"" << str("overviewGlobalShortcutName", "dynamic-island-overview") << "\",\n"
+         "\n"
+         "    // Mouse button for dragging windows in the overview.\n"
+         "    \"workspaceOverviewWindowDragButton\": " << num("workspaceOverviewWindowDragButton", 1) << ",\n"
+         "\n"
+         "    // Wallpaper image path for the workspace overview background.\n"
+         "    \"wallpaperPath\": \"" << str("wallpaperPath") << "\",\n"
+         "\n"
+         "\n"
+         "    // ===========================================================================\n"
+         "    //  POWER - TLP Profile Switching\n"
+         "    // ===========================================================================\n"
+         "\n"
+         "    // Sudo permission mode for TLP power-profile controls.\n"
+         "    //  \"skip\"       Disable TLP controls entirely\n"
+         "    //  \"ask\"        Prompt for password each time\n"
+         "    //  \"password\"   Use the stored password below\n"
+         "    \"tlpPermissionMode\": \"" << str("tlpPermissionMode") << "\",\n"
+         "\n"
+         "    // Sudo password. Only read when tlpPermissionMode is \"password\".\n"
+         "    \"tlpSudoPassword\": \"" << str("tlpSudoPassword") << "\",\n"
+         "\n"
+         "\n"
+         "    // ===========================================================================\n"
+         "    //  OTHER\n"
+         "    // ===========================================================================\n"
+         "\n"
+         "    // When true, the capsule stays collapsed when a new track starts playing.\n"
+         "    \"disableAutoExpandOnTrackChange\": " << (boolean("disableAutoExpandOnTrackChange", false) ? "true" : "false") << "\n"
+         "}\n";
+
+    return result;
+}
+
 bool saveUserConfig(const QJsonObject &data)
 {
     const QString path = userConfigPath();
     if (!ensurePrivateConfigDir(path))
         return false;
 
+    if (userConfigExists()) {
+        const QJsonObject existing = loadUserConfig();
+        if (existing == data)
+            return true;
+    }
+
     QSaveFile file(path);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
         return false;
 
-    file.write(QJsonDocument(data).toJson(QJsonDocument::Indented));
+    file.write(formatUserConfig(data).toUtf8());
     if (!file.commit())
         return false;
 

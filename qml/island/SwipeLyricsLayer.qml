@@ -16,7 +16,7 @@ Item {
     property bool showSecondaryText: true
     property bool recordingActive: false
     property real transitionProgress: 0
-    property int textPixelSize: 16
+    property int textPixelSize: userConfig.bodyFontSize
     property real minimumWidth: 220
     property real maximumWidth: minimumWidth
     property real horizontalPadding: 14

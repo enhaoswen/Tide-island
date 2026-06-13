@@ -50,7 +50,7 @@ Item {
     TextMetrics {
         id: contentMetrics
         font.family: textFontFamily
-        font.pixelSize: 16
+        font.pixelSize: userConfig.bodyFontSize
         font.weight: Font.DemiBold
         text: contentText
     }
@@ -69,7 +69,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             text: iconText
             color: "#f4f5f7"
-            font.pixelSize: 18
+            font.pixelSize: userConfig.iconFontSize
             font.family: iconFontFamily
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
@@ -83,7 +83,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: contentText
                 color: "white"
-                font.pixelSize: 16
+                font.pixelSize: userConfig.bodyFontSize
                 font.family: textFontFamily
                 font.weight: Font.DemiBold
                 font.letterSpacing: -0.15

@@ -25,8 +25,8 @@ Item {
     property real hiddenRightPadding: 18
     property real groupSpacing: 16
     property real iconSpacing: 8
-    property int textPixelSize: 16
-    property int iconPixelSize: 16
+    property int textPixelSize: userConfig.bodyFontSize
+    property int iconPixelSize: userConfig.iconFontSize
     property int iconBoxSize: 18
     property int batteryIconWidth: 30
     property int batteryIconHeight: 15

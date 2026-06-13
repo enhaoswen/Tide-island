@@ -90,7 +90,7 @@ PanelWindow {
             Math.ceil(root.controlCenterWindowHeight)
         )
         : Math.max(Math.ceil(4 + root.connectivityDetailHeight + 12), Math.ceil(root.controlCenterWindowHeight))
-    exclusiveZone: 45
+    exclusiveZone: 4 + userConfig.islandHeight + 3
     aboveWindows: true
     focusable: root.monitorFocused && (root.overviewVisible || root.connectivityPromptActive)
     WlrLayershell.layer: WlrLayer.Top
@@ -101,6 +101,9 @@ PanelWindow {
     readonly property string textFontFamily: userConfig.textFontFamily
     readonly property string heroFontFamily: userConfig.heroFontFamily
     readonly property string timeFontFamily: userConfig.timeFontFamily
+    readonly property int bodyFontSize: userConfig.bodyFontSize
+    readonly property int titleFontSize: userConfig.titleFontSize
+    readonly property int iconFontSize: userConfig.iconFontSize
     readonly property string defaultSplitIcon: "\ud83c\udfa7"
     readonly property string notificationStatusIcon: "\uf0f3"
     readonly property real overviewWindowCornerRadius: 12
@@ -417,7 +420,7 @@ PanelWindow {
         readonly property bool splitShowsText: islandState === "split" && osdProgress < 0 && osdCustomText !== ""
         readonly property bool splitShowsIconOnly: islandState === "split" && osdProgress < 0 && osdCustomText === ""
         readonly property bool splitUsesExtendedLayout: splitShowsProgress || splitShowsText
-        readonly property real splitCapsuleWidth: splitShowsProgress ? 248 : (splitShowsText ? 220 : 140)
+        readonly property real splitCapsuleWidth: splitShowsProgress ? 248 : (splitShowsText ? 220 : userConfig.islandWidth)
         readonly property bool canShowSideSwipe: islandState === "normal"
             || islandState === "custom"
             || islandState === "lyrics"
@@ -736,25 +739,25 @@ PanelWindow {
         function sideSwipeRestWidthForProgress(progressValue) {
             if (progressValue <= -0.5) return customCapsuleWidth;
             if (progressValue >= 0.5) return lyricsCapsuleWidth;
-            return 140;
+            return userConfig.islandWidth;
         }
 
         function customSideSwipeDragDistance() {
             const view = customSwipeLoader.item;
             if (view && view.dragDistance > 0) return view.dragDistance;
-            return Math.max(140, customCapsuleWidth + 4);
+            return Math.max(userConfig.islandWidth, customCapsuleWidth + 4);
         }
 
         function lyricsSideSwipeDragDistance() {
             const view = lyricsSwipeLoader.item;
             if (view && view.dragDistance > 0) return view.dragDistance;
-            return Math.max(140, lyricsCapsuleWidth + 2);
+            return Math.max(userConfig.islandWidth, lyricsCapsuleWidth + 2);
         }
 
         function sideSwipeDragDistanceForDirection(direction) {
             if (direction === "left") return customSideSwipeDragDistance();
             if (direction === "right") return lyricsSideSwipeDragDistance();
-            return 140;
+            return userConfig.islandWidth;
         }
 
         function advanceSideSwipeProgress(currentProgress, deltaX) {
@@ -808,18 +811,18 @@ PanelWindow {
                 if (finalProgress >= -0.44) {
                     settleAction = "time";
                     settleProgress = 0;
-                    settleWidth = 140;
+                    settleWidth = userConfig.islandWidth;
                 }
             } else if (startProgress >= 0.5) {
                 if (finalProgress <= 0.44) {
                     settleAction = "time";
                     settleProgress = 0;
-                    settleWidth = 140;
+                    settleWidth = userConfig.islandWidth;
                 }
             } else {
                 settleAction = "time";
                 settleProgress = 0;
-                settleWidth = 140;
+                settleWidth = userConfig.islandWidth;
             }
 
             return {
@@ -1097,7 +1100,7 @@ PanelWindow {
                         Math.min(notificationLoader.item.maximumWidth, notificationLoader.item.preferredWidth)
                     );
                 default:
-                    return 140;
+                    return userConfig.islandWidth;
                 }
             }
             readonly property real targetHeight: {
@@ -1114,7 +1117,7 @@ PanelWindow {
                         ? Math.max(56, Math.min(68, notificationLoader.item.preferredHeight))
                         : 56;
                 default:
-                    return 38;
+                    return userConfig.islandHeight;
                 }
             }
             readonly property real targetRadius: {
@@ -1129,24 +1132,24 @@ PanelWindow {
                 case "notification":
                     return mainCapsule.targetHeight / 2;
                 default:
-                    return 19;
+                    return userConfig.islandHeight / 2;
                 }
             }
             function sideSwipeWidthForProgress(progressValue) {
                 if (progressValue < 0)
-                    return 140 + (islandContainer.customCapsuleWidth - 140)
+                    return userConfig.islandWidth + (islandContainer.customCapsuleWidth - userConfig.islandWidth)
                         * islandContainer.clamp01(-progressValue);
                 if (progressValue > 0)
-                    return 140 + (islandContainer.lyricsCapsuleWidth - 140)
+                    return userConfig.islandWidth + (islandContainer.lyricsCapsuleWidth - userConfig.islandWidth)
                         * islandContainer.clamp01(progressValue);
-                return 140;
+                return userConfig.islandWidth;
             }
             readonly property real sideSwipePreviewWidth: mainCapsule.sideSwipeWidthForProgress(
                 islandContainer.swipeTransitionProgress
             )
             color: root.overviewContentVisible ? root.overviewCapsuleColor : StyleTokens.black
             y: 4
-            anchors.horizontalCenter: parent.horizontalCenter
+            x: parent ? parent.width * userConfig.islandPositionX / 100 - width / 2 : 0
             clip: true
             width: displayedWidth
             height: targetHeight
@@ -1437,6 +1440,8 @@ PanelWindow {
                         iconFontFamily: root.iconFontFamily
                         textFontFamily: root.heroFontFamily
                         timeFontFamily: root.heroFontFamily
+                        textPixelSize: root.bodyFontSize
+                        iconPixelSize: root.iconFontSize
                         minimumWidth: 220
                         maximumWidth: Math.max(220, root.width - 48)
                         transitionProgress: islandContainer.swipeTransitionProgress
@@ -1464,7 +1469,7 @@ PanelWindow {
                         timeText: timeObj.currentTime
                         textFontFamily: root.textFontFamily
                         timeFontFamily: root.timeFontFamily
-                        textPixelSize: 16
+                        textPixelSize: root.bodyFontSize
                         minimumWidth: 220
                         maximumWidth: Math.max(220, root.width - 48)
                         transitionProgress: islandContainer.rightSwipeProgress
@@ -1532,7 +1537,7 @@ PanelWindow {
                         workspaceId: islandContainer.currentWs
                         displayText: "Workspace " + islandContainer.currentWs
                         textFontFamily: root.textFontFamily
-                        textPixelSize: 16
+                        textPixelSize: root.bodyFontSize
                         animateVisibility: islandContainer.restingState === "normal"
                         transitionProgress: islandContainer.swipeTransitionProgress
                         showCondition: true

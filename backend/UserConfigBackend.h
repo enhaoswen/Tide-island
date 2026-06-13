@@ -36,6 +36,13 @@ class UserConfigBackend final : public QObject {
     Q_PROPERTY(QVariantList dynamicIslandLeftSwipeItems READ dynamicIslandLeftSwipeItems NOTIFY dynamicIslandLeftSwipeItemsChanged FINAL)
     Q_PROPERTY(bool disableAutoExpandOnTrackChange READ disableAutoExpandOnTrackChange NOTIFY disableAutoExpandOnTrackChangeChanged FINAL)
 
+    Q_PROPERTY(int islandWidth READ islandWidth NOTIFY islandWidthChanged FINAL)
+    Q_PROPERTY(int islandHeight READ islandHeight NOTIFY islandHeightChanged FINAL)
+    Q_PROPERTY(int islandPositionX READ islandPositionX NOTIFY islandPositionXChanged FINAL)
+    Q_PROPERTY(int bodyFontSize READ bodyFontSize NOTIFY bodyFontSizeChanged FINAL)
+    Q_PROPERTY(int titleFontSize READ titleFontSize NOTIFY titleFontSizeChanged FINAL)
+    Q_PROPERTY(int iconFontSize READ iconFontSize NOTIFY iconFontSizeChanged FINAL)
+
 public:
     explicit UserConfigBackend(QObject *parent = nullptr);
 
@@ -59,6 +66,12 @@ public:
     QString dynamicIslandSecondaryAction() const;
     const QVariantList &dynamicIslandLeftSwipeItems() const;
     bool disableAutoExpandOnTrackChange() const;
+    int islandWidth() const;
+    int islandHeight() const;
+    int islandPositionX() const;
+    int bodyFontSize() const;
+    int titleFontSize() const;
+    int iconFontSize() const;
     void setDefaultWallpaperPath(const QString &path);
     void setDefaultTlpSudoPassword(const QString &password);
 
@@ -86,6 +99,12 @@ signals:
     void dynamicIslandSecondaryActionChanged();
     void dynamicIslandLeftSwipeItemsChanged();
     void disableAutoExpandOnTrackChangeChanged();
+    void islandWidthChanged();
+    void islandHeightChanged();
+    void islandPositionXChanged();
+    void bodyFontSizeChanged();
+    void titleFontSizeChanged();
+    void iconFontSizeChanged();
 
 private:
     void scheduleReload();
@@ -113,6 +132,12 @@ private:
     QString m_dynamicIslandSecondaryAction = QStringLiteral("toggleControlCenter");
     QVariantList m_dynamicIslandLeftSwipeItems;
     bool m_disableAutoExpandOnTrackChange = false;
+    int m_islandWidth = 140;
+    int m_islandHeight = 38;
+    int m_islandPositionX = 50;
+    int m_bodyFontSize = 16;
+    int m_titleFontSize = 20;
+    int m_iconFontSize = 18;
 
     QFileSystemWatcher m_watcher;
     QTimer m_reloadTimer;

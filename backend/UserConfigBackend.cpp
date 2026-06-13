@@ -19,6 +19,33 @@ QVariantList defaultDynamicIslandLeftSwipeItems()
     return {QStringLiteral("cava"), QStringLiteral("battery")};
 }
 
+QByteArray stripJsonComments(const QByteArray &input)
+{
+    QString text = QString::fromUtf8(input);
+
+    // Remove /* ... */ block comments
+    static const QRegularExpression blockRe(QStringLiteral("/\\*.*?\\*/"), QRegularExpression::DotMatchesEverythingOption);
+    text.replace(blockRe, QString());
+
+    // Remove // line comments
+    const QStringList lines = text.split(u'\n');
+    QStringList stripped;
+    bool inString = false;
+    for (const QString &line : lines) {
+        QString result;
+        for (int i = 0; i < line.size(); ++i) {
+            const QChar ch = line.at(i);
+            if (ch == u'"' && (i == 0 || line.at(i - 1) != u'\\'))
+                inString = !inString;
+            if (!inString && ch == u'/' && i + 1 < line.size() && line.at(i + 1) == u'/')
+                break;
+            result.append(ch);
+        }
+        stripped.append(result);
+    }
+    return stripped.join(u'\n').toUtf8();
+}
+
 QString jsonString(const QJsonObject &object, QLatin1String key, const QString &fallback)
 {
     const QJsonValue value = object.value(key);
@@ -173,6 +200,36 @@ bool UserConfigBackend::disableAutoExpandOnTrackChange() const
     return m_disableAutoExpandOnTrackChange;
 }
 
+int UserConfigBackend::islandWidth() const
+{
+    return m_islandWidth;
+}
+
+int UserConfigBackend::islandHeight() const
+{
+    return m_islandHeight;
+}
+
+int UserConfigBackend::islandPositionX() const
+{
+    return m_islandPositionX;
+}
+
+int UserConfigBackend::bodyFontSize() const
+{
+    return m_bodyFontSize;
+}
+
+int UserConfigBackend::titleFontSize() const
+{
+    return m_titleFontSize;
+}
+
+int UserConfigBackend::iconFontSize() const
+{
+    return m_iconFontSize;
+}
+
 void UserConfigBackend::setDefaultWallpaperPath(const QString &path)
 {
     if (m_defaultWallpaperPath == path)
@@ -253,8 +310,9 @@ void UserConfigBackend::loadConfig()
         } else {
             const QByteArray configBytes = configFile.readAll();
             if (!configBytes.trimmed().isEmpty()) {
+                const QByteArray strippedBytes = stripJsonComments(configBytes);
                 QJsonParseError parseError;
-                const QJsonDocument document = QJsonDocument::fromJson(configBytes, &parseError);
+                const QJsonDocument document = QJsonDocument::fromJson(strippedBytes, &parseError);
                 if (parseError.error != QJsonParseError::NoError) {
                     nextConfigError = QStringLiteral("Invalid JSON in %1 at offset %2: %3")
                         .arg(m_userConfigPath)
@@ -287,6 +345,12 @@ void UserConfigBackend::loadConfig()
     updateField(this, m_dynamicIslandSecondaryAction, jsonString(configObject, QLatin1String("dynamicIslandSecondaryAction"), QStringLiteral("toggleControlCenter")), &UserConfigBackend::dynamicIslandSecondaryActionChanged);
     updateField(this, m_dynamicIslandLeftSwipeItems, jsonArray(configObject, QLatin1String("dynamicIslandLeftSwipeItems"), defaultDynamicIslandLeftSwipeItems()), &UserConfigBackend::dynamicIslandLeftSwipeItemsChanged);
     updateField(this, m_disableAutoExpandOnTrackChange, jsonBool(configObject, QLatin1String("disableAutoExpandOnTrackChange"), false), &UserConfigBackend::disableAutoExpandOnTrackChangeChanged);
+    updateField(this, m_islandWidth, jsonInt(configObject, QLatin1String("islandWidth"), 140), &UserConfigBackend::islandWidthChanged);
+    updateField(this, m_islandHeight, jsonInt(configObject, QLatin1String("islandHeight"), 38), &UserConfigBackend::islandHeightChanged);
+    updateField(this, m_islandPositionX, jsonInt(configObject, QLatin1String("islandPositionX"), 50), &UserConfigBackend::islandPositionXChanged);
+    updateField(this, m_bodyFontSize, jsonInt(configObject, QLatin1String("bodyFontSize"), 16), &UserConfigBackend::bodyFontSizeChanged);
+    updateField(this, m_titleFontSize, jsonInt(configObject, QLatin1String("titleFontSize"), 20), &UserConfigBackend::titleFontSizeChanged);
+    updateField(this, m_iconFontSize, jsonInt(configObject, QLatin1String("iconFontSize"), 18), &UserConfigBackend::iconFontSizeChanged);
 
     updateWatchedPaths();
 }

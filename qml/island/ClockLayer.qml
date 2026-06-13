@@ -12,7 +12,7 @@ Item {
     property string heroFontFamily: activeConfig.heroFontFamily
     property bool showCondition: false
     property real contentOffsetX: 0
-    property int textPixelSize: 18
+    property int textPixelSize: userConfig.titleFontSize
 
     anchors.fill: parent
     opacity: showCondition ? 1 : 0

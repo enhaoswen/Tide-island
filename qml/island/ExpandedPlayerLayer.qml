@@ -108,7 +108,7 @@ Item {
                     Text {
                         text: currentTrack
                         color: "white"
-                        font.pixelSize: 16
+                        font.pixelSize: userConfig.bodyFontSize
                         font.family: textFontFamily
                         font.weight: Font.DemiBold
                         font.letterSpacing: -0.15
@@ -119,7 +119,7 @@ Item {
                     Text {
                         text: currentArtist
                         color: "#8e8e93"
-                        font.pixelSize: 14
+                        font.pixelSize: userConfig.bodyFontSize - 2
                         font.family: textFontFamily
                         font.weight: Font.Medium
                         width: 200
@@ -179,7 +179,7 @@ Item {
                 anchors.left: parent.left
                 text: timePlayed
                 color: "#8e8e93"
-                font.pixelSize: 12
+                font.pixelSize: userConfig.bodyFontSize - 4
                 font.family: textFontFamily
                 font.weight: Font.Medium
             }
@@ -213,7 +213,7 @@ Item {
                 anchors.right: parent.right
                 text: timeTotal
                 color: "#8e8e93"
-                font.pixelSize: 12
+                font.pixelSize: userConfig.bodyFontSize - 4
                 font.family: textFontFamily
                 font.weight: Font.Medium
             }

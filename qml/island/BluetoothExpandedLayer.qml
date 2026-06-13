@@ -1,7 +1,10 @@
 import QtQuick
+import IslandBackend
 
 Item {
     id: root
+
+    readonly property var userConfig: UserConfig
 
     property bool showCondition: false
     property var device: null
@@ -68,7 +71,7 @@ Item {
                     anchors.centerIn: parent
                     text: root.iconText
                     color: "#0a84ff"
-                    font.pixelSize: 34
+                    font.pixelSize: userConfig.iconFontSize + 16
                     font.family: root.iconFontFamily
                 }
             }
@@ -142,7 +145,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         text: root.deviceName
                         color: "#ffffff"
-                        font.pixelSize: 15
+                        font.pixelSize: userConfig.bodyFontSize - 1
                         font.family: root.textFontFamily
                         font.weight: Font.DemiBold
                         elide: Text.ElideRight
@@ -153,7 +156,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         text: root.batteryAvailable ? root.batteryPercent + "%" : "--"
                         color: root.batteryAvailable ? "#cfd2d8" : "#8e8e93"
-                        font.pixelSize: 13
+                        font.pixelSize: userConfig.bodyFontSize - 3
                         font.family: root.textFontFamily
                         font.weight: Font.DemiBold
                     }
@@ -165,7 +168,7 @@ Item {
                     anchors.bottom: parent.bottom
                     text: "Connected"
                     color: "#34c759"
-                    font.pixelSize: 12
+                    font.pixelSize: userConfig.bodyFontSize - 4
                     font.family: root.textFontFamily
                     font.weight: Font.Medium
                     elide: Text.ElideRight
