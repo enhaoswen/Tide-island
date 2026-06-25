@@ -1,3 +1,0 @@
-/home/dan/Code/Tide-island/build/CMakeFiles/Tide-island.dir
-/home/dan/Code/Tide-island/build/CMakeFiles/edit_cache.dir
-/home/dan/Code/Tide-island/build/CMakeFiles/rebuild_cache.dir
