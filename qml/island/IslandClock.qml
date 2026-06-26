@@ -18,11 +18,7 @@ Item {
     }
 
     function formatDateLabel(now) {
-        return dayNames[now.getDay()]
-            + ", "
-            + monthNames[now.getMonth()]
-            + " "
-            + padTwoDigits(now.getDate());
+        return dayNames[now.getDay()] + ", " + monthNames[now.getMonth()] + " " + padTwoDigits(now.getDate());
     }
 
     Timer {
@@ -35,7 +31,7 @@ Item {
 
         onTriggered: {
             const now = new Date();
-            root.currentTime = Qt.formatTime(now, "hh:mm ap");
+            root.currentTime = Qt.formatTime(now, "hh:mm A");
             root.currentDateLabel = root.formatDateLabel(now);
             interval = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
         }

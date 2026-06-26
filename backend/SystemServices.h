@@ -46,7 +46,6 @@ public:
     Q_INVOKABLE void ensureSetupComplete(const QString &shellDir);
 
 signals:
-    void notificationReceived(const QString &appName, const QString &summary, const QString &body);
     void screenRecordingActiveChanged();
     void hyprlandSnapshotReady(const QString &requestId,
                                const QString &subject,
@@ -86,23 +85,19 @@ private:
     QString findExecutable(const QString &program) const;
     QString commandErrorText(const QString &program, const CommandResult &result) const;
 
-    void startNotificationMonitor();
     void startPipeWireMonitor();
     void startRecordingPortalMonitor();
     void stopProcess(QProcess *&process);
     void setPortalPipeWireActive(bool active);
     void updateScreenRecordingActive();
 
-    void handleNotificationOutput();
     void handlePipeWireOutput();
     void handleRecordingPortalOutput();
     void processLines(QByteArray &buffer, const QByteArray &chunk, const std::function<void(const QString &)> &handler);
-    void handleNotificationLine(const QString &line);
     void handlePipeWireLine(const QString &line);
     void handleRecordingPortalLine(const QString &line);
     void applyPipeWireSnapshot(const QString &text);
 
-    QString decodeDbusMonitorString(const QString &line) const;
     QString extractHeaderPath(const QString &line) const;
     QString extractObjectPath(const QString &line) const;
     bool screenCastMemberHasSessionArgument(const QString &memberName) const;
@@ -127,13 +122,11 @@ private:
     QProcess *m_tlpSetter = nullptr;
     QProcess *m_cavaProcess = nullptr;
 
-    QTimer m_notificationRestartTimer;
     QTimer m_pipeWireRestartTimer;
     QTimer m_recordingPortalRestartTimer;
     QTimer m_recordingSnapshotDebounceTimer;
     QTimer m_cavaRestartTimer;
 
-    QByteArray m_notificationBuffer;
     QByteArray m_pipeWireBuffer;
     QByteArray m_recordingPortalBuffer;
     QByteArray m_cavaBuffer;
@@ -144,11 +137,6 @@ private:
     QString m_pendingScreenCastMember;
     QString m_pendingSessionCandidate;
 
-    bool m_notificationCaptureActive = false;
-    int m_notificationCaptureStage = -1;
-    QString m_pendingNotificationAppName;
-    QString m_pendingNotificationSummary;
-    QString m_pendingNotificationBody;
 
     qint64 m_lastCpuTotal = -1;
     qint64 m_lastCpuIdle = -1;

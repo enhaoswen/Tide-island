@@ -1,3 +1,4 @@
+//-- TODO: Change how notifications come, test with web notification,
 import QtQuick
 import IslandBackend
 
@@ -21,17 +22,9 @@ Item {
     property bool showCondition: false
     property real hiddenLeftPadding: 16
     property real hiddenRightPadding: 16
-    readonly property real clampedProgress: slideDirection === "right"
-        ? Math.max(0, Math.min(1, transitionProgress))
-        : (slideDirection === "left"
-            ? Math.max(0, Math.min(1, -transitionProgress))
-            : 0)
+    readonly property real clampedProgress: slideDirection === "right" ? Math.max(0, Math.min(1, transitionProgress)) : (slideDirection === "left" ? Math.max(0, Math.min(1, -transitionProgress)) : 0)
     readonly property real revealProgress: slideDirection === "none" ? 1 : (1 - clampedProgress)
-    readonly property real contentX: slideDirection === "right"
-        ? (width + hiddenRightPadding) * clampedProgress
-        : (slideDirection === "left"
-            ? -(width + hiddenLeftPadding) * clampedProgress
-            : 0)
+    readonly property real contentX: slideDirection === "right" ? (width + hiddenRightPadding) * clampedProgress : (slideDirection === "left" ? -(width + hiddenLeftPadding) * clampedProgress : 0)
 
     anchors.fill: parent
     clip: true
@@ -61,7 +54,7 @@ Item {
             Text {
                 text: iconText
                 color: "white"
-                font.pixelSize: userConfig.iconFontSize
+                font.pixelSize: 18
                 font.family: iconFontFamily
                 anchors.verticalCenter: parent.verticalCenter
             }
@@ -69,7 +62,7 @@ Item {
             Text {
                 text: Math.round(progress * 100) + "%"
                 color: "white"
-                font.pixelSize: userConfig.titleFontSize
+                font.pixelSize: 20
                 font.family: heroFontFamily
                 font.weight: Font.Bold
                 font.letterSpacing: -0.35
@@ -143,7 +136,7 @@ Item {
             Text {
                 text: iconText
                 color: "white"
-                font.pixelSize: userConfig.iconFontSize
+                font.pixelSize: 18
                 font.family: iconFontFamily
                 anchors.verticalCenter: parent.verticalCenter
             }
@@ -151,7 +144,7 @@ Item {
             Text {
                 text: customText
                 color: "white"
-                font.pixelSize: userConfig.bodyFontSize
+                font.pixelSize: 16
                 font.family: textFontFamily
                 font.weight: Font.DemiBold
                 font.letterSpacing: -0.15

@@ -1,21 +1,21 @@
 import QtQuick
-import IslandBackend
 
 Item {
     id: root
 
-    readonly property var userConfig: UserConfig
-
-    signal buttonPressed()
-    signal clicked()
+    signal buttonPressed
+    signal clicked
 
     property string kind: "play"
     property string textFontFamily: ""
     readonly property bool down: controlArea.pressed
     readonly property string iconText: {
-        if (kind === "previous") return "⏮";
-        if (kind === "next") return "⏭";
-        if (kind === "pause") return "⏸";
+        if (kind === "previous")
+            return "⏮";
+        if (kind === "next")
+            return "⏭";
+        if (kind === "pause")
+            return "⏸";
         return "▶";
     }
 
@@ -34,7 +34,7 @@ Item {
         anchors.centerIn: parent
         text: root.iconText
         color: controlArea.pressed ? "#888888" : "#ffffff"
-        font.pixelSize: root.kind === "play" ? userConfig.iconFontSize + 7 : userConfig.iconFontSize + 5
+        font.pixelSize: root.kind === "play" ? 25 : 23
         font.family: root.textFontFamily
         font.weight: Font.DemiBold
         horizontalAlignment: Text.AlignHCenter
@@ -48,7 +48,7 @@ Item {
         enabled: root.enabled
         preventStealing: true
 
-        onPressed: function(mouse) {
+        onPressed: function (mouse) {
             root.buttonPressed();
             mouse.accepted = true;
         }

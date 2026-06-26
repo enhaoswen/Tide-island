@@ -200,16 +200,6 @@ bool UserConfigBackend::disableAutoExpandOnTrackChange() const
     return m_disableAutoExpandOnTrackChange;
 }
 
-bool UserConfigBackend::enableHoverExpand() const
-{
-    return m_enableHoverExpand;
-}
-
-int UserConfigBackend::hoverExpandAction() const
-{
-    return m_hoverExpandAction;
-}
-
 int UserConfigBackend::islandWidth() const
 {
     return m_islandWidth;
@@ -355,8 +345,6 @@ void UserConfigBackend::loadConfig()
     updateField(this, m_dynamicIslandSecondaryAction, jsonString(configObject, QLatin1String("dynamicIslandSecondaryAction"), QStringLiteral("toggleControlCenter")), &UserConfigBackend::dynamicIslandSecondaryActionChanged);
     updateField(this, m_dynamicIslandLeftSwipeItems, jsonArray(configObject, QLatin1String("dynamicIslandLeftSwipeItems"), defaultDynamicIslandLeftSwipeItems()), &UserConfigBackend::dynamicIslandLeftSwipeItemsChanged);
     updateField(this, m_disableAutoExpandOnTrackChange, jsonBool(configObject, QLatin1String("disableAutoExpandOnTrackChange"), false), &UserConfigBackend::disableAutoExpandOnTrackChangeChanged);
-    updateField(this, m_enableHoverExpand, jsonBool(configObject, QLatin1String("enableHoverExpand"), false), &UserConfigBackend::enableHoverExpandChanged);
-    updateField(this, m_hoverExpandAction, jsonInt(configObject, QLatin1String("hoverExpandAction"), 1), &UserConfigBackend::hoverExpandActionChanged);
     updateField(this, m_islandWidth, jsonInt(configObject, QLatin1String("islandWidth"), 140), &UserConfigBackend::islandWidthChanged);
     updateField(this, m_islandHeight, jsonInt(configObject, QLatin1String("islandHeight"), 38), &UserConfigBackend::islandHeightChanged);
     updateField(this, m_islandPositionX, jsonInt(configObject, QLatin1String("islandPositionX"), 50), &UserConfigBackend::islandPositionXChanged);

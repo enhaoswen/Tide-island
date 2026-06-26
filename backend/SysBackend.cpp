@@ -85,7 +85,6 @@ QString SysBackend::readSysfsTextFile(const QString &path) const {
     return value;
 }
 
-// 1. Hyprland IPC
 void SysBackend::setupHyprland() {
     QString signature = qEnvironmentVariable("HYPRLAND_INSTANCE_SIGNATURE");
     if (signature.isEmpty()) return;
@@ -122,7 +121,6 @@ void SysBackend::handleHyprlandData() {
     }
 }
 
-// 2. Battery
 void SysBackend::setupBattery() {
     detectPowerSupplyPaths();
 
@@ -365,7 +363,6 @@ void SysBackend::handleUpowerBatteryChanged() {
     updateBatteryUpower();
 }
 
-// 3. volume
 void SysBackend::setupAudio() {
     m_paSubscriber = new QProcess(this);
     connect(m_paSubscriber, &QProcess::readyReadStandardOutput, this, &SysBackend::handleVolumeEvent);
@@ -445,7 +442,6 @@ void SysBackend::handleVolumeQueryFinished(int exitCode, QProcess::ExitStatus ex
     }
 }
 
-// 4. brightness
 void SysBackend::setupBrightness() {
     detectBacklightPath();
     if (m_backlightPath.isEmpty()) return;

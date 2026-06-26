@@ -13,7 +13,7 @@ Item {
     property string heroFontFamily: activeConfig.heroFontFamily
     property bool showCondition: false
     property real transitionProgress: 0
-    property int textPixelSize: userConfig.titleFontSize
+    property int textPixelSize: 18
     property real hiddenLeftPadding: 16
     property real hiddenRightPadding: 16
 

@@ -12,13 +12,10 @@ Item {
 
     implicitWidth: barCount * barWidth + Math.max(0, barCount - 1) * barSpacing
     implicitHeight: 18
-    width: implicitWidth
-    height: implicitHeight
 
     function levelCount() {
         if (!levels)
             return 0;
-
         const count = Number(levels.length);
         return isFinite(count) && count > 0 ? Math.floor(count) : 0;
     }
@@ -26,7 +23,6 @@ Item {
     function levelAt(index) {
         if (!levels || index < 0 || index >= levelCount())
             return 0;
-
         return Number(levels[index]);
     }
 

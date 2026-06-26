@@ -3,38 +3,75 @@ import IslandBackend
 
 Item {
     id: root
-
     readonly property var userConfig: UserConfig
-
     property bool showCondition: false
     property string appName: ""
     property string summary: ""
     property string body: ""
-    property string iconText: ""
+    property string iconText: ""
+    property string imagePath: ""
     property var configSource: null
     readonly property var activeConfig: configSource || userConfig
     property string iconFontFamily: activeConfig.iconFontFamily
     property string textFontFamily: activeConfig.textFontFamily
     property string heroFontFamily: activeConfig.heroFontFamily
 
-    readonly property string contentText: {
-        if (summary !== "" && body !== "" && body !== summary) return summary + "  " + body;
-        if (summary !== "") return summary;
-        if (body !== "") return body;
-        return "New notification";
+    readonly property string titleText: summary !== "" ? summary : "New notification"
+    readonly property string bodyText: (body !== "" && body !== summary) ? body : ""
+    readonly property bool hasTwoLines: bodyText !== ""
+    readonly property bool useImageIcon: imagePath !== ""
+
+    readonly property real minimumWidth: 280
+    readonly property real maximumWidth: 700
+    readonly property real iconSlotWidth: 28
+    readonly property real contentSpacing: 10
+    readonly property real horizontalPadding: 14
+    readonly property real verticalPadding: 8
+
+    readonly property real titleWidth: {
+        if (titleText === "")
+            return 0;
+        var metrics = titleMetrics;
+        metrics.text = titleText;
+        return metrics.advanceWidth;
     }
-    readonly property real minimumWidth: 272
-    readonly property real maximumWidth: 400
-    readonly property real iconSlotWidth: 18
-    readonly property real contentSpacing: 13
-    readonly property real horizontalPadding: 16
-    readonly property real verticalPadding: 7
-    readonly property real textBlockWidthAtMaximum: maximumWidth - horizontalPadding * 2 - iconSlotWidth - contentSpacing
-    readonly property bool prefersWrappedContent: contentMetrics.advanceWidth > textBlockWidthAtMaximum
-    readonly property real preferredWidth: prefersWrappedContent
-        ? maximumWidth
-        : Math.max(minimumWidth, Math.min(maximumWidth, contentMetrics.advanceWidth + iconSlotWidth + contentSpacing + horizontalPadding * 2))
-    readonly property real preferredHeight: prefersWrappedContent ? 68 : 56
+
+    readonly property real bodyWidth: {
+        if (bodyText === "")
+            return 0;
+        var metrics = bodyMetrics;
+        metrics.text = bodyText;
+        return metrics.advanceWidth;
+    }
+
+    readonly property real preferredWidth: {
+        var width = minimumWidth;
+
+        var textWidth = Math.max(titleWidth, bodyWidth);
+        var neededWidth = textWidth + iconSlotWidth + contentSpacing + horizontalPadding * 2 + 20; // Extra padding for safety
+
+        width = Math.max(minimumWidth, neededWidth);
+
+        return Math.min(maximumWidth, width);
+    }
+
+    readonly property real preferredHeight: hasTwoLines ? 68 : 56
+
+    TextMetrics {
+        id: titleMetrics
+        font.family: textFontFamily
+        font.pixelSize: hasTwoLines ? 13 : 15
+        font.weight: Font.DemiBold
+        font.letterSpacing: -0.15
+    }
+
+    TextMetrics {
+        id: bodyMetrics
+        font.family: textFontFamily
+        font.pixelSize: 12
+        font.weight: Font.Normal
+        font.letterSpacing: -0.1
+    }
 
     anchors.fill: parent
     anchors.margins: 0
@@ -47,14 +84,6 @@ Item {
         }
     }
 
-    TextMetrics {
-        id: contentMetrics
-        font.family: textFontFamily
-        font.pixelSize: userConfig.bodyFontSize
-        font.weight: Font.DemiBold
-        text: contentText
-    }
-
     Row {
         anchors.fill: parent
         anchors.leftMargin: horizontalPadding
@@ -62,36 +91,71 @@ Item {
         anchors.topMargin: verticalPadding
         anchors.bottomMargin: verticalPadding
         spacing: contentSpacing
-        anchors.verticalCenter: parent.verticalCenter
-
-        Text {
-            width: iconSlotWidth
-            anchors.verticalCenter: parent.verticalCenter
-            text: iconText
-            color: "#f4f5f7"
-            font.pixelSize: userConfig.iconFontSize
-            font.family: iconFontFamily
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-        }
 
         Item {
-            width: parent.width - iconSlotWidth - contentSpacing
-            height: parent.height
+            width: iconSlotWidth
+            height: iconSlotWidth
+            anchors.verticalCenter: parent.verticalCenter
+
+            Image {
+                id: appIcon
+                anchors.fill: parent
+                source: useImageIcon ? imagePath : ""
+                fillMode: Image.PreserveAspectFit
+                smooth: true
+                visible: useImageIcon && status === Image.Ready
+            }
 
             Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: contentText
+                anchors.fill: parent
+                visible: !useImageIcon || appIcon.status !== Image.Ready
+                text: iconText
+                color: "#f4f5f7"
+                font.pixelSize: 18
+                font.family: iconFontFamily
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+            }
+        }
+
+        Column {
+            width: parent.width - iconSlotWidth - contentSpacing
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 2
+
+            Text {
+                id: titleTextItem
+                width: parent.width
+                text: titleText
                 color: "white"
-                font.pixelSize: userConfig.bodyFontSize
+                font.pixelSize: hasTwoLines ? 13 : 15
                 font.family: textFontFamily
                 font.weight: Font.DemiBold
                 font.letterSpacing: -0.15
-                width: parent.width
-                wrapMode: prefersWrappedContent ? Text.WordWrap : Text.NoWrap
-                maximumLineCount: prefersWrappedContent ? 2 : 1
                 elide: Text.ElideRight
-                lineHeight: 0.95
+                maximumLineCount: 1
+                onImplicitWidthChanged: {
+                    root.preferredWidthChanged();
+                }
+            }
+
+            // Rreshti 2: Body — pjesa e mesazhit
+            Text {
+                id: bodyTextItem
+                width: parent.width
+                visible: hasTwoLines
+                height: hasTwoLines ? implicitHeight : 0
+                text: bodyText
+                color: "#b0b4ba"
+                font.pixelSize: 12
+                font.family: textFontFamily
+                font.weight: Font.Normal
+                font.letterSpacing: -0.1
+                elide: Text.ElideRight
+                maximumLineCount: 1
+                onImplicitWidthChanged: {
+                    root.preferredWidthChanged();
+                }
             }
         }
     }

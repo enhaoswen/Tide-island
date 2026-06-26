@@ -117,15 +117,11 @@ QString trimCommandOutput(const QByteArray &stdoutData, const QByteArray &stderr
     return output;
 }
 
-} // namespace
+}
 
 SystemServices::SystemServices(QObject *parent)
     : QObject(parent) {
     m_cavaLevels = QVariantList{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-
-    m_notificationRestartTimer.setSingleShot(true);
-    m_notificationRestartTimer.setInterval(1200);
-    connect(&m_notificationRestartTimer, &QTimer::timeout, this, &SystemServices::startNotificationMonitor);
 
     m_pipeWireRestartTimer.setSingleShot(true);
     m_pipeWireRestartTimer.setInterval(1200);
@@ -143,7 +139,6 @@ SystemServices::SystemServices(QObject *parent)
     m_cavaRestartTimer.setInterval(1200);
     connect(&m_cavaRestartTimer, &QTimer::timeout, this, &SystemServices::startCava);
 
-    startNotificationMonitor();
     startPipeWireMonitor();
     startRecordingPortalMonitor();
     requestScreenRecordingSnapshot();
@@ -151,13 +146,11 @@ SystemServices::SystemServices(QObject *parent)
 
 SystemServices::~SystemServices() {
     m_shuttingDown = true;
-    m_notificationRestartTimer.stop();
     m_pipeWireRestartTimer.stop();
     m_recordingPortalRestartTimer.stop();
     m_recordingSnapshotDebounceTimer.stop();
     m_cavaRestartTimer.stop();
 
-    stopProcess(m_notificationMonitor);
     stopProcess(m_pipeWireMonitor);
     stopProcess(m_recordingPortalMonitor);
     stopProcess(m_recordingSnapshot);
@@ -286,33 +279,6 @@ void SystemServices::stopProcess(QProcess *&process) {
     current->deleteLater();
 }
 
-void SystemServices::startNotificationMonitor() {
-    if (m_shuttingDown || m_notificationMonitor) return;
-    const QString executable = findExecutable(QStringLiteral("dbus-monitor"));
-    if (executable.isEmpty()) {
-        qWarning() << "[SystemServices] dbus-monitor is not available; notification mirroring is disabled";
-        return;
-    }
-
-    m_notificationMonitor = new QProcess(this);
-    m_notificationMonitor->setProgram(executable);
-    m_notificationMonitor->setArguments({
-        QStringLiteral("--session"),
-        QStringLiteral("type='method_call',interface='org.freedesktop.Notifications',member='Notify'")
-    });
-    connect(m_notificationMonitor, &QProcess::readyReadStandardOutput, this, &SystemServices::handleNotificationOutput);
-    connect(m_notificationMonitor, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [this](int, QProcess::ExitStatus) {
-        m_notificationMonitor->deleteLater();
-        m_notificationMonitor = nullptr;
-        m_notificationBuffer.clear();
-        m_notificationCaptureActive = false;
-        if (!m_shuttingDown)
-            m_notificationRestartTimer.start();
-    });
-    m_notificationMonitor->start();
-}
-
 void SystemServices::startPipeWireMonitor() {
     if (m_shuttingDown || m_pipeWireMonitor) return;
     const QString executable = findExecutable(QStringLiteral("pw-mon"));
@@ -377,13 +343,6 @@ void SystemServices::processLines(QByteArray &buffer,
     }
 }
 
-void SystemServices::handleNotificationOutput() {
-    if (!m_notificationMonitor) return;
-    processLines(m_notificationBuffer, m_notificationMonitor->readAllStandardOutput(), [this](const QString &line) {
-        handleNotificationLine(line);
-    });
-}
-
 void SystemServices::handlePipeWireOutput() {
     if (!m_pipeWireMonitor) return;
     processLines(m_pipeWireBuffer, m_pipeWireMonitor->readAllStandardOutput(), [this](const QString &line) {
@@ -396,79 +355,6 @@ void SystemServices::handleRecordingPortalOutput() {
     processLines(m_recordingPortalBuffer, m_recordingPortalMonitor->readAllStandardOutput(), [this](const QString &line) {
         handleRecordingPortalLine(line);
     });
-}
-
-QString SystemServices::decodeDbusMonitorString(const QString &line) const {
-    static const QRegularExpression stringPattern(QStringLiteral("^\\s*string \"(.*)\"\\s*$"));
-    const QRegularExpressionMatch match = stringPattern.match(line);
-    if (!match.hasMatch()) return QString();
-
-    const QString escaped = match.captured(1);
-    QString decoded;
-    decoded.reserve(escaped.size());
-
-    for (int i = 0; i < escaped.size(); ++i) {
-        const QChar ch = escaped.at(i);
-        if (ch != QLatin1Char('\\') || i + 1 >= escaped.size()) {
-            decoded.append(ch);
-            continue;
-        }
-
-        const QChar next = escaped.at(++i);
-        if (next == QLatin1Char('n')) decoded.append(QLatin1Char('\n'));
-        else if (next == QLatin1Char('r')) decoded.append(QLatin1Char('\r'));
-        else if (next == QLatin1Char('t')) decoded.append(QLatin1Char('\t'));
-        else decoded.append(next);
-    }
-
-    return decoded;
-}
-
-void SystemServices::handleNotificationLine(const QString &line) {
-    if (line.isEmpty()) return;
-
-    if (line.contains(QStringLiteral("member=Notify"))) {
-        m_notificationCaptureActive = true;
-        m_notificationCaptureStage = 0;
-        m_pendingNotificationAppName.clear();
-        m_pendingNotificationSummary.clear();
-        m_pendingNotificationBody.clear();
-        return;
-    }
-
-    if (!m_notificationCaptureActive) return;
-
-    switch (m_notificationCaptureStage) {
-    case 0:
-        if (!line.startsWith(QStringLiteral("string "))) return;
-        m_pendingNotificationAppName = decodeDbusMonitorString(line);
-        m_notificationCaptureStage = 1;
-        return;
-    case 1:
-        if (!line.startsWith(QStringLiteral("uint32 "))) return;
-        m_notificationCaptureStage = 2;
-        return;
-    case 2:
-        if (!line.startsWith(QStringLiteral("string "))) return;
-        m_notificationCaptureStage = 3;
-        return;
-    case 3:
-        if (!line.startsWith(QStringLiteral("string "))) return;
-        m_pendingNotificationSummary = decodeDbusMonitorString(line);
-        m_notificationCaptureStage = 4;
-        return;
-    case 4:
-        if (!line.startsWith(QStringLiteral("string "))) return;
-        m_pendingNotificationBody = decodeDbusMonitorString(line);
-        emit notificationReceived(m_pendingNotificationAppName, m_pendingNotificationSummary, m_pendingNotificationBody);
-        m_notificationCaptureActive = false;
-        m_notificationCaptureStage = -1;
-        return;
-    default:
-        m_notificationCaptureActive = false;
-        m_notificationCaptureStage = -1;
-        return;
-    }
 }
 
 QString SystemServices::extractHeaderPath(const QString &line) const {
