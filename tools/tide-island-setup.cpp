@@ -25,6 +25,7 @@ constexpr auto configDirName = "tide-island";
 constexpr auto configFileName = "userconfig.json";
 constexpr auto setupLockFileName = "setup-wizard.lock";
 constexpr auto wallpaperPathKey = "wallpaperPath";
+constexpr auto wallpaperLibraryPathKey = "wallpaperLibraryPath";
 constexpr auto tlpSudoPasswordKey = "tlpSudoPassword";
 constexpr auto tlpPermissionModeKey = "tlpPermissionMode";
 constexpr auto hyprlandBindKey = "hyprlandBind";
@@ -114,6 +115,7 @@ QJsonObject defaultUserConfig()
 {
     return {
         {QString::fromLatin1(wallpaperPathKey), QString()},
+        {QString::fromLatin1(wallpaperLibraryPathKey), QString()},
         {QStringLiteral("iconFontFamily"), QStringLiteral("JetBrainsMono Nerd Font")},
         {QStringLiteral("textFontFamily"), QStringLiteral("Inter Display")},
         {QStringLiteral("heroFontFamily"), QStringLiteral("Inter Display")},
@@ -337,8 +339,12 @@ QString formatUserConfig(const QJsonObject &data)
          "    // Mouse button for dragging windows in the overview.\n"
          "    \"workspaceOverviewWindowDragButton\": " << num("workspaceOverviewWindowDragButton", 1) << ",\n"
          "\n"
-         "    // Wallpaper image path for the workspace overview background.\n"
+         "    // Current wallpaper file path. The wallpaper picker copies the selected\n"
+         "    // library image here, then uses this same file for awww and workspace overview.\n"
          "    \"wallpaperPath\": \"" << str("wallpaperPath") << "\",\n"
+         "\n"
+         "    // Directory scanned by the wallpaper picker.\n"
+         "    \"wallpaperLibraryPath\": \"" << str("wallpaperLibraryPath") << "\",\n"
          "\n"
          "\n"
          "    // ===========================================================================\n"
@@ -492,6 +498,16 @@ bool readableFilePath(const QString &path)
     return info.isFile() && info.isReadable();
 }
 
+bool readableDirectoryPath(const QString &path)
+{
+    const QString cleanPath = cleanInputPath(path);
+    if (cleanPath.isEmpty())
+        return false;
+
+    const QFileInfo info(cleanPath);
+    return info.isDir() && info.isReadable();
+}
+
 QString stripComment(const QString &line)
 {
     bool quoted = false;
@@ -639,6 +655,8 @@ QStringList missingItems(QJsonObject *normalizedConfig = nullptr)
 
     if (!readableFilePath(configString(data, wallpaperPathKey)))
         missing.append(wallpaperPathKey);
+    if (!readableDirectoryPath(configString(data, wallpaperLibraryPathKey)))
+        missing.append(wallpaperLibraryPathKey);
     if (!validTlpPermissionMode(tlpPermissionMode)
         || (tlpPermissionMode == QStringLiteral("password") && tlpPassword.isEmpty())) {
         missing.append(tlpSudoPasswordKey);
@@ -655,7 +673,8 @@ QStringList missingItems(QJsonObject *normalizedConfig = nullptr)
 QList<SetupStep> setupSteps(const QStringList &missing)
 {
     const QList<SetupStep> ordered = {
-        {QString::fromLatin1(wallpaperPathKey), QStringLiteral("Wallpaper image")},
+        {QString::fromLatin1(wallpaperPathKey), QStringLiteral("Current wallpaper file")},
+        {QString::fromLatin1(wallpaperLibraryPathKey), QStringLiteral("Wallpaper library directory")},
         {QString::fromLatin1(hyprlandBindKey), QStringLiteral("SUPER+TAB Hyprland binding")},
         {QString::fromLatin1(tlpSudoPasswordKey), QStringLiteral("TLP mode switching password  optional")},
     };
@@ -826,8 +845,9 @@ bool confirmYes(const QString &prompt)
 void promptWallpaper(QJsonObject *data, int step, int total)
 {
     QTextStream out(stdout);
-    printStepHeader(out, step, total, QStringLiteral("Wallpaper"));
-    out << "Tide Island uses this image for the workspace overview background.\n";
+    printStepHeader(out, step, total, QStringLiteral("Current wallpaper file"));
+    out << "Tide Island uses this file for the workspace overview background.\n";
+    out << "The wallpaper picker will copy the selected library image to this path, then set it with awww.\n";
     out << "You can also change it in " << displayPath(userConfigPath()) << "\n\n";
 
     const QString current = configString(*data, wallpaperPathKey);
@@ -836,7 +856,7 @@ void promptWallpaper(QJsonObject *data, int step, int total)
     out.flush();
 
     while (true) {
-        const QString value = readLine(QStringLiteral("Enter an image path: "));
+        const QString value = readLine(QStringLiteral("Enter the current wallpaper image path: "));
         if (value.isEmpty() && std::feof(stdin))
             return;
 
@@ -852,6 +872,39 @@ void promptWallpaper(QJsonObject *data, int step, int total)
         if (!cleanPath.isEmpty())
             out << "Checked: " << cleanPath << "\n";
         out << "That path does not exist or is not readable. Please try again.\n";
+    }
+}
+
+void promptWallpaperLibrary(QJsonObject *data, int step, int total)
+{
+    QTextStream out(stdout);
+    printStepHeader(out, step, total, QStringLiteral("Wallpaper library"));
+    out << "The wallpaper picker scans this directory for candidate images.\n";
+    out << "Selecting one copies it to wallpaperPath and applies wallpaperPath with awww.\n";
+    out << "You can also change it in " << displayPath(userConfigPath()) << "\n\n";
+
+    const QString current = configString(*data, wallpaperLibraryPathKey);
+    if (!current.isEmpty())
+        out << "Current value is not usable:\n  " << current << "\n\n";
+    out.flush();
+
+    while (true) {
+        const QString value = readLine(QStringLiteral("Enter a wallpaper library directory: "));
+        if (value.isEmpty() && std::feof(stdin))
+            return;
+
+        const QString cleanPath = cleanInputPath(value);
+        const QFileInfo path(cleanPath);
+        if (!value.isEmpty() && path.isDir() && path.isReadable()) {
+            data->insert(wallpaperLibraryPathKey, path.absoluteFilePath());
+            saveUserConfig(*data);
+            out << "Saved wallpaper library path.\n";
+            return;
+        }
+
+        if (!cleanPath.isEmpty())
+            out << "Checked: " << cleanPath << "\n";
+        out << "That directory does not exist or is not readable. Please try again.\n";
     }
 }
 
@@ -1124,6 +1177,8 @@ int runWizard()
 
         if (step.key == QString::fromLatin1(wallpaperPathKey)) {
             promptWallpaper(&data, stepNumber, stepTotal);
+        } else if (step.key == QString::fromLatin1(wallpaperLibraryPathKey)) {
+            promptWallpaperLibrary(&data, stepNumber, stepTotal);
         } else if (step.key == QString::fromLatin1(tlpSudoPasswordKey)) {
             promptTlpPermissions(&data, stepNumber, stepTotal);
         } else if (step.key == QString::fromLatin1(hyprlandBindKey)) {

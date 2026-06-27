@@ -118,6 +118,10 @@ Scope {
         function toggleControlCenter() {
             shellRoot.forFocusedWindow((window) => window.toggleControlCenterWindow());
         }
+
+        function toggleWallpaperPicker() {
+            shellRoot.forFocusedWindow((window) => window.toggleWallpaperPickerWindow());
+        }
     }
 
     GlobalShortcut {

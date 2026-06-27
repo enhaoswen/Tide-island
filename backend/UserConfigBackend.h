@@ -17,6 +17,7 @@ class UserConfigBackend final : public QObject {
     Q_PROPERTY(QString defaultTlpSudoPassword READ defaultTlpSudoPassword WRITE setDefaultTlpSudoPassword NOTIFY defaultTlpSudoPasswordChanged FINAL)
 
     Q_PROPERTY(QString wallpaperPath READ wallpaperPath NOTIFY wallpaperPathChanged FINAL)
+    Q_PROPERTY(QString wallpaperLibraryPath READ wallpaperLibraryPath NOTIFY wallpaperLibraryPathChanged FINAL)
     Q_PROPERTY(QString iconFontFamily READ iconFontFamily NOTIFY iconFontFamilyChanged FINAL)
     Q_PROPERTY(QString textFontFamily READ textFontFamily NOTIFY textFontFamilyChanged FINAL)
     Q_PROPERTY(QString heroFontFamily READ heroFontFamily NOTIFY heroFontFamilyChanged FINAL)
@@ -53,6 +54,7 @@ public:
     QString defaultWallpaperPath() const;
     QString defaultTlpSudoPassword() const;
     QString wallpaperPath() const;
+    QString wallpaperLibraryPath() const;
     QString iconFontFamily() const;
     QString textFontFamily() const;
     QString heroFontFamily() const;
@@ -88,6 +90,7 @@ signals:
     void defaultWallpaperPathChanged();
     void defaultTlpSudoPasswordChanged();
     void wallpaperPathChanged();
+    void wallpaperLibraryPathChanged();
     void iconFontFamilyChanged();
     void textFontFamilyChanged();
     void heroFontFamilyChanged();
@@ -123,6 +126,7 @@ private:
     QString m_defaultWallpaperPath;
     QString m_defaultTlpSudoPassword;
     QString m_wallpaperPath;
+    QString m_wallpaperLibraryPath;
     QString m_iconFontFamily = QStringLiteral("JetBrainsMono Nerd Font");
     QString m_textFontFamily = QStringLiteral("Inter Display");
     QString m_heroFontFamily = QStringLiteral("Inter Display");

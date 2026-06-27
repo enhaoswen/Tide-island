@@ -38,6 +38,7 @@ void UserConfigBackendTests::loadsTypedValuesFromJson()
 
     const QString configPath = writeConfig(configHome, R"json({
         "wallpaperPath": "/tmp/test-wallpaper.jpg",
+        "wallpaperLibraryPath": "/tmp/wallpapers",
         "textFontFamily": "Test Text",
         "tlpPermissionMode": "skip",
         "dynamicIslandLeftSwipeItems": ["time", "ram"]
@@ -48,6 +49,7 @@ void UserConfigBackendTests::loadsTypedValuesFromJson()
     QCOMPARE(config.userConfigPath(), configPath);
     QCOMPARE(config.configError(), QString());
     QCOMPARE(config.wallpaperPath(), QStringLiteral("/tmp/test-wallpaper.jpg"));
+    QCOMPARE(config.wallpaperLibraryPath(), QStringLiteral("/tmp/wallpapers"));
     QCOMPARE(config.textFontFamily(), QStringLiteral("Test Text"));
     QCOMPARE(config.tlpPermissionMode(), QStringLiteral("skip"));
     QCOMPARE(config.dynamicIslandLeftSwipeItems(), QVariantList({QStringLiteral("time"), QStringLiteral("ram")}));

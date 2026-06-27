@@ -245,7 +245,8 @@ tide-island-setup --wizard
 
 | 选项 | 含义 | 类型 | 默认值 |
 |---|---|---|---|
-| `wallpaperPath` | 工作区概览背景壁纸路径 | string | `""` |
+| `wallpaperPath` | 当前壁纸文件路径，供 awww 和工作区概览使用 | string | `""` |
+| `wallpaperLibraryPath` | 壁纸选择器扫描的图库目录 | string | `""` |
 | `iconFontFamily` | 灵动岛图标字体 | string | `"JetBrainsMono Nerd Font"` |
 | `textFontFamily` | 通用正文字体 | string | `"Inter Display"` |
 | `heroFontFamily` | 大标题字体（歌曲名、控制中心标题等） | string | `"Inter Display"` |
@@ -325,7 +326,7 @@ hyprland.bind("SUPER", "C", "exec", "qs ipc -p /usr/share/tide-island call tide 
 ~/.config/tide-island/userconfig.json
 ```
 
-引导程序会创建完整 JSON。大多数配置项使用默认值；`wallpaperPath` 和 `tlpSudoPassword` 依赖本机环境，所以由引导程序交互填写。
+引导程序会创建完整 JSON。大多数配置项使用默认值；`wallpaperPath`、`wallpaperLibraryPath` 和 `tlpSudoPassword` 依赖本机环境，所以由引导程序交互填写。
 
 修改配置后，重启服务：
 

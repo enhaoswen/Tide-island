@@ -92,11 +92,16 @@ PanelWindow {
         : Math.max(Math.ceil(4 + root.connectivityDetailHeight + 12), Math.ceil(root.controlCenterWindowHeight))
     exclusiveZone: 4 + userConfig.islandHeight + 3
     aboveWindows: true
-    focusable: root.monitorFocused && (root.overviewVisible || root.connectivityPromptActive)
+    focusable: islandContainer.wallpaperPickerLayerVisible
+        || (root.monitorFocused && (root.overviewVisible || root.connectivityPromptActive))
     WlrLayershell.layer: WlrLayer.Top
-    WlrLayershell.keyboardFocus: root.monitorFocused && (root.overviewVisible || root.connectivityPromptActive)
-        ? WlrKeyboardFocus.OnDemand
-        : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: {
+        if (islandContainer.wallpaperPickerLayerVisible)
+            return WlrKeyboardFocus.Exclusive;
+        if (root.monitorFocused && (root.overviewVisible || root.connectivityPromptActive))
+            return WlrKeyboardFocus.OnDemand;
+        return WlrKeyboardFocus.None;
+    }
     readonly property string iconFontFamily: userConfig.iconFontFamily
     readonly property string textFontFamily: userConfig.textFontFamily
     readonly property string heroFontFamily: userConfig.heroFontFamily
@@ -141,6 +146,7 @@ PanelWindow {
     readonly property real connectivityDetailGap: 16
     readonly property int connectivityDetailAnimationDuration: 360
     readonly property string overviewWallpaperSource: overviewWallpaperCache.effectiveSource
+    property string wallpaperPickerActiveWallpaper: userConfig.wallpaperPath
 
     function beginOverviewOpening() {
         if (!overviewPreparing) return;
@@ -295,6 +301,13 @@ PanelWindow {
             islandContainer.showControlCenter();
     }
 
+    function toggleWallpaperPickerWindow() {
+        if (islandContainer.islandState === "wallpaper_picker")
+            islandContainer.smartRestoreState();
+        else
+            islandContainer.showWallpaperPicker();
+    }
+
     onOverviewVisibleChanged: {
         if (overviewVisible && monitorFocused) overviewFocusTimer.restart();
     }
@@ -417,6 +430,7 @@ PanelWindow {
             || islandState === "bluetooth_expanded"
             || islandState === "control_center"
             || islandState === "notification"
+            || islandState === "wallpaper_picker"
         readonly property bool splitShowsProgress: islandState === "split" && osdProgress >= 0
         readonly property bool splitShowsText: islandState === "split" && osdProgress < 0 && osdCustomText !== ""
         readonly property bool splitShowsIconOnly: islandState === "split" && osdProgress < 0 && osdCustomText === ""
@@ -457,6 +471,7 @@ PanelWindow {
         readonly property bool bluetoothExpandedLayerVisible: !root.overviewVisible && islandState === "bluetooth_expanded"
         readonly property bool notificationLayerVisible: !root.overviewVisible && islandState === "notification"
         readonly property bool controlCenterLayerVisible: !root.overviewVisible && islandState === "control_center"
+        readonly property bool wallpaperPickerLayerVisible: !root.overviewVisible && islandState === "wallpaper_picker"
         readonly property var activePlayer: mediaController.activePlayer
         readonly property string lyricsDisplayText: mediaController.displayText
         readonly property string currentTrack: mediaController.currentTrack
@@ -977,6 +992,15 @@ PanelWindow {
             stopAutoHideTimer();
         }
 
+        function showWallpaperPicker() {
+            cancelSideSwipeSettle();
+            abortSideTransientMode();
+            clearTransientCapsule();
+            islandState = "wallpaper_picker";
+            mainCapsule.displayedWidth = mainCapsule.baseTargetWidth;
+            stopAutoHideTimer();
+        }
+
         function showCustomCapsule() {
             if (!hasCustomLeftItems) {
                 showTimeCapsule();
@@ -1123,6 +1147,8 @@ PanelWindow {
                     return islandContainer.lyricsCapsuleWidth;
                 case "control_center":
                     return 420;
+                case "wallpaper_picker":
+                    return 1100;
                 case "expanded":
                 case "bluetooth_expanded":
                     return 400;
@@ -1142,6 +1168,8 @@ PanelWindow {
                 switch (islandContainer.islandState) {
                 case "control_center":
                     return 320 + (controlCenterLoader.item ? controlCenterLoader.item.controlCenterExtraHeight : 32);
+                case "wallpaper_picker":
+                    return 260;
                 case "expanded":
                 case "bluetooth_expanded":
                     return 165;
@@ -1158,6 +1186,8 @@ PanelWindow {
 
                 switch (islandContainer.islandState) {
                 case "control_center":
+                    return 34;
+                case "wallpaper_picker":
                     return 34;
                 case "expanded":
                 case "bluetooth_expanded":
@@ -1684,6 +1714,25 @@ PanelWindow {
                         onConnectivityPanelRequested: function(kind, open) {
                             root.setConnectivityDetailVisible(kind, open);
                         }
+                    }
+                }
+            }
+
+            Loader {
+                id: wallpaperPickerLoader
+                anchors.fill: parent
+                active: islandContainer.wallpaperPickerLayerVisible
+                asynchronous: false
+                visible: islandContainer.wallpaperPickerLayerVisible
+
+                sourceComponent: Component {
+                    WallpaperPickerLayer {
+                        iconFontFamily: root.iconFontFamily
+                        textFontFamily: root.textFontFamily
+                        activeWallpaper: root.wallpaperPickerActiveWallpaper
+                        showCondition: islandContainer.wallpaperPickerLayerVisible
+                        onWallpaperApplied: () => root.wallpaperPickerActiveWallpaper = userConfig.wallpaperPath
+                        onCloseRequested: islandContainer.smartRestoreState()
                     }
                 }
             }

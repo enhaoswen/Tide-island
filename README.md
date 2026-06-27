@@ -245,7 +245,8 @@ you can adjust configuration to your liking in `~/.config/tide-island/userconfig
 
 | Option | Meaning | Type | Default |
 |---|---|---|---|
-| `wallpaperPath` | Wallpaper image path for workspace overview background | string | `""` |
+| `wallpaperPath` | Current wallpaper file used by awww and workspace overview | string | `""` |
+| `wallpaperLibraryPath` | Directory scanned by the wallpaper picker | string | `""` |
 | `iconFontFamily` | Font family for icons/glyphs throughout the island | string | `"JetBrainsMono Nerd Font"` |
 | `textFontFamily` | Font family for general body/UI text | string | `"Inter Display"` |
 | `heroFontFamily` | Font family for large headings (track title, control center titles) | string | `"Inter Display"` |

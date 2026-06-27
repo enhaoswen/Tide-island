@@ -125,6 +125,11 @@ QString UserConfigBackend::wallpaperPath() const
     return m_wallpaperPath;
 }
 
+QString UserConfigBackend::wallpaperLibraryPath() const
+{
+    return m_wallpaperLibraryPath;
+}
+
 QString UserConfigBackend::iconFontFamily() const
 {
     return m_iconFontFamily;
@@ -340,6 +345,7 @@ void UserConfigBackend::loadConfig()
     updateField(this, m_configError, nextConfigError, &UserConfigBackend::configErrorChanged);
 
     updateField(this, m_wallpaperPath, jsonString(configObject, QLatin1String("wallpaperPath"), m_defaultWallpaperPath), &UserConfigBackend::wallpaperPathChanged);
+    updateField(this, m_wallpaperLibraryPath, jsonString(configObject, QLatin1String("wallpaperLibraryPath"), QString()), &UserConfigBackend::wallpaperLibraryPathChanged);
     updateField(this, m_iconFontFamily, jsonString(configObject, QLatin1String("iconFontFamily"), QStringLiteral("JetBrainsMono Nerd Font")), &UserConfigBackend::iconFontFamilyChanged);
     updateField(this, m_textFontFamily, jsonString(configObject, QLatin1String("textFontFamily"), QStringLiteral("Inter Display")), &UserConfigBackend::textFontFamilyChanged);
     updateField(this, m_heroFontFamily, jsonString(configObject, QLatin1String("heroFontFamily"), QStringLiteral("Inter Display")), &UserConfigBackend::heroFontFamilyChanged);
