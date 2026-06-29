@@ -44,6 +44,7 @@ REQUIRED_PACKAGES=(
 OPTIONAL_PACKAGES=(
   cava
   imagemagick
+  awww
   network-manager
 )
 

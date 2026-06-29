@@ -94,11 +94,14 @@ PanelWindow {
     exclusiveZone: 4 + userConfig.islandHeight + 3
     aboveWindows: true
     focusable: islandContainer.wallpaperPickerLayerVisible
+        || islandContainer.expandedPlayerKeyboardFocusRequested
         || (root.monitorFocused && (root.overviewVisible || root.connectivityPromptActive))
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.keyboardFocus: {
         if (islandContainer.wallpaperPickerLayerVisible)
             return WlrKeyboardFocus.Exclusive;
+        if (islandContainer.expandedPlayerKeyboardFocusRequested)
+            return WlrKeyboardFocus.OnDemand;
         if (root.monitorFocused && (root.overviewVisible || root.connectivityPromptActive))
             return WlrKeyboardFocus.OnDemand;
         return WlrKeyboardFocus.None;
@@ -339,6 +342,15 @@ PanelWindow {
     }
 
     Timer {
+        id: expandedPlayerFocusTimer
+        interval: 0
+        repeat: false
+        onTriggered: {
+            islandContainer.forceActiveFocus();
+        }
+    }
+
+    Timer {
         id: wallpaperPickerFocusTimer
         interval: 0
         repeat: false
@@ -430,7 +442,8 @@ PanelWindow {
     FocusScope {
         id: islandContainer
         anchors.fill: parent
-        focus: root.monitorFocused && (root.overviewVisible || root.connectivityPromptActive)
+        focus: expandedPlayerKeyboardFocusRequested
+            || (root.monitorFocused && (root.overviewVisible || root.connectivityPromptActive))
 
         property string islandState: "normal"
         property string splitIcon: root.defaultSplitIcon
@@ -459,10 +472,25 @@ PanelWindow {
         property real lyricsCapsuleWidth: 220
         property bool sideSwipeSettling: false
         property bool hoverExpandedActive: false
+        property bool expandedPlayerKeyboardFocusRequested: false
+        property bool openTimerPageWhenExpanded: false
+        property int timerSelectedHours: 0
+        property int timerSelectedMinutes: 5
+        property int timerTotalSeconds: 300
+        property int timerRemainingSeconds: 0
+        property bool timerRunning: false
+        property bool timerActive: false
         readonly property int defaultAutoHideInterval: 1250
         readonly property int notificationAutoHideInterval: 4200
         readonly property int bluetoothExpandedAutoHideInterval: 2500
         readonly property int swipeAnimationDuration: 220
+        readonly property real timerProgress: timerActive && timerTotalSeconds > 0
+            ? Math.max(0, Math.min(1, timerRemainingSeconds / timerTotalSeconds))
+            : 0
+        readonly property bool timerBubbleWanted: timerActive
+            && timerRemainingSeconds > 0
+            && !root.overviewVisible
+            && (islandState === "normal" || islandState === "lyrics" || islandState === "custom")
         readonly property bool blocksTransientSplit: islandState === "expanded"
             || islandState === "bluetooth_expanded"
             || islandState === "control_center"
@@ -532,6 +560,11 @@ PanelWindow {
         readonly property var overviewView: overviewLoader.item && overviewLoader.item.overviewView
             ? overviewLoader.item.overviewView
             : null
+
+        onExpandedLayerVisibleChanged: {
+            if (!expandedLayerVisible)
+                expandedPlayerKeyboardFocusRequested = false;
+        }
 
         onControlCenterLayerVisibleChanged: {
             if (!controlCenterLayerVisible) {
@@ -921,6 +954,63 @@ PanelWindow {
             autoHideTimer.interval = defaultAutoHideInterval;
         }
 
+        function requestExpandedPlayerKeyboardFocus() {
+            const shouldGrabFocus = !expandedPlayerKeyboardFocusRequested;
+            expandedPlayerKeyboardFocusRequested = true;
+            if (shouldGrabFocus)
+                expandedPlayerFocusTimer.restart();
+        }
+
+        function releaseExpandedPlayerKeyboardFocus() {
+            expandedPlayerKeyboardFocusRequested = false;
+        }
+
+        function clampTimerInput(value, minValue, maxValue) {
+            const parsed = parseInt(value, 10);
+            if (isNaN(parsed)) return minValue;
+            return Math.max(minValue, Math.min(maxValue, parsed));
+        }
+
+        function syncTimerDuration(hours, minutes) {
+            timerSelectedHours = clampTimerInput(hours, 0, 23);
+            timerSelectedMinutes = clampTimerInput(minutes, 0, 59);
+            timerTotalSeconds = timerSelectedHours * 3600 + timerSelectedMinutes * 60;
+            timerRemainingSeconds = 0;
+            timerRunning = false;
+            timerActive = false;
+        }
+
+        function toggleTimer(hours, minutes) {
+            if (timerRunning) {
+                timerRunning = false;
+                return;
+            }
+
+            if (!timerActive || timerRemainingSeconds <= 0) {
+                syncTimerDuration(hours, minutes);
+                timerRemainingSeconds = timerTotalSeconds;
+                timerActive = timerRemainingSeconds > 0;
+            }
+
+            if (timerRemainingSeconds > 0)
+                timerRunning = true;
+        }
+
+        function resetTimer() {
+            timerRemainingSeconds = 0;
+            timerRunning = false;
+            timerActive = false;
+        }
+
+        function showExpandedTimerPage() {
+            openTimerPageWhenExpanded = true;
+            showExpandedPlayer(false);
+            if (expandedPlayerLoader.item && expandedPlayerLoader.item.openTimerPage) {
+                expandedPlayerLoader.item.openTimerPage();
+                openTimerPageWhenExpanded = false;
+            }
+        }
+
         function showTransientCapsule(icon, progress, customText) {
             if (progress === undefined)    progress = -1.0;
             if (customText === undefined)  customText = "";
@@ -1081,6 +1171,19 @@ PanelWindow {
 
         Timer { id: autoHideTimer; interval: islandContainer.defaultAutoHideInterval; onTriggered: islandContainer.smartRestoreState() }
         Timer {
+            id: islandTimerTick
+            interval: 1000
+            repeat: true
+            running: islandContainer.timerRunning
+            onTriggered: {
+                islandContainer.timerRemainingSeconds = Math.max(0, islandContainer.timerRemainingSeconds - 1);
+                if (islandContainer.timerRemainingSeconds <= 0) {
+                    islandContainer.timerRunning = false;
+                    islandContainer.timerActive = false;
+                }
+            }
+        }
+        Timer {
             id: osdProgressAnimationReset
             interval: 0
             onTriggered: islandContainer.osdProgressAnimationEnabled = true
@@ -1198,7 +1301,7 @@ PanelWindow {
                     return 1100;
                 case "expanded":
                 case "bluetooth_expanded":
-                    return 400;
+                    return 410;
                 case "notification":
                     if (!notificationLoader.item) return 272;
                     return Math.max(
@@ -1677,6 +1780,13 @@ PanelWindow {
                 active: islandContainer.expandedLayerVisible
                 asynchronous: false
                 visible: active
+                onLoaded: {
+                    if (islandContainer.openTimerPageWhenExpanded
+                            && item && item.openTimerPage) {
+                        item.openTimerPage();
+                        islandContainer.openTimerPageWhenExpanded = false;
+                    }
+                }
 
                 sourceComponent: Component {
                     ExpandedPlayerLayer {
@@ -1689,8 +1799,25 @@ PanelWindow {
                         activePlayer: islandContainer.activePlayer
                         iconFontFamily: root.iconFontFamily
                         textFontFamily: root.textFontFamily
+                        timerSelectedHours: islandContainer.timerSelectedHours
+                        timerSelectedMinutes: islandContainer.timerSelectedMinutes
+                        timerTotalSeconds: islandContainer.timerTotalSeconds
+                        timerRemainingSeconds: islandContainer.timerRemainingSeconds
+                        timerRunning: islandContainer.timerRunning
+                        timerActive: islandContainer.timerActive
                         showCondition: islandContainer.expandedLayerVisible
                         onControlPressed: islandContainer.suppressCapsuleClick()
+                        onBackgroundClicked: islandContainer.smartRestoreState()
+                        onKeyboardFocusRequested: islandContainer.requestExpandedPlayerKeyboardFocus()
+                        onKeyboardFocusReleased: islandContainer.releaseExpandedPlayerKeyboardFocus()
+                        onTimerToggleRequested: function(hours, minutes) {
+                            islandContainer.toggleTimer(hours, minutes);
+                        }
+                        onTimerResetRequested: islandContainer.resetTimer()
+                        onTimerDurationRequested: function(hours, minutes) {
+                            if (!islandContainer.timerActive)
+                                islandContainer.syncTimerDuration(hours, minutes);
+                        }
                     }
                 }
             }
@@ -1827,6 +1954,147 @@ PanelWindow {
                 }
             }
 
+        }
+
+        Item {
+            id: timerBubble
+
+            property bool mounted: islandContainer.timerBubbleWanted
+            property real reveal: islandContainer.timerBubbleWanted ? 1 : 0
+            readonly property int bubbleSize: 34
+            readonly property real hiddenX: mainCapsule.x + mainCapsule.width - width * 0.62
+            readonly property real shownX: mainCapsule.x + mainCapsule.width + 8
+            readonly property real centerY: mainCapsule.y + mainCapsule.height / 2 - height / 2
+
+            width: bubbleSize
+            height: bubbleSize
+            x: hiddenX + (shownX - hiddenX) * reveal
+            y: centerY + (1 - reveal) * 10
+            z: 6
+            visible: mounted
+            opacity: reveal
+            scale: 0.55 + reveal * 0.45
+            transformOrigin: Item.Center
+
+            Connections {
+                target: islandContainer
+
+                function onTimerBubbleWantedChanged() {
+                    timerBubbleShowAnimation.stop();
+                    timerBubbleHideAnimation.stop();
+
+                    if (islandContainer.timerBubbleWanted) {
+                        timerBubble.mounted = true;
+                        timerBubbleShowAnimation.restart();
+                    } else {
+                        timerBubbleHideAnimation.restart();
+                    }
+                }
+
+                function onTimerProgressChanged() {
+                    timerBubbleRing.requestPaint();
+                }
+
+                function onTimerRemainingSecondsChanged() {
+                    timerBubbleRing.requestPaint();
+                }
+
+                function onTimerTotalSecondsChanged() {
+                    timerBubbleRing.requestPaint();
+                }
+            }
+
+            NumberAnimation {
+                id: timerBubbleShowAnimation
+
+                target: timerBubble
+                property: "reveal"
+                from: timerBubble.reveal
+                to: 1
+                duration: 360
+                easing.type: Easing.OutCubic
+            }
+
+            NumberAnimation {
+                id: timerBubbleHideAnimation
+
+                target: timerBubble
+                property: "reveal"
+                from: timerBubble.reveal
+                to: 0
+                duration: 280
+                easing.type: Easing.InCubic
+                onStopped: {
+                    if (!islandContainer.timerBubbleWanted && timerBubble.reveal <= 0.001)
+                        timerBubble.mounted = false;
+                }
+            }
+
+            Rectangle {
+                anchors.fill: parent
+                radius: width / 2
+                color: StyleTokens.black
+                border.width: 1
+                border.color: "#34343a"
+            }
+
+            Canvas {
+                id: timerBubbleRing
+
+                anchors.fill: parent
+                anchors.margins: 3
+
+                Component.onCompleted: requestPaint()
+                onVisibleChanged: requestPaint()
+                onWidthChanged: requestPaint()
+                onHeightChanged: requestPaint()
+
+                onPaint: {
+                    const ctx = getContext("2d");
+                    const centerX = width / 2;
+                    const centerY = height / 2;
+                    const lineWidth = 3;
+                    const radius = Math.min(width, height) / 2 - lineWidth / 2;
+                    const progress = Math.max(0, Math.min(1, islandContainer.timerProgress));
+                    const startAngle = -Math.PI / 2;
+                    const endAngle = startAngle - Math.PI * 2 * progress;
+
+                    ctx.clearRect(0, 0, width, height);
+                    ctx.lineCap = "round";
+                    ctx.lineWidth = lineWidth;
+
+                    ctx.beginPath();
+                    ctx.strokeStyle = "#303036";
+                    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+                    ctx.stroke();
+
+                    if (progress > 0) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = "#ffcc00";
+                        ctx.arc(centerX, centerY, radius, startAngle, endAngle, true);
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            Text {
+                anchors.centerIn: parent
+                text: "󰔛"
+                color: "white"
+                font.pixelSize: root.iconFontSize - 1
+                font.family: root.iconFontFamily
+                font.weight: Font.DemiBold
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                enabled: timerBubble.mounted
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: islandContainer.showExpandedTimerPage()
+            }
         }
 
         ConnectivityDetailShell {

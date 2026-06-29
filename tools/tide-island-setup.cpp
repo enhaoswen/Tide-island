@@ -9,6 +9,7 @@
 #include <QProcess>
 #include <QRegularExpression>
 #include <QSaveFile>
+#include <QSet>
 #include <QStandardPaths>
 #include <QStringList>
 #include <QTextStream>
@@ -30,13 +31,39 @@ constexpr auto tlpSudoPasswordKey = "tlpSudoPassword";
 constexpr auto tlpPermissionModeKey = "tlpPermissionMode";
 constexpr auto hyprlandBindKey = "hyprlandBind";
 constexpr auto hyprlandBindModeKey = "hyprlandBindMode";
-constexpr auto overviewBindCommand = "qs ipc -p /usr/share/tide-island call overview toggle";
-constexpr auto overviewBindLine = "bind = SUPER, TAB, exec, qs ipc -p /usr/share/tide-island call overview toggle";
 constexpr qint64 setupLockMaxAgeSeconds = 60 * 60;
 
 struct SetupStep {
     QString key;
     QString label;
+};
+
+struct ShortcutBinding {
+    QString label;
+    QString mods;
+    QString key;
+    QString target;
+    QString method;
+};
+
+struct ParsedShortcut {
+    QSet<QString> mods;
+    QString key;
+    QString dispatcher;
+    QString command;
+};
+
+enum class ShortcutConfigKind {
+    Conf,
+    Lua,
+    HlLua,
+};
+
+struct ShortcutInstallResult {
+    int added = 0;
+    int alreadyPresent = 0;
+    QStringList conflicts;
+    QString errorMessage;
 };
 
 QString envString(const char *name)
@@ -103,6 +130,149 @@ QString hyprlandConfigPath()
     return configHome() + QStringLiteral("/hypr/hyprland.conf");
 }
 
+QString hyprlandLuaConfigPath()
+{
+    const QString override = envString("TIDE_ISLAND_HYPRLAND_LUA_CONFIG");
+    if (!override.isEmpty())
+        return expandUserPath(override);
+
+    return configHome() + QStringLiteral("/hypr/hyprland.lua");
+}
+
+QList<ShortcutBinding> tideShortcuts()
+{
+    return {
+        {
+            QStringLiteral("Workspace overview"),
+            QStringLiteral("SUPER"),
+            QStringLiteral("TAB"),
+            QStringLiteral("overview"),
+            QStringLiteral("toggle"),
+        },
+        {
+            QStringLiteral("Lyrics view"),
+            QStringLiteral("SUPER"),
+            QStringLiteral("right"),
+            QStringLiteral("tide"),
+            QStringLiteral("showLyrics"),
+        },
+        {
+            QStringLiteral("Custom page"),
+            QStringLiteral("SUPER"),
+            QStringLiteral("left"),
+            QStringLiteral("tide"),
+            QStringLiteral("showCustom"),
+        },
+        {
+            QStringLiteral("Clock view"),
+            QStringLiteral("SUPER"),
+            QStringLiteral("down"),
+            QStringLiteral("tide"),
+            QStringLiteral("showClock"),
+        },
+        {
+            QStringLiteral("Music player"),
+            QStringLiteral("SUPER"),
+            QStringLiteral("M"),
+            QStringLiteral("tide"),
+            QStringLiteral("togglePlayer"),
+        },
+        {
+            QStringLiteral("Control center"),
+            QStringLiteral("SUPER"),
+            QStringLiteral("C"),
+            QStringLiteral("tide"),
+            QStringLiteral("toggleControlCenter"),
+        },
+        {
+            QStringLiteral("Wallpaper library"),
+            QStringLiteral("SUPER"),
+            QStringLiteral("W"),
+            QStringLiteral("tide"),
+            QStringLiteral("toggleWallpaperPicker"),
+        },
+    };
+}
+
+QList<ShortcutBinding> tideShortcutsForConfigKind(ShortcutConfigKind kind)
+{
+    QList<ShortcutBinding> shortcuts = tideShortcuts();
+    if (kind != ShortcutConfigKind::HlLua)
+        return shortcuts;
+
+    for (ShortcutBinding &binding : shortcuts) {
+        if (binding.method == QStringLiteral("showLyrics")
+            || binding.method == QStringLiteral("showCustom")
+            || binding.method == QStringLiteral("showClock")
+            || binding.method == QStringLiteral("togglePlayer")) {
+            binding.mods = QStringLiteral("SUPER SHIFT");
+        }
+    }
+
+    return shortcuts;
+}
+
+QString shortcutCommand(const ShortcutBinding &binding)
+{
+    return QStringLiteral("/usr/bin/quickshell ipc -p /usr/share/tide-island call %1 %2")
+        .arg(binding.target, binding.method);
+}
+
+QString shortcutChord(const ShortcutBinding &binding)
+{
+    QStringList parts = binding.mods.split(u' ', Qt::SkipEmptyParts);
+    parts.append(binding.key);
+    return parts.join(QStringLiteral("+"));
+}
+
+QString luaShortcutChord(const ShortcutBinding &binding)
+{
+    QStringList parts = binding.mods.split(u' ', Qt::SkipEmptyParts);
+    parts.append(binding.key);
+    return parts.join(QStringLiteral(" + "));
+}
+
+QString hyprlandConfBindLine(const ShortcutBinding &binding)
+{
+    return QStringLiteral("bind = %1, %2, exec, %3")
+        .arg(binding.mods, binding.key, shortcutCommand(binding));
+}
+
+QString luaQuoted(QString value)
+{
+    value.replace(u'\\', QStringLiteral("\\\\"));
+    value.replace(u'"', QStringLiteral("\\\""));
+    return QStringLiteral("\"") + value + QStringLiteral("\"");
+}
+
+QString hyprlandLuaBindLine(const ShortcutBinding &binding)
+{
+    return QStringLiteral("hyprland.bind(%1, %2, \"exec\", %3)")
+        .arg(luaQuoted(binding.mods), luaQuoted(binding.key), luaQuoted(shortcutCommand(binding)));
+}
+
+QString hlLuaBindLine(const ShortcutBinding &binding)
+{
+    return QStringLiteral("hl.bind(%1, hl.dsp.exec_cmd(%2))")
+        .arg(luaQuoted(luaShortcutChord(binding)), luaQuoted(shortcutCommand(binding)));
+}
+
+QString shortcutLine(const ShortcutBinding &binding, ShortcutConfigKind kind)
+{
+    if (kind == ShortcutConfigKind::Lua)
+        return hyprlandLuaBindLine(binding);
+    if (kind == ShortcutConfigKind::HlLua)
+        return hlLuaBindLine(binding);
+    return hyprlandConfBindLine(binding);
+}
+
+QString shortcutConfigPath(ShortcutConfigKind kind)
+{
+    return kind == ShortcutConfigKind::Lua || kind == ShortcutConfigKind::HlLua
+        ? hyprlandLuaConfigPath()
+        : hyprlandConfigPath();
+}
+
 QJsonArray stringArray(std::initializer_list<QString> values)
 {
     QJsonArray result;
@@ -124,6 +294,7 @@ QJsonObject defaultUserConfig()
         {QString::fromLatin1(tlpPermissionModeKey), QString()},
         {QStringLiteral("overviewGlobalShortcutAppid"), QStringLiteral("quickshell")},
         {QStringLiteral("overviewGlobalShortcutName"), QStringLiteral("dynamic-island-overview")},
+        {QString::fromLatin1(hyprlandBindModeKey), QString()},
         {QStringLiteral("workspaceOverviewWindowDragButton"), 1},
         {QStringLiteral("dynamicIslandPrimaryButton"), 1},
         {QStringLiteral("dynamicIslandPrimaryAction"), QStringLiteral("toggleExpandedPlayer")},
@@ -335,6 +506,12 @@ QString formatUserConfig(const QJsonObject &data)
          "\n"
          "    // Quickshell shortcut name (registered as SUPER+TAB in Hyprland).\n"
          "    \"overviewGlobalShortcutName\": \"" << str("overviewGlobalShortcutName", "dynamic-island-overview") << "\",\n"
+         "\n"
+         "    // Shortcut setup mode used by tide-island-setup.\n"
+         "    // Leave empty to let setup offer missing shortcuts.\n"
+         "    //  \"configured\"  setup installed the recommended shortcuts\n"
+         "    //  \"manual\"  You manage Hyprland shortcuts yourself\n"
+         "    \"hyprlandBindMode\": \"" << str("hyprlandBindMode") << "\",\n"
          "\n"
          "    // Mouse button for dragging windows in the overview.\n"
          "    \"workspaceOverviewWindowDragButton\": " << num("workspaceOverviewWindowDragButton", 1) << ",\n"
@@ -548,14 +725,27 @@ QString normalizeSpace(const QString &value)
     return value.simplified();
 }
 
-QStringList readHyprlandLines()
+QString normalizedShortcutCommand(QString command)
 {
-    QFile file(hyprlandConfigPath());
+    command = normalizeSpace(command);
+    command.remove(u'\'');
+    command.remove(u'"');
+    return command;
+}
+
+QStringList readTextLines(const QString &path)
+{
+    QFile file(path);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
         return {};
 
     const QString text = QString::fromUtf8(file.readAll());
     return text.split(u'\n');
+}
+
+QStringList readHyprlandLines()
+{
+    return readTextLines(hyprlandConfigPath());
 }
 
 QHash<QString, QString> hyprlandVariables(const QStringList &lines)
@@ -590,11 +780,53 @@ QSet<QString> resolveHyprlandMods(QString rawMods, const QHash<QString, QString>
     return mods;
 }
 
-bool overviewBindPresent()
+QString stripLuaComment(const QString &line)
 {
-    const QStringList lines = readHyprlandLines();
+    bool singleQuoted = false;
+    bool doubleQuoted = false;
+    bool escaped = false;
+    QString result;
+    result.reserve(line.size());
+
+    for (int index = 0; index < line.size(); ++index) {
+        const QChar ch = line.at(index);
+        if (escaped) {
+            result.append(ch);
+            escaped = false;
+            continue;
+        }
+
+        if (ch == u'\\') {
+            result.append(ch);
+            escaped = true;
+            continue;
+        }
+
+        if (ch == u'\'' && !doubleQuoted) {
+            singleQuoted = !singleQuoted;
+            result.append(ch);
+            continue;
+        }
+
+        if (ch == u'"' && !singleQuoted) {
+            doubleQuoted = !doubleQuoted;
+            result.append(ch);
+            continue;
+        }
+
+        if (!singleQuoted && !doubleQuoted && ch == u'-' && index + 1 < line.size() && line.at(index + 1) == u'-')
+            break;
+
+        result.append(ch);
+    }
+
+    return result.trimmed();
+}
+
+QList<ParsedShortcut> parseHyprlandConfShortcuts(const QStringList &lines)
+{
+    QList<ParsedShortcut> result;
     const QHash<QString, QString> variables = hyprlandVariables(lines);
-    const QString targetCommand = normalizeSpace(QString::fromLatin1(overviewBindCommand));
 
     for (const QString &line : lines) {
         const QString clean = stripComment(line);
@@ -612,15 +844,212 @@ bool overviewBindPresent()
         const QString dispatcher = parts.at(2).trimmed();
         const QString command = parts.mid(3).join(u',').trimmed();
 
-        if (key.toUpper() != QStringLiteral("TAB") || dispatcher.toLower() != QStringLiteral("exec"))
-            continue;
-        if (resolveHyprlandMods(rawMods, variables) != QSet<QString>{QStringLiteral("SUPER")})
-            continue;
-        if (normalizeSpace(command).remove(u'\'').remove(u'"') == targetCommand)
-            return true;
+        result.append({
+            resolveHyprlandMods(rawMods, variables),
+            key.toUpper(),
+            dispatcher.toLower(),
+            normalizedShortcutCommand(command),
+        });
     }
 
+    return result;
+}
+
+QList<ParsedShortcut> parseHyprlandLuaShortcuts(const QStringList &lines)
+{
+    QList<ParsedShortcut> result;
+    static const QRegularExpression bindRe(QStringLiteral(
+        R"([A-Za-z_][A-Za-z0-9_\.]*\.bind\s*\(\s*["']([^"']*)["']\s*,\s*["']([^"']*)["']\s*,\s*["']([^"']*)["']\s*,\s*["']([^"']*)["'])"));
+
+    for (const QString &line : lines) {
+        const QString clean = stripLuaComment(line);
+        const QRegularExpressionMatch match = bindRe.match(clean);
+        if (!match.hasMatch())
+            continue;
+
+        result.append({
+            resolveHyprlandMods(match.captured(1), {}),
+            match.captured(2).trimmed().toUpper(),
+            match.captured(3).trimmed().toLower(),
+            normalizedShortcutCommand(match.captured(4).trimmed()),
+        });
+    }
+
+    return result;
+}
+
+QHash<QString, QString> luaStringVariables(const QStringList &lines)
+{
+    QHash<QString, QString> variables;
+    static const QRegularExpression variableRe(QStringLiteral(
+        R"((?:local\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*["']([^"']*)["'])"));
+
+    for (const QString &line : lines) {
+        const QRegularExpressionMatch match = variableRe.match(stripLuaComment(line));
+        if (match.hasMatch())
+            variables.insert(match.captured(1), match.captured(2));
+    }
+
+    return variables;
+}
+
+QString luaExpressionStringValue(const QString &expression, const QHash<QString, QString> &variables)
+{
+    const QString trimmed = expression.trimmed();
+    if (trimmed.startsWith(u'"') || trimmed.startsWith(u'\'')) {
+        const QChar quote = trimmed.front();
+        const int end = trimmed.indexOf(quote, 1);
+        return end > 0 ? trimmed.mid(1, end - 1) : QString();
+    }
+
+    QString result;
+    static const QRegularExpression tokenRe(QStringLiteral(
+        R"(([A-Za-z_][A-Za-z0-9_]*)|["']([^"']*)["'])"));
+    QRegularExpressionMatchIterator it = tokenRe.globalMatch(trimmed);
+    while (it.hasNext()) {
+        const QRegularExpressionMatch match = it.next();
+        if (!match.captured(2).isNull()) {
+            result += match.captured(2);
+            continue;
+        }
+
+        const QString variable = match.captured(1);
+        if (variables.contains(variable))
+            result += variables.value(variable);
+    }
+
+    return result;
+}
+
+ParsedShortcut parsedShortcutFromChord(QString chord, QString command = QString())
+{
+    chord.replace(u'+', QStringLiteral(" "));
+
+    const QStringList parts = chord.split(u' ', Qt::SkipEmptyParts);
+    if (parts.isEmpty())
+        return {};
+
+    QString rawMods;
+    for (int index = 0; index < parts.size() - 1; ++index)
+        rawMods += (rawMods.isEmpty() ? QString() : QStringLiteral(" ")) + parts.at(index);
+
+    return {
+        resolveHyprlandMods(rawMods, {}),
+        parts.last().toUpper(),
+        command.isEmpty() ? QStringLiteral("__lua") : QStringLiteral("exec"),
+        normalizedShortcutCommand(command),
+    };
+}
+
+QList<ParsedShortcut> parseHyprlandHlLuaShortcuts(const QStringList &lines)
+{
+    QList<ParsedShortcut> result;
+    const QHash<QString, QString> variables = luaStringVariables(lines);
+    static const QRegularExpression bindRe(QStringLiteral(R"(hl\.bind\s*\(\s*(.*?)\s*,)"));
+    static const QRegularExpression execRe(QStringLiteral(R"(hl\.dsp\.exec_cmd\s*\(\s*["']([^"']*)["'])"));
+
+    for (const QString &line : lines) {
+        const QString clean = stripLuaComment(line);
+        const QRegularExpressionMatch bindMatch = bindRe.match(clean);
+        if (!bindMatch.hasMatch())
+            continue;
+
+        const QRegularExpressionMatch execMatch = execRe.match(clean);
+        const QString command = execMatch.hasMatch() ? execMatch.captured(1).trimmed() : QString();
+        const QString chord = luaExpressionStringValue(bindMatch.captured(1), variables);
+        if (!chord.isEmpty())
+            result.append(parsedShortcutFromChord(chord, command));
+    }
+
+    return result;
+}
+
+ShortcutConfigKind shortcutConfigKindFromPath(const QString &path)
+{
+    if (!path.endsWith(QStringLiteral(".lua"), Qt::CaseInsensitive))
+        return ShortcutConfigKind::Conf;
+
+    const QStringList lines = readTextLines(path);
+    for (const QString &line : lines) {
+        if (line.contains(QStringLiteral("hl.bind(")) || line.contains(QStringLiteral("hl.config(")))
+            return ShortcutConfigKind::HlLua;
+    }
+    return ShortcutConfigKind::Lua;
+}
+
+QList<QPair<QString, ShortcutConfigKind>> shortcutConfigCandidates()
+{
+    QList<QPair<QString, ShortcutConfigKind>> candidates;
+    const QString confPath = hyprlandConfigPath();
+    candidates.append({confPath, shortcutConfigKindFromPath(confPath)});
+
+    const QString luaPath = hyprlandLuaConfigPath();
+    if (luaPath != confPath)
+        candidates.append({luaPath, shortcutConfigKindFromPath(luaPath)});
+
+    return candidates;
+}
+
+QList<ParsedShortcut> parseShortcutFile(const QString &path, ShortcutConfigKind kind)
+{
+    const QStringList lines = readTextLines(path);
+    if (kind == ShortcutConfigKind::Lua)
+        return parseHyprlandLuaShortcuts(lines);
+    if (kind == ShortcutConfigKind::HlLua)
+        return parseHyprlandHlLuaShortcuts(lines);
+    return parseHyprlandConfShortcuts(lines);
+}
+
+QSet<QString> shortcutMods(const ShortcutBinding &binding)
+{
+    return resolveHyprlandMods(binding.mods, {});
+}
+
+bool sameShortcutChord(const ParsedShortcut &parsed, const ShortcutBinding &binding)
+{
+    return parsed.mods == shortcutMods(binding)
+        && parsed.key == binding.key.toUpper();
+}
+
+bool sameShortcutCommand(const ParsedShortcut &parsed, const ShortcutBinding &binding)
+{
+    return parsed.dispatcher == QStringLiteral("exec")
+        && parsed.command == normalizedShortcutCommand(shortcutCommand(binding));
+}
+
+bool shortcutCommandPresent(const QList<ParsedShortcut> &parsedShortcuts, const ShortcutBinding &binding)
+{
+    for (const ParsedShortcut &parsed : parsedShortcuts) {
+        if (sameShortcutCommand(parsed, binding))
+            return true;
+    }
     return false;
+}
+
+QString shortcutChordConflict(const QList<ParsedShortcut> &parsedShortcuts, const ShortcutBinding &binding)
+{
+    for (const ParsedShortcut &parsed : parsedShortcuts) {
+        if (!sameShortcutChord(parsed, binding) || sameShortcutCommand(parsed, binding))
+            continue;
+
+        return QStringLiteral("%1 is already bound to: %2")
+            .arg(shortcutChord(binding), parsed.command);
+    }
+    return {};
+}
+
+bool allTideShortcutsPresent()
+{
+    QList<ParsedShortcut> parsedShortcuts;
+    for (const auto &candidate : shortcutConfigCandidates())
+        parsedShortcuts.append(parseShortcutFile(candidate.first, candidate.second));
+
+    for (const ShortcutBinding &binding : tideShortcuts()) {
+        if (!shortcutCommandPresent(parsedShortcuts, binding))
+            return false;
+    }
+
+    return true;
 }
 
 QString displayPath(const QString &path)
@@ -661,7 +1090,7 @@ QStringList missingItems(QJsonObject *normalizedConfig = nullptr)
         || (tlpPermissionMode == QStringLiteral("password") && tlpPassword.isEmpty())) {
         missing.append(tlpSudoPasswordKey);
     }
-    if (!overviewBindPresent() && configString(data, hyprlandBindModeKey) != QStringLiteral("manual"))
+    if (!allTideShortcutsPresent() && configString(data, hyprlandBindModeKey) != QStringLiteral("manual"))
         missing.append(hyprlandBindKey);
 
     missing.removeDuplicates();
@@ -675,7 +1104,7 @@ QList<SetupStep> setupSteps(const QStringList &missing)
     const QList<SetupStep> ordered = {
         {QString::fromLatin1(wallpaperPathKey), QStringLiteral("Current wallpaper file")},
         {QString::fromLatin1(wallpaperLibraryPathKey), QStringLiteral("Wallpaper library directory")},
-        {QString::fromLatin1(hyprlandBindKey), QStringLiteral("SUPER+TAB Hyprland binding")},
+        {QString::fromLatin1(hyprlandBindKey), QStringLiteral("Tide Island Hyprland shortcuts  optional")},
         {QString::fromLatin1(tlpSudoPasswordKey), QStringLiteral("TLP mode switching password  optional")},
     };
 
@@ -698,7 +1127,8 @@ void printWelcome(const QList<SetupStep> &steps)
 
     out << "\nThis setup will only write to:\n";
     out << "  " << displayPath(userConfigPath()) << "\n";
-    out << "  " << displayPath(hyprlandConfigPath()) << "  if you allow it\n\n";
+    out << "  " << displayPath(hyprlandConfigPath()) << "  if you allow shortcut setup\n";
+    out << "  " << displayPath(hyprlandLuaConfigPath()) << "  if you choose Lua shortcut setup\n\n";
     out << "No system files will be changed.\n";
 }
 
@@ -968,35 +1398,104 @@ void promptTlpPermissions(QJsonObject *data, int step, int total)
     }
 }
 
-bool appendHyprlandBind(QString *errorMessage)
+bool commandInPath(const QString &name)
 {
-    if (overviewBindPresent())
-        return false;
+    const QStringList paths = envString("PATH").split(u':', Qt::SkipEmptyParts);
+    for (const QString &dir : paths) {
+        const QFileInfo info(dir + QStringLiteral("/") + name);
+        if (info.isFile() && info.isExecutable())
+            return true;
+    }
+    return false;
+}
 
-    const QString path = hyprlandConfigPath();
-    QDir().mkpath(QFileInfo(path).absolutePath());
+bool appendHyprlandShortcuts(const QList<ShortcutBinding> &selectedShortcuts,
+    ShortcutConfigKind kind,
+    ShortcutInstallResult *result)
+{
+    if (selectedShortcuts.isEmpty())
+        return true;
+
+    const QString path = shortcutConfigPath(kind);
+    const QFileInfo info(path);
+    if (!QDir().mkpath(info.absolutePath())) {
+        if (result)
+            result->errorMessage = QStringLiteral("Could not create %1").arg(info.absolutePath());
+        return false;
+    }
 
     QString existing;
     QFile input(path);
     if (input.exists()) {
         if (!input.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            if (errorMessage)
-                *errorMessage = input.errorString();
+            if (result)
+                result->errorMessage = input.errorString();
             return false;
         }
         existing = QString::fromUtf8(input.readAll());
     }
 
-    QFile output(path);
-    if (!output.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
-        if (errorMessage)
-            *errorMessage = output.errorString();
+    QList<ParsedShortcut> parsedShortcuts;
+    if (kind == ShortcutConfigKind::Lua)
+        parsedShortcuts = parseHyprlandLuaShortcuts(existing.split(u'\n'));
+    else if (kind == ShortcutConfigKind::HlLua)
+        parsedShortcuts = parseHyprlandHlLuaShortcuts(existing.split(u'\n'));
+    else
+        parsedShortcuts = parseHyprlandConfShortcuts(existing.split(u'\n'));
+
+    QStringList linesToAdd;
+    for (const ShortcutBinding &binding : selectedShortcuts) {
+        if (shortcutCommandPresent(parsedShortcuts, binding)) {
+            if (result)
+                result->alreadyPresent++;
+            continue;
+        }
+
+        const QString conflict = shortcutChordConflict(parsedShortcuts, binding);
+        if (!conflict.isEmpty()) {
+            if (result) {
+                result->conflicts.append(QStringLiteral("%1 (%2): %3")
+                    .arg(binding.label, shortcutChord(binding), conflict));
+            }
+            continue;
+        }
+
+        linesToAdd.append(shortcutLine(binding, kind));
+        parsedShortcuts.append({
+            shortcutMods(binding),
+            binding.key.toUpper(),
+            QStringLiteral("exec"),
+            normalizedShortcutCommand(shortcutCommand(binding)),
+        });
+        if (result)
+            result->added++;
+    }
+
+    if (linesToAdd.isEmpty())
+        return true;
+
+    const QString separator = existing.isEmpty() || existing.endsWith(u'\n') ? QString() : QStringLiteral("\n");
+    const QString comment = kind == ShortcutConfigKind::Lua
+        || kind == ShortcutConfigKind::HlLua
+        ? QStringLiteral("-- Tide Island shortcuts")
+        : QStringLiteral("# Tide Island shortcuts");
+    const QString addition = QStringLiteral("\n") + comment + QStringLiteral("\n")
+        + linesToAdd.join(u'\n') + QStringLiteral("\n");
+
+    QSaveFile output(path);
+    if (!output.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        if (result)
+            result->errorMessage = output.errorString();
         return false;
     }
 
-    const QString separator = existing.isEmpty() || existing.endsWith(u'\n') ? QString() : QStringLiteral("\n");
-    const QString addition = QStringLiteral("\n# Tide Island workspace overview\n") + QString::fromLatin1(overviewBindLine) + QStringLiteral("\n");
     output.write((existing + separator + addition).toUtf8());
+    if (!output.commit()) {
+        if (result)
+            result->errorMessage = output.errorString();
+        return false;
+    }
+
     return true;
 }
 
@@ -1013,51 +1512,189 @@ bool reloadHyprland()
         && reloadProcess.exitCode() == 0;
 }
 
-void printManualHyprlandBind(QTextStream &out)
+void printShortcutList(QTextStream &out, const QList<ShortcutBinding> &shortcuts)
 {
-    out << "You can add this manually:\n\n";
-    out << "  " << overviewBindLine << "\n";
+    for (int index = 0; index < shortcuts.size(); ++index) {
+        const ShortcutBinding &binding = shortcuts.at(index);
+        out << "  " << index + 1 << ". " << shortcutChord(binding)
+            << "  " << binding.label << "\n";
+    }
+}
+
+QString shortcutConfigKindLabel(ShortcutConfigKind kind)
+{
+    if (kind == ShortcutConfigKind::HlLua)
+        return QStringLiteral("Lua config using hl.bind(..., hl.dsp.exec_cmd(...))");
+    if (kind == ShortcutConfigKind::Lua)
+        return QStringLiteral("Lua config using hyprland.bind(...)");
+    return QStringLiteral("Hyprland .conf");
+}
+
+ShortcutConfigKind preferredShortcutConfigKind()
+{
+    const QString luaPath = hyprlandLuaConfigPath();
+    if (QFileInfo::exists(luaPath)) {
+        const ShortcutConfigKind luaKind = shortcutConfigKindFromPath(luaPath);
+        if (luaKind == ShortcutConfigKind::HlLua || luaKind == ShortcutConfigKind::Lua)
+            return luaKind;
+    }
+
+    return shortcutConfigKindFromPath(hyprlandConfigPath());
+}
+
+void printManualShortcutBlock(QTextStream &out, ShortcutConfigKind kind, const QList<ShortcutBinding> &shortcuts)
+{
+    out << "You can add these manually:\n\n";
+    for (const ShortcutBinding &binding : shortcuts)
+        out << "  " << shortcutLine(binding, kind) << "\n";
+}
+
+ShortcutConfigKind chooseShortcutConfigKind()
+{
+    QTextStream out(stdout);
+    const ShortcutConfigKind preferredKind = preferredShortcutConfigKind();
+    const QString confPath = hyprlandConfigPath();
+    const QString luaPath = hyprlandLuaConfigPath();
+    const ShortcutConfigKind luaKind = shortcutConfigKindFromPath(luaPath);
+
+    out << "\nWhere should setup write the shortcuts?\n\n";
+    out << "  1. " << displayPath(confPath) << "  Hyprland .conf";
+    if (preferredKind == ShortcutConfigKind::Conf)
+        out << "  recommended";
+    out << "\n";
+    out << "  2. " << displayPath(luaPath) << "  " << shortcutConfigKindLabel(luaKind);
+    if (preferredKind != ShortcutConfigKind::Conf)
+        out << "  recommended";
+    out << "\n\n";
+    out.flush();
+
+    while (true) {
+        const QString choice = readLine(preferredKind == ShortcutConfigKind::Conf
+            ? QStringLiteral("Enter 1 or 2 [1]: ")
+            : QStringLiteral("Enter 1 or 2 [2]: ")).trimmed();
+        if (choice.isEmpty())
+            return preferredKind;
+        if (choice == QStringLiteral("1"))
+            return ShortcutConfigKind::Conf;
+        if (choice == QStringLiteral("2"))
+            return luaKind;
+        if (std::feof(stdin))
+            return preferredKind;
+        out << "Choose 1 or 2.\n";
+    }
+}
+
+QList<ShortcutBinding> chooseShortcuts(const QList<ShortcutBinding> &allShortcuts, bool *manualOnly)
+{
+    QTextStream out(stdout);
+    if (manualOnly)
+        *manualOnly = false;
+
+    out << "Choose how to configure shortcuts:\n\n";
+    out << "  1. Install all recommended shortcuts\n";
+    out << "  2. Choose shortcuts one by one\n";
+    out << "  3. Print manual config only\n";
+    out << "  4. Skip shortcut setup\n\n";
+    out.flush();
+
+    while (true) {
+        const QString choice = readLine(QStringLiteral("Enter 1, 2, 3, or 4 [1]: ")).trimmed();
+        if (choice.isEmpty() && std::feof(stdin))
+            return {};
+        if (choice.isEmpty() || choice == QStringLiteral("1"))
+            return allShortcuts;
+
+        if (choice == QStringLiteral("2")) {
+            QList<ShortcutBinding> selected;
+            for (const ShortcutBinding &binding : allShortcuts) {
+                if (confirmYes(QStringLiteral("Add %1 (%2)? [Y/n] ").arg(binding.label, shortcutChord(binding))))
+                    selected.append(binding);
+            }
+            return selected;
+        }
+
+        if (choice == QStringLiteral("3")) {
+            if (manualOnly)
+                *manualOnly = true;
+            return allShortcuts;
+        }
+
+        if (choice == QStringLiteral("4"))
+            return {};
+
+        out << "Choose 1, 2, 3, or 4.\n";
+    }
 }
 
 void configureHyprlandBind(QJsonObject *data, int step, int total)
 {
     QTextStream out(stdout);
-    printStepHeader(out, step, total, QStringLiteral("Hyprland binding"));
-    out << "Tide Island can use SUPER+TAB to toggle the workspace overview.\n\n";
-    out << "The following line can be added to:\n";
-    out << "  " << displayPath(hyprlandConfigPath()) << "\n\n";
-    out << "  " << overviewBindLine << "\n\n";
+
+    printStepHeader(out, step, total, QStringLiteral("Hyprland shortcuts"));
+    out << "Tide Island can install optional shortcuts for the IPC commands that already exist in the shell.\n";
+    const ShortcutConfigKind kind = chooseShortcutConfigKind();
+    const QList<ShortcutBinding> allShortcuts = tideShortcutsForConfigKind(kind);
+
+    out << "\nShortcuts for " << shortcutConfigKindLabel(kind) << ":\n\n";
+    printShortcutList(out, allShortcuts);
+    out << "\nThe wallpaper library shortcut opens the wallpaper picker. Applying a wallpaper uses awww.\n";
+    if (!QFileInfo::exists(QStringLiteral("/usr/bin/quickshell")))
+        out << "\nWarning: /usr/bin/quickshell was not found. Install Quickshell before using these shortcuts.\n";
+    if (!commandInPath(QStringLiteral("awww")))
+        out << "Warning: awww was not found in PATH. The wallpaper picker can open, but applying wallpapers needs awww.\n";
+    out << "\n";
     out.flush();
 
-    if (!confirmYes(QStringLiteral("Add it automatically? [Y/n] "))) {
-        out << "\nNo problem. Add this line manually when you're ready:\n\n";
-        out << "  " << overviewBindLine << "\n";
+    bool manualOnly = false;
+    const QList<ShortcutBinding> selectedShortcuts = chooseShortcuts(allShortcuts, &manualOnly);
+    if (selectedShortcuts.isEmpty()) {
+        out << "\nSkipped shortcut setup. You can run tide-island-setup --shortcuts later.\n";
+        if (std::feof(stdin))
+            return;
         data->insert(hyprlandBindModeKey, QStringLiteral("manual"));
         saveUserConfig(*data);
         return;
     }
 
-    QString errorMessage;
-    const bool changed = appendHyprlandBind(&errorMessage);
-    if (!changed && !errorMessage.isEmpty()) {
+    if (manualOnly) {
+        out << "\n";
+        printManualShortcutBlock(out, kind, selectedShortcuts);
+        data->insert(hyprlandBindModeKey, QStringLiteral("manual"));
+        saveUserConfig(*data);
+        return;
+    }
+
+    ShortcutInstallResult result;
+    if (!appendHyprlandShortcuts(selectedShortcuts, kind, &result)) {
         out << "\nTide Island could not edit your Hyprland config.\n\n";
-        printManualHyprlandBind(out);
-        out << "\nDetails: " << errorMessage << "\n";
+        printManualShortcutBlock(out, kind, selectedShortcuts);
+        out << "\nDetails: " << result.errorMessage << "\n";
         data->insert(hyprlandBindModeKey, QStringLiteral("manual"));
         saveUserConfig(*data);
         return;
     }
 
-    if (!changed) {
-        out << "\nThe SUPER+TAB binding already exists.\n";
-        return;
+    out << "\nShortcut setup result for " << displayPath(shortcutConfigPath(kind)) << ":\n";
+    out << "  Added: " << result.added << "\n";
+    out << "  Already present: " << result.alreadyPresent << "\n";
+    if (!result.conflicts.isEmpty()) {
+        out << "  Skipped because the key is already used:\n";
+        for (const QString &conflict : result.conflicts)
+            out << "    " << conflict << "\n";
     }
 
-    out << "\nAdded the SUPER+TAB binding.\n";
-    if (reloadHyprland())
-        out << "Reloaded Hyprland.\n";
-    else
-        out << "Hyprland did not reload automatically. Run hyprctl reload manually, or log out and back in.\n";
+    if (kind == ShortcutConfigKind::Conf) {
+        if (result.added > 0 && reloadHyprland())
+            out << "Reloaded Hyprland.\n";
+        else if (result.added > 0)
+            out << "Hyprland did not reload automatically. Run hyprctl reload manually, or log out and back in.\n";
+    } else if (result.added > 0) {
+        out << "Reload or restart your Lua Hyprland config so the new shortcut calls are registered.\n";
+    }
+
+    data->insert(hyprlandBindModeKey,
+        allTideShortcutsPresent() ? QStringLiteral("configured") : QStringLiteral("manual"));
+    saveUserConfig(*data);
 }
 
 QString executablePath()
@@ -1202,10 +1839,18 @@ int runWizard()
     return 0;
 }
 
+int runShortcutWizard()
+{
+    QJsonObject data = loadUserConfig();
+    mergeUserConfigDefaults(&data);
+    configureHyprlandBind(&data, 1, 1);
+    return 0;
+}
+
 void printUsage()
 {
     QTextStream err(stderr);
-    err << "Usage: tide-island-setup --check | --launch | --wizard\n";
+    err << "Usage: tide-island-setup --check | --launch | --wizard | --shortcuts\n";
 }
 }
 
@@ -1236,6 +1881,9 @@ int main(int argc, char **argv)
 
     if (arg == QStringLiteral("--wizard"))
         return runWizard();
+
+    if (arg == QStringLiteral("--shortcuts"))
+        return runShortcutWizard();
 
     printUsage();
     return 2;

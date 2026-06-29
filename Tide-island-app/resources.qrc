@@ -1,5 +1,6 @@
 <RCC>
     <qresource prefix="/">
-        <file>main.qml</file>
+        <file>Main.qml</file>
+        <file>RES/Lora-Regular.ttf</file>
     </qresource>
 </RCC>

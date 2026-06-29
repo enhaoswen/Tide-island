@@ -121,28 +121,6 @@ Tide Island can display temporary feedback for:
 - Media playback
 - System notifications
 
-### Custom Page Items
-
-The custom page can display:
-
-- Time
-- Date
-- Battery
-- Volume
-- Brightness
-- Workspace
-- CPU
-- RAM
-- CAVA audio visualizer
-
-## Performance
-
-**Memory**: <300 Mb
-
-**CPU usage**: < 1 during normal use
-
-> Performance may vary depending on enabled modules, lyrics providers, animations, and system configuration.
-
 <br>
 
 ## Installation
@@ -239,49 +217,35 @@ tide-island-setup --launch
 tide-island-setup --wizard
 ```
 
+#### Configure Hyprland shortcuts:
+
+```bash
+tide-island-setup --shortcuts
+```
+
 ## Configuration
 
 you can adjust configuration to your liking in `~/.config/tide-island/userconfig.json`.
-
-| Option | Meaning | Type | Default |
-|---|---|---|---|
-| `wallpaperPath` | Current wallpaper file used by awww and workspace overview | string | `""` |
-| `wallpaperLibraryPath` | Directory scanned by the wallpaper picker | string | `""` |
-| `iconFontFamily` | Font family for icons/glyphs throughout the island | string | `"JetBrainsMono Nerd Font"` |
-| `textFontFamily` | Font family for general body/UI text | string | `"Inter Display"` |
-| `heroFontFamily` | Font family for large headings (track title, control center titles) | string | `"Inter Display"` |
-| `timeFontFamily` | Font family for clock/time display text | string | `"Inter Display"` |
-| `tlpPermissionMode` | How to obtain sudo permissions for TLP battery mode switching | string | `"ask"` |
-| `tlpSudoPassword` | Sudo password used when `tlpPermissionMode` is `"password"` | string | `""` |
-| `overviewGlobalShortcutAppid` | App ID for registering the overview global shortcut | string | `"quickshell"` |
-| `overviewGlobalShortcutName` | Shortcut name for overview toggle | string | `"dynamic-island-overview"` |
-| `workspaceOverviewWindowDragButton` | Mouse button used to drag window tiles in workspace overview | int | `1` (Left) |
-| `dynamicIslandPrimaryButton` | Primary mouse button for clicking the island capsule | int | `1` (Left) |
-| `dynamicIslandPrimaryAction` | Action triggered by primary button click on the island | string | `"toggleExpandedPlayer"` |
-| `dynamicIslandSecondaryButton` | Secondary mouse button for clicking the island capsule | int | `3` (Right) |
-| `dynamicIslandSecondaryAction` | Action triggered by secondary button click on the island | string | `"toggleControlCenter"` |
-| `dynamicIslandLeftSwipeItems` | Cards shown when swiping left on the island pill | array | `["cava", "battery"]` |
-| `disableAutoExpandOnTrackChange` | Prevent auto-expanding the player when track changes | bool | `false` |
 
 <br>
 
 You can also change the key binding.
 
-| Action | Behavior |
-|---|---|
-| `""` / `"none"` | Do nothing |
-| `"toggleExpandedPlayer"` | Show/hide the expanded music player |
-| `"openExpandedPlayer"` | Open the expanded music player |
-| `"closeExpandedPlayer"` | Close the expanded music player |
-| `"toggleControlCenter"` | Show/hide the control center panel |
-| `"openControlCenter"` | Open the control center panel |
-| `"closeControlCenter"` | Close the control center panel |
-| `"toggleOverview"` | Show/hide the workspace overview |
-| `"openOverview"` | Open the workspace overview |
-| `"closeOverview"` | Close the workspace overview |
-| `"toggleLyrics"` | Show/hide the lyrics capsule |
-| `"showLyrics"` | Show the lyrics capsule |
-| `"showTime"` | Show the time capsule |
+| Action                    | Behavior                              |
+| ------------------------- | ------------------------------------- |
+| `""` / `"none"`           | Do nothing                            |
+| `"toggleExpandedPlayer"`  | Show/hide the expanded music player   |
+| `"openExpandedPlayer"`    | Open the expanded music player        |
+| `"closeExpandedPlayer"`   | Close the expanded music player       |
+| `"toggleControlCenter"`   | Show/hide the control center panel    |
+| `"openControlCenter"`     | Open the control center panel         |
+| `"closeControlCenter"`    | Close the control center panel        |
+| `"toggleOverview"`        | Show/hide the workspace overview      |
+| `"openOverview"`          | Open the workspace overview           |
+| `"closeOverview"`         | Close the workspace overview          |
+| `"toggleLyrics"`          | Show/hide the lyrics capsule          |
+| `"showLyrics"`            | Show the lyrics capsule               |
+| `"showTime"`              | Show the time capsule                 |
 | `"restoreRestingCapsule"` | Restore default resting capsule state |
 
 Example:
@@ -299,27 +263,53 @@ Example:
 
 ## Shortcuts
 
-Not required, you can adjust based on your preferences.
+Shortcuts are optional. New users can run the helper and choose whether to install all recommended shortcuts, pick them one by one, print manual snippets, or skip them:
+
+```bash
+tide-island-setup --shortcuts
+```
+
+The helper can write to `~/.config/hypr/hyprland.conf` or print/write `hyprland.bind(...)` lines for a Lua-based config. It skips any shortcut whose key combination is already used by another command, so it will not silently overwrite your existing binds.
+
+Recommended shortcuts:
+
+| Shortcut | Action |
+|---|---|
+| `Super + Tab` | Toggle workspace overview |
+| `Super + Right` | Show lyrics |
+| `Super + Left` | Show custom page |
+| `Super + Down` | Show clock |
+| `Super + M` | Toggle music player |
+| `Super + C` | Toggle control center |
+| `Super + W` | Toggle wallpaper library |
 
 Shortcuts for `~/.config/hypr/hyprland.conf`. 
 
-```
-bind = $mainMod, right, exec, qs ipc -p /usr/share/tide-island call tide showLyrics
-bind = $mainMod, left,  exec, qs ipc -p /usr/share/tide-island call tide showCustom
-bind = $mainMod, down,  exec, qs ipc -p /usr/share/tide-island call tide showClock
-bind = $mainMod, M, exec, qs ipc -p /usr/share/tide-island call tide togglePlayer
-bind = $mainMod, C, exec, qs ipc -p /usr/share/tide-island call tide toggleControlCenter
+```conf
+bind = SUPER, TAB, exec, /usr/bin/quickshell ipc -p /usr/share/tide-island call overview toggle
+bind = SUPER, right, exec, /usr/bin/quickshell ipc -p /usr/share/tide-island call tide showLyrics
+bind = SUPER, left, exec, /usr/bin/quickshell ipc -p /usr/share/tide-island call tide showCustom
+bind = SUPER, down, exec, /usr/bin/quickshell ipc -p /usr/share/tide-island call tide showClock
+bind = SUPER, M, exec, /usr/bin/quickshell ipc -p /usr/share/tide-island call tide togglePlayer
+bind = SUPER, C, exec, /usr/bin/quickshell ipc -p /usr/share/tide-island call tide toggleControlCenter
+bind = SUPER, W, exec, /usr/bin/quickshell ipc -p /usr/share/tide-island call tide toggleWallpaperPicker
 ```
 
-Shortcuts for `~/.config/hypr/hyprland.lua`.
+Shortcuts for `~/.config/hypr/hyprland.lua`, if your Lua config already provides `hyprland.bind(...)`.
 
+```lua
+hyprland.bind("SUPER", "TAB", "exec", "/usr/bin/quickshell ipc -p /usr/share/tide-island call overview toggle")
+hyprland.bind("SUPER", "right", "exec", "/usr/bin/quickshell ipc -p /usr/share/tide-island call tide showLyrics")
+hyprland.bind("SUPER", "left", "exec", "/usr/bin/quickshell ipc -p /usr/share/tide-island call tide showCustom")
+hyprland.bind("SUPER", "down", "exec", "/usr/bin/quickshell ipc -p /usr/share/tide-island call tide showClock")
+hyprland.bind("SUPER", "M", "exec", "/usr/bin/quickshell ipc -p /usr/share/tide-island call tide togglePlayer")
+hyprland.bind("SUPER", "C", "exec", "/usr/bin/quickshell ipc -p /usr/share/tide-island call tide toggleControlCenter")
+hyprland.bind("SUPER", "W", "exec", "/usr/bin/quickshell ipc -p /usr/share/tide-island call tide toggleWallpaperPicker")
 ```
-hyprland.bind("SUPER", "right", "exec", "qs ipc -p /usr/share/tide-island call tide showLyrics")
-hyprland.bind("SUPER", "left",  "exec", "qs ipc -p /usr/share/tide-island call tide showCustom")
-hyprland.bind("SUPER", "down",  "exec", "qs ipc -p /usr/share/tide-island call tide showClock")
-hyprland.bind("SUPER", "M", "exec", "qs ipc -p /usr/share/tide-island call tide togglePlayer")
-hyprland.bind("SUPER", "C", "exec", "qs ipc -p /usr/share/tide-island call tide toggleControlCenter")
-```
+
+For Lua configs based on `hl.bind(..., hl.dsp.exec_cmd(...))`, run `tide-island-setup --shortcuts`. The helper detects this style and uses non-conflicting defaults such as `Super + Shift + Right` for lyrics.
+
+The wallpaper library shortcut opens the built-in wallpaper picker. Applying the selected wallpaper uses `awww`, so install `awww` if you want wallpaper changes to apply from the picker.
 
 <br>
 
@@ -357,6 +347,7 @@ systemctl --user restart tide-island
 
 - NetworkManager or iwd for Wi-Fi integration
 - A Nerd Font for icons
+- `awww` for applying wallpapers from the wallpaper picker
 - CAVA for audio visualization
 - MPRIS-compatible music player for media integration
 

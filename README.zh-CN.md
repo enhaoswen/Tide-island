@@ -239,6 +239,11 @@ tide-island-setup --launch
 tide-island-setup --wizard
 ```
 
+#### 配置 Hyprland 快捷键:
+```bash
+tide-island-setup --shortcuts
+```
+
 ## 配置
 
 可以根据自己的喜好在 `~/.config/tide-island/userconfig.json`配置tide island.
@@ -255,6 +260,7 @@ tide-island-setup --wizard
 | `tlpSudoPassword` | `tlpPermissionMode` 为 `"password"` 时使用的 sudo 密码 | string | `""` |
 | `overviewGlobalShortcutAppid` | 工作区概览全局快捷键的 App ID | string | `"quickshell"` |
 | `overviewGlobalShortcutName` | 工作区概览全局快捷键名称 | string | `"dynamic-island-overview"` |
+| `hyprlandBindMode` | setup 快捷键引导状态，设为 `"manual"` 时不再提示自动写入 | string | `""` |
 | `workspaceOverviewWindowDragButton` | 工作区概览中拖拽窗口的鼠标按键 | int | `1`（左键） |
 | `dynamicIslandPrimaryButton` | 点击灵动岛胶囊的主鼠标按键 | int | `1`（左键） |
 | `dynamicIslandPrimaryAction` | 主按键点击灵动岛触发的操作 | string | `"toggleExpandedPlayer"` |
@@ -295,28 +301,55 @@ tide-island-setup --wizard
 
 <br>
 
-## 快携键
-非必要,可根据自己的喜好选择或修改
+## 快捷键
+
+快捷键不是必需的，可以根据自己的习惯选择或修改。新用户可以运行引导工具，让它安装全部推荐快捷键、逐个选择、只打印手动配置，或者跳过:
+
+```bash
+tide-island-setup --shortcuts
+```
+
+引导工具可以写入 `~/.config/hypr/hyprland.conf`，也可以为基于 Lua 的配置打印/写入 `hyprland.bind(...)`。如果某个组合键已经被别的命令占用，它会跳过那一项并提示，不会悄悄覆盖你原来的绑定。
+
+推荐快捷键:
+
+| 快捷键 | 行为 |
+|---|---|
+| `Super + Tab` | 打开/关闭工作区概览 |
+| `Super + Right` | 显示歌词 |
+| `Super + Left` | 显示自定义页面 |
+| `Super + Down` | 显示时钟 |
+| `Super + M` | 打开/关闭音乐播放器 |
+| `Super + C` | 打开/关闭控制中心 |
+| `Super + W` | 打开/关闭壁纸图库 |
 
 `~/.config/hypr/hyprland.conf` 命令.
 
-```
-bind = $mainMod, right, exec, qs ipc -p /usr/share/tide-island call tide showLyrics
-bind = $mainMod, left,  exec, qs ipc -p /usr/share/tide-island call tide showCustom
-bind = $mainMod, down,  exec, qs ipc -p /usr/share/tide-island call tide showClock
-bind = $mainMod, M, exec, qs ipc -p /usr/share/tide-island call tide togglePlayer
-bind = $mainMod, C, exec, qs ipc -p /usr/share/tide-island call tide toggleControlCenter
+```conf
+bind = SUPER, TAB, exec, /usr/bin/quickshell ipc -p /usr/share/tide-island call overview toggle
+bind = SUPER, right, exec, /usr/bin/quickshell ipc -p /usr/share/tide-island call tide showLyrics
+bind = SUPER, left, exec, /usr/bin/quickshell ipc -p /usr/share/tide-island call tide showCustom
+bind = SUPER, down, exec, /usr/bin/quickshell ipc -p /usr/share/tide-island call tide showClock
+bind = SUPER, M, exec, /usr/bin/quickshell ipc -p /usr/share/tide-island call tide togglePlayer
+bind = SUPER, C, exec, /usr/bin/quickshell ipc -p /usr/share/tide-island call tide toggleControlCenter
+bind = SUPER, W, exec, /usr/bin/quickshell ipc -p /usr/share/tide-island call tide toggleWallpaperPicker
 ```
 
-`~/.config/hypr/hyprland.lua` 命令.
+`~/.config/hypr/hyprland.lua` 命令。只有当你的 Lua 配置已经提供 `hyprland.bind(...)` 时才使用这一组。
 
+```lua
+hyprland.bind("SUPER", "TAB", "exec", "/usr/bin/quickshell ipc -p /usr/share/tide-island call overview toggle")
+hyprland.bind("SUPER", "right", "exec", "/usr/bin/quickshell ipc -p /usr/share/tide-island call tide showLyrics")
+hyprland.bind("SUPER", "left", "exec", "/usr/bin/quickshell ipc -p /usr/share/tide-island call tide showCustom")
+hyprland.bind("SUPER", "down", "exec", "/usr/bin/quickshell ipc -p /usr/share/tide-island call tide showClock")
+hyprland.bind("SUPER", "M", "exec", "/usr/bin/quickshell ipc -p /usr/share/tide-island call tide togglePlayer")
+hyprland.bind("SUPER", "C", "exec", "/usr/bin/quickshell ipc -p /usr/share/tide-island call tide toggleControlCenter")
+hyprland.bind("SUPER", "W", "exec", "/usr/bin/quickshell ipc -p /usr/share/tide-island call tide toggleWallpaperPicker")
 ```
-hyprland.bind("SUPER", "right", "exec", "qs ipc -p /usr/share/tide-island call tide showLyrics")
-hyprland.bind("SUPER", "left",  "exec", "qs ipc -p /usr/share/tide-island call tide showCustom")
-hyprland.bind("SUPER", "down",  "exec", "qs ipc -p /usr/share/tide-island call tide showClock")
-hyprland.bind("SUPER", "M", "exec", "qs ipc -p /usr/share/tide-island call tide togglePlayer")
-hyprland.bind("SUPER", "C", "exec", "qs ipc -p /usr/share/tide-island call tide toggleControlCenter")
-```
+
+如果你的 Lua 配置使用的是 `hl.bind(..., hl.dsp.exec_cmd(...))` 这一类写法，直接运行 `tide-island-setup --shortcuts`。引导工具会识别这种风格，并使用不冲突的默认键位，例如用 `Super + Shift + Right` 显示歌词。
+
+壁纸图库快捷键会打开内置壁纸选择器。真正应用壁纸时会调用 `awww`，所以如果想在选择器里切换壁纸，请安装 `awww`。
 
 <br>
 
@@ -356,6 +389,7 @@ systemctl --user restart tide-island
 
 - NetworkManager 或 iwd，用于 Wi-Fi 集成
 - Nerd Font，用于图标显示
+- `awww`，用于在壁纸选择器中应用壁纸
 - CAVA，用于音频可视化
 - 支持 MPRIS 的音乐播放器，用于媒体信息集成
 

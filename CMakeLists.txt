@@ -156,6 +156,9 @@ install(TARGETS lyricsmpris
 install(TARGETS tide-island-setup
     RUNTIME DESTINATION ${CMAKE_INSTALL_DATADIR}/tide-island/bin
 )
+install(TARGETS tide-island-setup
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
 
 # Install desktop entry
 install(FILES tide-island.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
