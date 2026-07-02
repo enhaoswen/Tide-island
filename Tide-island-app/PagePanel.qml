@@ -6,11 +6,15 @@ Rectangle {
     color: "transparent"
     anchors.fill: parent
 
+    default property alias content: pagePanel.data
+
     function showPage() {
+        hideAnim.stop()
         showAnim.start()
     }
 
     function hidePage() {
+        showAnim.stop()
         hideAnim.start()
     }
 
@@ -22,6 +26,7 @@ Rectangle {
             property: "opacity"
             to: 0
             duration: Theme.animationDuration
+            easing.type: Easing.InOutQuad
         }
 
         ScriptAction {
@@ -44,6 +49,7 @@ Rectangle {
             property: "opacity"
             to: 1
             duration: Theme.animationDuration
+            easing.type: Easing.InOutQuad
         }
     }
 }

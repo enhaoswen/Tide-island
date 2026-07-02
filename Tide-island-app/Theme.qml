@@ -24,7 +24,7 @@ QtObject {
     readonly property color selectedColor: "#d97757"
     readonly property color overlayColor: "#5c443833"
 
-    readonly property int animationDuration: 180
+    readonly property int animationDuration: 200
 
     readonly property string textFontFamily: textFont.status === FontLoader.Ready ? textFont.name : "Inter"
     readonly property string titleFontFamily: titleFont.status === FontLoader.Ready ? titleFont.name : "Serif"

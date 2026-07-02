@@ -42,7 +42,9 @@ qt_add_qml_module(tide-island-config-app
         Theme.qml
         ConfigStore.qml
         PagePanel.qml
+        ConfigTextField.qml
         General.qml
+        FontSettings.qml
         Document.qml
         Interaction.qml
         Shortcut.qml

@@ -12,6 +12,45 @@ ApplicationWindow {
 
     property int currentPage: 1
 
+    function pageForIndex(index) {
+        switch (index) {
+        case 1:
+            return generalPage
+        case 2:
+            return fontPage
+        case 3:
+            return shortcutPage
+        case 4:
+            return interactionPage
+        case 5:
+            return documentPage
+        default:
+            return null
+        }
+    }
+
+    function selectPage(index) {
+        if (index === currentPage) {
+            return
+        }
+
+        const nextPage = pageForIndex(index)
+        if (!nextPage) {
+            return
+        }
+
+        const previousPage = pageForIndex(currentPage)
+        currentPage = index
+
+        if (previousPage) {
+            previousPage.hidePage()
+        }
+
+        if (nextPage) {
+            nextPage.showPage()
+        }
+    }
+
     Rectangle{// main split line
         id:mainSplitLine
         height: parent.height - 60
@@ -25,11 +64,12 @@ ApplicationWindow {
             xAxis.enabled: true
             yAxis.enabled: false
             xAxis.minimum: 50
-            xAxis.maximum: 20
+            xAxis.maximum: 250
         }
 
         MouseArea{
             anchors.fill:parent
+            acceptedButtons: Qt.NoButton
             cursorShape: Qt.SizeHorCursor
         }
     }
@@ -68,7 +108,7 @@ ApplicationWindow {
         Text{
             id: islandButton
             anchors.horizontalCenter: parent.horizontalCenter
-            y: 300
+            y: 270
             color: currentPage === 1 ? Theme.selectedColor : Theme.textColor
             text: islandButtonText.width > mainSplitLine.x ? "G" : "General"
             font.family: Theme.titleFontFamily
@@ -86,8 +126,33 @@ ApplicationWindow {
                 anchors.fill:parent
 
                 onClicked: {
-                    currentPage = 1
-                    generalPage.showPage()
+                    selectPage(1)
+                }
+            }
+        }
+
+        Text{
+            id: fontButton
+            anchors.horizontalCenter: parent.horizontalCenter
+            y: 330
+            color: currentPage === 2 ? Theme.selectedColor : Theme.textColor
+            text: fontButtonText.width > mainSplitLine.x ? "F" : "Font"
+            font.family: Theme.titleFontFamily
+            font.pixelSize: 23
+
+            TextMetrics {
+                id: fontButtonText
+                font: fontButton.font
+                text: "Font"
+            }
+
+            Behavior on color {ColorAnimation{ duration:Theme.animationDuration}}
+
+            MouseArea{
+                anchors.fill:parent
+
+                onClicked: {
+                    selectPage(2)
                 }
             }
         }
@@ -95,8 +160,8 @@ ApplicationWindow {
         Text{
             id: shortcutButton
             anchors.horizontalCenter: parent.horizontalCenter
-            y: 360
-            color: currentPage === 2 ? Theme.selectedColor : Theme.textColor
+            y: 390
+            color: currentPage === 3 ? Theme.selectedColor : Theme.textColor
             text: shortcutButtonText.width > mainSplitLine.x ? "S" : "Shortcut"
             font.family: Theme.titleFontFamily
             font.pixelSize: 23
@@ -113,7 +178,7 @@ ApplicationWindow {
                 anchors.fill:parent
 
                 onClicked: {
-                    currentPage = 2
+                    selectPage(3)
                 }
             }
         }
@@ -121,8 +186,8 @@ ApplicationWindow {
         Text{
             id: interactionButton
             anchors.horizontalCenter: parent.horizontalCenter
-            y: 420
-            color: currentPage === 3 ? Theme.selectedColor : Theme.textColor
+            y: 450
+            color: currentPage === 4 ? Theme.selectedColor : Theme.textColor
             text: interactionButtonText.width > mainSplitLine.x ? "I" : "Interaction"
             font.family: Theme.titleFontFamily
             font.pixelSize: 23
@@ -139,7 +204,7 @@ ApplicationWindow {
                 anchors.fill:parent
 
                 onClicked: {
-                    currentPage = 3
+                    selectPage(4)
                 }
             }
         }
@@ -147,8 +212,8 @@ ApplicationWindow {
         Text{
             id: documentButton 
             anchors.horizontalCenter: parent.horizontalCenter
-            y: 490
-            color: currentPage === 4 ? Theme.selectedColor : Theme.textColor
+            y: 510
+            color: currentPage === 5 ? Theme.selectedColor : Theme.textColor
             text: documentButtonText.width > mainSplitLine.x ? "D" : "Document"
             font.family: Theme.titleFontFamily
             font.pixelSize: 23
@@ -165,7 +230,7 @@ ApplicationWindow {
                 anchors.fill:parent
 
                 onClicked: {
-                    currentPage = 4
+                    selectPage(5)
                 }
             }
         }
@@ -183,25 +248,36 @@ ApplicationWindow {
         General{
             id: generalPage           
             anchors.fill:parent
-            visible: currentPage === 1
+            visible: true
+            opacity: 1
+        }
+
+        FontSettings {
+            id: fontPage
+            anchors.fill: parent
+            visible: false
+            opacity: 0
         }
 
         Shortcut {
             id: shortcutPage
             anchors.fill: parent
-            visible: currentPage === 2
+            visible: false
+            opacity: 0
         }
 
         Interaction {
             id: interactionPage
             anchors.fill: parent
-            visible: currentPage === 3
+            visible: false
+            opacity: 0
         }
 
         Document {
             id: documentPage
             anchors.fill: parent
-            visible: currentPage === 4
+            visible: false
+            opacity: 0
         }
     }
 }
