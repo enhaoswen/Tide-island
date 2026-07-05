@@ -288,7 +288,7 @@ print_final_commands() {
   systemctl --user restart tide-island
   systemctl --user stop tide-island
   journalctl --user -u tide-island -f
-  tide-island-setup --wizard
+  tide-island-config-app
 EOF
 }
 

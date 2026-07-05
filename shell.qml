@@ -149,7 +149,7 @@ Scope {
     }
 
     Component.onCompleted: {
-        SystemServices.ensureSetupComplete(Quickshell.shellDir);
+        SystemServices.ensureUserConfigAvailable();
         SystemServices.requestScreenRecordingSnapshot();
     }
 

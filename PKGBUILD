@@ -57,5 +57,4 @@ package() {
   chmod +x "$pkgdir/usr/bin/tide-island"
   chmod +x "$pkgdir/usr/bin/tide-island-config-app"
   chmod +x "$pkgdir/usr/share/tide-island/bin/lyricsmpris"
-  chmod +x "$pkgdir/usr/share/tide-island/bin/tide-island-setup"
 }

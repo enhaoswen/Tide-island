@@ -456,14 +456,15 @@ FocusScope {
     readonly property real slotW: (width - hPad * 2) / 5
 
     readonly property real cardAreaH: height - topPad - headerH - headerGap - botPad
+    readonly property real cardPathY: cardAreaH / 2
 
     // ── UI ────────────────────────────────────────────────────────────────────
     Column {
         anchors.fill: parent
-        anchors.topMargin: 10
+        anchors.topMargin: root.topPad
         anchors.leftMargin: root.hPad
         anchors.rightMargin: root.hPad
-        anchors.bottomMargin: 6
+        anchors.bottomMargin: root.botPad
         spacing: 6
 
         // ── Carousel ───────────────────────────────────────────────────────
@@ -513,10 +514,10 @@ FocusScope {
 
                 path: Path {
                     startX: pathView.width / 2 - root.spacing * 2
-                    startY: root.cardH / 2
+                    startY: root.cardPathY
                     PathLine {
                         x: pathView.width / 2 + root.spacing * 2
-                        y: root.cardH / 2
+                        y: root.cardPathY
                     }
                 }
 
@@ -553,7 +554,7 @@ FocusScope {
                         height: root.cardH + root.labelGap + root.labelH
                         scale: del.sc
                         opacity: del.op
-                        transformOrigin: Item.Bottom
+                        transformOrigin: Item.Center
 
                         // Clipped image
                         ClippingRectangle {

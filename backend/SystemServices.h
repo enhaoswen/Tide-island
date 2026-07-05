@@ -43,7 +43,7 @@ public:
     Q_INVOKABLE void setTlpMode(const QString &mode, const QString &sudoPassword = QString());
     Q_INVOKABLE void cancelTlpApply();
     Q_INVOKABLE void setCavaClientActive(const QString &clientId, bool active);
-    Q_INVOKABLE void ensureSetupComplete(const QString &shellDir);
+    Q_INVOKABLE void ensureUserConfigAvailable();
 
 signals:
     void notificationReceived(const QString &appName, const QString &summary, const QString &body);
@@ -123,7 +123,6 @@ private:
     QProcess *m_pipeWireMonitor = nullptr;
     QProcess *m_recordingPortalMonitor = nullptr;
     QProcess *m_recordingSnapshot = nullptr;
-    QProcess *m_setupCheck = nullptr;
     QProcess *m_tlpSetter = nullptr;
     QProcess *m_cavaProcess = nullptr;
 
@@ -157,5 +156,5 @@ private:
     QSet<QString> m_cavaClients;
     bool m_cavaMissingWarned = false;
     int m_tlpCommandGeneration = 0;
-    bool m_setupLaunchRequested = false;
+    bool m_configAppLaunchRequested = false;
 };

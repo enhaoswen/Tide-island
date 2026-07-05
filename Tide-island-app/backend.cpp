@@ -48,6 +48,15 @@ QVariantList defaultShortcutBindings()
     };
 }
 
+QString configHome()
+{
+    const QByteArray xdgConfigHome = qgetenv("XDG_CONFIG_HOME");
+    if (!xdgConfigHome.isEmpty())
+        return QString::fromLocal8Bit(xdgConfigHome);
+
+    return QDir::homePath() + QStringLiteral("/.config");
+}
+
 QString cleanShortcutPart(const QVariant &value)
 {
     QString text = value.toString().trimmed();
@@ -180,7 +189,7 @@ std::size_t QStringHash::operator()(const QString &key) const noexcept{
     return static_cast<std::size_t>(qHash(key));
 }
 
-Backend::Backend(QObject *parent) : QObject(parent), m_userConfigPath(QDir::homePath() + QStringLiteral("/.config/tide-island/userconfig.json")){
+Backend::Backend(QObject *parent) : QObject(parent), m_userConfigPath(configHome() + QStringLiteral("/tide-island/userconfig.json")){
     load();
 }
 
@@ -283,11 +292,11 @@ QString Backend::hyprlandConfigPath() const{
     if (!override.isEmpty())
         return override.startsWith(QStringLiteral("~/")) ? QDir::homePath() + override.sliced(1) : override;
 
-    return QDir::homePath() + QStringLiteral("/.config/hypr/hyprland.conf");
+    return configHome() + QStringLiteral("/hypr/hyprland.conf");
 }
 
 QString Backend::managedShortcutConfigPath() const{
-    return QDir::homePath() + QStringLiteral("/.config/tide-island/hyprland-shortcuts.conf");
+    return configHome() + QStringLiteral("/tide-island/hyprland-shortcuts.conf");
 }
 
 bool Backend::writeManagedShortcutConfig(const QVariantList &shortcutBindings){

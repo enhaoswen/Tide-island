@@ -280,4 +280,73 @@ ApplicationWindow {
             opacity: 0
         }
     }
+
+    Rectangle {
+        id: configErrorBanner
+
+        readonly property bool hasError: ConfigStore.errorString.length > 0
+
+        z: 20
+        visible: hasError
+        opacity: hasError ? 1 : 0
+        anchors.left: mainSplitLine.right
+        anchors.leftMargin: 24
+        anchors.right: parent.right
+        anchors.rightMargin: 24
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 18
+        height: Math.max(48, errorText.implicitHeight + 20)
+        radius: 8
+        color: "#fff1ed"
+        border.width: 1
+        border.color: "#f2b8a2"
+
+        Behavior on opacity { NumberAnimation { duration: Theme.animationDuration } }
+
+        Text {
+            id: errorText
+
+            anchors.left: parent.left
+            anchors.leftMargin: 16
+            anchors.right: rewriteButton.left
+            anchors.rightMargin: 16
+            anchors.verticalCenter: parent.verticalCenter
+            text: "Config file error: " + ConfigStore.errorString
+            color: "#8f2f16"
+            wrapMode: Text.Wrap
+            maximumLineCount: 2
+            elide: Text.ElideRight
+            font.family: Theme.textFontFamily
+            font.pixelSize: 13
+        }
+
+        Rectangle {
+            id: rewriteButton
+
+            width: 112
+            height: 32
+            anchors.right: parent.right
+            anchors.rightMargin: 10
+            anchors.verticalCenter: parent.verticalCenter
+            radius: 8
+            color: rewriteMouse.containsMouse ? Theme.buttonHoverColor : Theme.buttonColor
+
+            Text {
+                anchors.centerIn: parent
+                text: "Rewrite"
+                color: Theme.buttonTextColor
+                font.family: Theme.textFontFamily
+                font.pixelSize: 13
+            }
+
+            MouseArea {
+                id: rewriteMouse
+
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: ConfigStore.save()
+            }
+        }
+    }
 }
