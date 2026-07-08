@@ -62,23 +62,9 @@ PagePanel {
         {
             "action": "Toggle island",
             "mods": "SUPER",
-            "key": "I",
+            "key": "F",
             "target": "island",
             "method": "toggle"
-        },
-        {
-            "action": "Show island",
-            "mods": "SUPER SHIFT",
-            "key": "I",
-            "target": "island",
-            "method": "open"
-        },
-        {
-            "action": "Hide island",
-            "mods": "SUPER ALT",
-            "key": "I",
-            "target": "island",
-            "method": "hide"
         }
     ]
 
@@ -436,12 +422,7 @@ PagePanel {
 
     function hyprlandConfCommands() {
         shortcutRevision
-        const lines = [
-            "# Tide Island shortcuts",
-            "# These call Quickshell IPC, so you can reuse the same commands in scripts.",
-            "# Island commands: island toggle/open/hide. Example script command:",
-            "# /usr/bin/quickshell ipc --any-display -p /usr/share/tide-island call island toggle"
-        ]
+        const lines = []
         for (let i = 0; i < shortcuts.length; ++i) {
             const shortcut = shortcuts[i]
             lines.push("bind = " + shortcut.mods + ", " + shortcut.key + ", exec, " + shortcutCommand(shortcut))
@@ -451,12 +432,7 @@ PagePanel {
 
     function hyprlandLuaCommands() {
         shortcutRevision
-        const lines = [
-            "-- Tide Island shortcuts",
-            "-- These call Quickshell IPC, so you can reuse the same commands in scripts.",
-            "-- Island commands: island toggle/open/hide. Example script command:",
-            "-- /usr/bin/quickshell ipc --any-display -p /usr/share/tide-island call island toggle"
-        ]
+        const lines = []
         for (let i = 0; i < shortcuts.length; ++i) {
             const shortcut = shortcuts[i]
             lines.push("hyprland.bind("
@@ -533,7 +509,7 @@ PagePanel {
 
                 Text {
                     width: parent.width
-                    text: "Island shortcuts call Quickshell IPC and can be reused in shell scripts; use island toggle, open, or hide."
+                    text: "Island shortcuts call Quickshell IPC and can be reused in shell scripts; the default island action is toggle."
                     color: Theme.subtleTextColor
                     wrapMode: Text.WordWrap
                     font.family: Theme.textFontFamily
@@ -576,6 +552,7 @@ PagePanel {
                     width: parent.width
                     title: "Hyprland.conf"
                     pathLabel: "~/.config/hypr/hyprland.conf"
+                    description: "Paste these binds there, or reuse the island toggle command in your own scripts."
                     code: root.hyprlandConfCommands()
                 }
 
@@ -583,6 +560,7 @@ PagePanel {
                     width: parent.width
                     title: "Lua"
                     pathLabel: "~/.config/hypr/hyprland.lua"
+                    description: "Use this variant when your Hyprland bindings are generated from Lua."
                     code: root.hyprlandLuaCommands()
                 }
 
@@ -663,6 +641,7 @@ PagePanel {
 
         property string title: ""
         property string pathLabel: ""
+        property string description: ""
         property string code: ""
         property bool copied: false
 
@@ -740,6 +719,16 @@ PagePanel {
                 text: box.pathLabel
                 color: Theme.subtleTextColor
                 elide: Text.ElideRight
+                font.family: Theme.textFontFamily
+                font.pixelSize: 14
+            }
+
+            Text {
+                width: parent.width
+                text: box.description
+                color: Theme.subtleTextColor
+                wrapMode: Text.WordWrap
+                visible: box.description.length > 0
                 font.family: Theme.textFontFamily
                 font.pixelSize: 14
             }

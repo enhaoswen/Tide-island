@@ -6,4 +6,14 @@
 # same Quickshell instance. Prefer the packaged Quickshell binary; stale local
 # builds in /usr/local/bin can be older than the system Qt libraries.
 QML_PATH="/usr/share/tide-island"
+SERVICE_NAME="tide-island.service"
+
+if [[ -z "${INVOCATION_ID:-}" ]]; then
+  if systemctl --user is-active --quiet "$SERVICE_NAME" \
+      || pgrep -u "$(id -u)" -f "/usr/bin/quickshell -p $QML_PATH" >/dev/null; then
+    /usr/bin/quickshell ipc --any-display -p "$QML_PATH" call island show >/dev/null 2>&1 || true
+    exit 0
+  fi
+fi
+
 exec /usr/bin/quickshell -p "$QML_PATH" "$@"

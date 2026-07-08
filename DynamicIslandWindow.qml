@@ -43,6 +43,7 @@ PanelWindow {
     property bool autoHideVisible: false
     property bool autoHidePointerInside: false
     property bool autoHideForcedHidden: false
+    property string autoHideRevealSource: "none"
 
     readonly property var userConfig: UserConfig
 
@@ -94,7 +95,7 @@ PanelWindow {
             Math.ceil(root.controlCenterWindowHeight)
         )
         : Math.max(Math.ceil(4 + root.connectivityDetailHeight + 12), Math.ceil(root.controlCenterWindowHeight))
-    exclusiveZone: Math.ceil(root.baseExclusiveZone * root.autoHideProgress)
+    exclusiveZone: Math.ceil(root.baseExclusiveZone * root.exclusiveZoneProgress)
     aboveWindows: true
     focusable: islandContainer.wallpaperPickerLayerVisible
         || islandContainer.expandedPlayerKeyboardFocusRequested
@@ -149,7 +150,13 @@ PanelWindow {
         || root.anyConnectivityDetailMounted
     readonly property bool autoHideTargetVisible: autoHideMustShow
         || (!autoHideForcedHidden && (!autoHideEnabled || autoHideVisible))
+    readonly property bool autoHideSuppressesTransientReveal: (autoHideEnabled || autoHideForcedHidden)
+        && !autoHideTargetVisible
     property real autoHideProgress: autoHideTargetVisible ? 1 : 0
+    readonly property bool exclusiveZoneTargetActive: (!autoHideEnabled && autoHideTargetVisible)
+        || (autoHideRevealSource === "edge" && autoHideTargetVisible)
+        || islandContainer.notificationLayerVisible
+    property real exclusiveZoneProgress: exclusiveZoneTargetActive ? 1 : 0
     readonly property real autoHideRevealWidth: Math.min(root.width, Math.max(userConfig.islandWidth + 120, 240))
     readonly property real autoHideRevealHeight: autoHideEnabled ? 10 : 0
     readonly property real autoHideRevealX: Math.max(
@@ -199,7 +206,25 @@ PanelWindow {
         }
     }
 
-    function showAutoHiddenIsland() {
+    Behavior on exclusiveZoneProgress {
+        NumberAnimation {
+            duration: root.exclusiveZoneTargetActive ? 120 : 300
+            easing.type: root.exclusiveZoneTargetActive ? Easing.OutCubic : Easing.InCubic
+        }
+    }
+
+    function setAutoHideRevealSource(source) {
+        if (source === undefined || source === null)
+            return;
+
+        const nextSource = String(source);
+        autoHideRevealSource = nextSource === "edge" || nextSource === "state" || nextSource === "manual"
+            ? nextSource
+            : "manual";
+    }
+
+    function showAutoHiddenIsland(source) {
+        setAutoHideRevealSource(source);
         autoHideForcedHidden = false;
         if (!autoHideEnabled) {
             autoHideHideTimer.stop();
@@ -218,10 +243,14 @@ PanelWindow {
             return;
         }
 
-        if (!autoHideCanHideNow || autoHidePointerInside) {
+        if (!autoHideCanHideNow) {
             autoHideHideTimer.stop();
-            if (!autoHideCanHideNow)
-                autoHideVisible = true;
+            showAutoHiddenIsland("state");
+            return;
+        }
+
+        if (autoHidePointerInside) {
+            autoHideHideTimer.stop();
             return;
         }
 
@@ -236,6 +265,7 @@ PanelWindow {
             if (!force && autoHideMustShow)
                 return;
             autoHideForcedHidden = true;
+            autoHideRevealSource = "none";
             autoHideVisible = false;
             return;
         }
@@ -245,6 +275,7 @@ PanelWindow {
 
         autoHideHideTimer.stop();
         autoHideForcedHidden = false;
+        autoHideRevealSource = "none";
         autoHideVisible = false;
     }
 
@@ -252,11 +283,11 @@ PanelWindow {
         if (autoHideTargetVisible)
             hideAutoHiddenIsland(false);
         else
-            showAutoHiddenIsland();
+            showAutoHiddenIsland("manual");
     }
 
     function showIslandWindow() {
-        showAutoHiddenIsland();
+        showAutoHiddenIsland("manual");
     }
 
     function hideIslandWindow() {
@@ -272,7 +303,7 @@ PanelWindow {
         if (autoHideEnabled)
             scheduleAutoHide();
         else
-            showAutoHiddenIsland();
+            showAutoHiddenIsland("manual");
     }
 
     function beginOverviewOpening() {
@@ -412,17 +443,17 @@ PanelWindow {
 
     function showClockWindow() {
         islandContainer.showTimeCapsule();
-        showAutoHiddenIsland();
+        showAutoHiddenIsland("manual");
         scheduleAutoHide();
     }
     function showCustomInfoWindow() {
         islandContainer.showCustomCapsule();
-        showAutoHiddenIsland();
+        showAutoHiddenIsland("manual");
         scheduleAutoHide();
     }
     function showLyricsWindow() {
         islandContainer.showLyricsCapsule();
-        showAutoHiddenIsland();
+        showAutoHiddenIsland("manual");
         scheduleAutoHide();
     }
 
@@ -450,7 +481,7 @@ PanelWindow {
     onOverviewVisibleChanged: {
         if (overviewVisible && monitorFocused) overviewFocusTimer.restart();
         if (overviewVisible)
-            showAutoHiddenIsland();
+            showAutoHiddenIsland("state");
         else
             scheduleAutoHide();
     }
@@ -458,7 +489,7 @@ PanelWindow {
         if (connectivityPromptActive && monitorFocused)
             connectivityPromptFocusTimer.restart();
         if (connectivityPromptActive)
-            showAutoHiddenIsland();
+            showAutoHiddenIsland("state");
         else
             scheduleAutoHide();
     }
@@ -466,13 +497,13 @@ PanelWindow {
         if (autoHideEnabled)
             scheduleAutoHide();
         else
-            showAutoHiddenIsland();
+            showAutoHiddenIsland("manual");
     }
     onAutoHideCanHideNowChanged: {
         if (autoHideCanHideNow)
             scheduleAutoHide();
         else
-            showAutoHiddenIsland();
+            showAutoHiddenIsland("state");
     }
     onOverviewVisualReadyChanged: {
         if (overviewVisualReady) beginOverviewOpening();
@@ -1198,6 +1229,7 @@ PanelWindow {
             if (progress === undefined)    progress = -1.0;
             if (customText === undefined)  customText = "";
 
+            if (root.autoHideSuppressesTransientReveal) return;
             if (blocksTransientSplit) return;
 
             const nextProgress = progress >= 0 ? progress : -1.0;
@@ -1361,6 +1393,7 @@ PanelWindow {
 
         function showWorkspaceCapsule(wsId) {
             currentWs = wsId;
+            if (root.autoHideSuppressesTransientReveal) return;
             if (islandState === "control_center" || islandState === "notification") return;
             const animateFromSide = currentTransientOriginSide();
             clearTransientCapsule();
@@ -1464,6 +1497,7 @@ PanelWindow {
                     && islandState !== "control_center"
                     && islandState !== "notification"
                     && islandState !== "bluetooth_expanded") {
+                if (root.autoHideSuppressesTransientReveal) return;
                 if (islandState === "expanded" && !expandedByPlayerAutoOpen) return;
                 showExpandedPlayer(true);
             }
@@ -2483,7 +2517,7 @@ PanelWindow {
 
         onEntered: {
             root.autoHidePointerInside = true;
-            root.showAutoHiddenIsland();
+            root.showAutoHiddenIsland("edge");
         }
 
         onExited: {
