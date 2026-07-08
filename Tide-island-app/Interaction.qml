@@ -34,6 +34,13 @@ PagePanel {
         return 1
     }
 
+    function normalizedAutoHideDelay(value) {
+        const parsedValue = Number(value)
+        if (isNaN(parsedValue))
+            return 1000
+        return Math.min(10000, Math.max(100, Math.round(parsedValue)))
+    }
+
     function boolValue(key, fallback) {
         const value = ConfigStore.value(key, fallback)
         return value === true || value === "true"
@@ -103,6 +110,40 @@ PagePanel {
         ConfigStore.setValue("hoverExpandAction", value)
         ConfigStore.save()
         revision += 1
+    }
+
+    function islandAutoHideEnabled() {
+        revision
+        return boolValue("islandAutoHideEnabled", true)
+    }
+
+    function setIslandAutoHideEnabled(enabled) {
+        ConfigStore.setValue("islandAutoHideEnabled", enabled)
+        ConfigStore.save()
+        revision += 1
+    }
+
+    function islandAutoHideDelayMs() {
+        revision
+        return normalizedAutoHideDelay(ConfigStore.value("islandAutoHideDelayMs", 1000))
+    }
+
+    function hideDelaySecondsText() {
+        const seconds = islandAutoHideDelayMs() / 1000
+        if (Math.abs(seconds - Math.round(seconds)) < 0.001)
+            return String(Math.round(seconds))
+        return String(Math.round(seconds * 10) / 10)
+    }
+
+    function saveCustomHideDelay(value) {
+        const parsedValue = Number(String(value).trim())
+        const seconds = isNaN(parsedValue) ? islandAutoHideDelayMs() / 1000 : parsedValue
+        const boundedSeconds = Math.min(10, Math.max(0.1, seconds))
+        const delayMs = normalizedAutoHideDelay(boundedSeconds * 1000)
+        ConfigStore.setValue("islandAutoHideDelayMs", delayMs)
+        ConfigStore.save()
+        revision += 1
+        return delayMs / 1000
     }
 
     function autoExpandOnTrackChange() {
@@ -258,6 +299,18 @@ PagePanel {
                     anchors.rightMargin: 18
 
                     HoverActionRow {
+                        width: parent.width
+                    }
+
+                    SplitLine { width: parent.width }
+
+                    AutoHideRow {
+                        width: parent.width
+                    }
+
+                    SplitLine { width: parent.width }
+
+                    HideDelayRow {
                         width: parent.width
                     }
                 }
@@ -443,6 +496,116 @@ PagePanel {
             onToggled: function(checked) {
                 root.setAutoExpandOnTrackChange(checked)
             }
+        }
+    }
+
+    component AutoHideRow: Item {
+        id: row
+
+        height: 49
+
+        Text {
+            id: rowTitle
+
+            text: "Auto Hide"
+            anchors.left: parent.left
+            anchors.top: parent.top
+            color: Theme.textColor
+            font.family: Theme.textFontFamily
+            font.pixelSize: 18
+        }
+
+        Text {
+            text: "Hide the island until the pointer reaches the top edge"
+            anchors.left: rowTitle.left
+            anchors.top: rowTitle.bottom
+            anchors.topMargin: 5
+            width: Math.max(80, parent.width - autoHideSwitch.width - 28)
+            color: Theme.subtleTextColor
+            elide: Text.ElideRight
+            font.family: Theme.textFontFamily
+            font.pixelSize: 14
+        }
+
+        StyledSwitch {
+            id: autoHideSwitch
+
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            checked: root.islandAutoHideEnabled()
+
+            onToggled: function(checked) {
+                root.setIslandAutoHideEnabled(checked)
+            }
+        }
+    }
+
+    component HideDelayRow: Item {
+        id: row
+
+        height: 49
+
+        Text {
+            id: rowTitle
+
+            text: "Hide Delay"
+            anchors.left: parent.left
+            anchors.top: parent.top
+            color: Theme.textColor
+            font.family: Theme.textFontFamily
+            font.pixelSize: 18
+        }
+
+        Text {
+            text: "Delay after the pointer leaves the island"
+            anchors.left: rowTitle.left
+            anchors.top: rowTitle.bottom
+            anchors.topMargin: 5
+            width: Math.max(80, parent.width - delayControls.width - 28)
+            color: Theme.subtleTextColor
+            elide: Text.ElideRight
+            font.family: Theme.textFontFamily
+            font.pixelSize: 14
+        }
+
+        Row {
+            id: delayControls
+
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 8
+
+            ConfigTextField {
+                id: delayField
+
+                width: 72
+                height: 36
+                textPixelSize: 14
+                placeholderText: "1"
+                inputMethodHints: Qt.ImhFormattedNumbersOnly
+                validator: DoubleValidator {
+                    bottom: 0.1
+                    top: 10
+                    decimals: 1
+                    notation: DoubleValidator.StandardNotation
+                }
+
+                Component.onCompleted: text = root.hideDelaySecondsText()
+                onAccepted: row.commitCustomDelay()
+                onEditingFinished: row.commitCustomDelay()
+            }
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: "s"
+                color: Theme.subtleTextColor
+                font.family: Theme.textFontFamily
+                font.pixelSize: 14
+            }
+        }
+
+        function commitCustomDelay() {
+            delayField.text = String(root.saveCustomHideDelay(delayField.text))
         }
     }
 

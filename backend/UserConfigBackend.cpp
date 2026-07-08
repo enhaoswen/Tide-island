@@ -11,6 +11,7 @@
 #include <QVariant>
 #include <Qt>
 
+#include <algorithm>
 #include <cmath>
 
 namespace {
@@ -60,6 +61,11 @@ int jsonInt(const QJsonObject &object, QLatin1String key, int fallback)
 
     const double number = value.toDouble();
     return std::isfinite(number) ? qRound(number) : fallback;
+}
+
+int jsonBoundedInt(const QJsonObject &object, QLatin1String key, int fallback, int minimum, int maximum)
+{
+    return std::clamp(jsonInt(object, key, fallback), minimum, maximum);
 }
 
 double jsonDouble(const QJsonObject &object, QLatin1String key, double fallback)
@@ -260,6 +266,16 @@ int UserConfigBackend::hoverExpandAction() const
     return m_hoverExpandAction;
 }
 
+bool UserConfigBackend::islandAutoHideEnabled() const
+{
+    return m_islandAutoHideEnabled;
+}
+
+int UserConfigBackend::islandAutoHideDelayMs() const
+{
+    return m_islandAutoHideDelayMs;
+}
+
 int UserConfigBackend::islandWidth() const
 {
     return m_islandWidth;
@@ -415,6 +431,8 @@ void UserConfigBackend::loadConfig()
     updateField(this, m_dynamicIslandLeftSwipeItems, jsonArray(configObject, QLatin1String("dynamicIslandLeftSwipeItems"), defaultDynamicIslandLeftSwipeItems()), &UserConfigBackend::dynamicIslandLeftSwipeItemsChanged);
     updateField(this, m_disableAutoExpandOnTrackChange, jsonBool(configObject, QLatin1String("disableAutoExpandOnTrackChange"), false), &UserConfigBackend::disableAutoExpandOnTrackChangeChanged);
     updateField(this, m_hoverExpandAction, jsonInt(configObject, QLatin1String("hoverExpandAction"), 1), &UserConfigBackend::hoverExpandActionChanged);
+    updateField(this, m_islandAutoHideEnabled, jsonBool(configObject, QLatin1String("islandAutoHideEnabled"), true), &UserConfigBackend::islandAutoHideEnabledChanged);
+    updateField(this, m_islandAutoHideDelayMs, jsonBoundedInt(configObject, QLatin1String("islandAutoHideDelayMs"), 1000, 100, 10000), &UserConfigBackend::islandAutoHideDelayMsChanged);
     updateField(this, m_islandWidth, jsonInt(configObject, QLatin1String("islandWidth"), 140), &UserConfigBackend::islandWidthChanged);
     updateField(this, m_islandHeight, jsonInt(configObject, QLatin1String("islandHeight"), 38), &UserConfigBackend::islandHeightChanged);
     updateField(this, m_islandPositionX, jsonInt(configObject, QLatin1String("islandPositionX"), 50), &UserConfigBackend::islandPositionXChanged);

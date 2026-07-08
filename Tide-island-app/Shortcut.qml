@@ -58,6 +58,27 @@ PagePanel {
             "key": "W",
             "target": "tide",
             "method": "toggleWallpaperPicker"
+        },
+        {
+            "action": "Toggle island",
+            "mods": "SUPER",
+            "key": "I",
+            "target": "island",
+            "method": "toggle"
+        },
+        {
+            "action": "Show island",
+            "mods": "SUPER SHIFT",
+            "key": "I",
+            "target": "island",
+            "method": "open"
+        },
+        {
+            "action": "Hide island",
+            "mods": "SUPER ALT",
+            "key": "I",
+            "target": "island",
+            "method": "hide"
         }
     ]
 
@@ -130,7 +151,7 @@ PagePanel {
     }
 
     function shortcutCommand(shortcut) {
-        return "/usr/bin/quickshell ipc -p /usr/share/tide-island call "
+        return "/usr/bin/quickshell ipc --any-display -p /usr/share/tide-island call "
             + shortcut.target + " " + shortcut.method
     }
 
@@ -415,7 +436,12 @@ PagePanel {
 
     function hyprlandConfCommands() {
         shortcutRevision
-        const lines = []
+        const lines = [
+            "# Tide Island shortcuts",
+            "# These call Quickshell IPC, so you can reuse the same commands in scripts.",
+            "# Island commands: island toggle/open/hide. Example script command:",
+            "# /usr/bin/quickshell ipc --any-display -p /usr/share/tide-island call island toggle"
+        ]
         for (let i = 0; i < shortcuts.length; ++i) {
             const shortcut = shortcuts[i]
             lines.push("bind = " + shortcut.mods + ", " + shortcut.key + ", exec, " + shortcutCommand(shortcut))
@@ -425,7 +451,12 @@ PagePanel {
 
     function hyprlandLuaCommands() {
         shortcutRevision
-        const lines = []
+        const lines = [
+            "-- Tide Island shortcuts",
+            "-- These call Quickshell IPC, so you can reuse the same commands in scripts.",
+            "-- Island commands: island toggle/open/hide. Example script command:",
+            "-- /usr/bin/quickshell ipc --any-display -p /usr/share/tide-island call island toggle"
+        ]
         for (let i = 0; i < shortcuts.length; ++i) {
             const shortcut = shortcuts[i]
             lines.push("hyprland.bind("
@@ -498,6 +529,15 @@ PagePanel {
                     font.family: Theme.titleFontFamily
                     font.pixelSize: 23
                     font.weight: Font.Normal
+                }
+
+                Text {
+                    width: parent.width
+                    text: "Island shortcuts call Quickshell IPC and can be reused in shell scripts; use island toggle, open, or hide."
+                    color: Theme.subtleTextColor
+                    wrapMode: Text.WordWrap
+                    font.family: Theme.textFontFamily
+                    font.pixelSize: 14
                 }
 
                 Rectangle {

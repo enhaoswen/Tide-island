@@ -40,6 +40,9 @@ PanelWindow {
         && shellRootController.screenRecordingActive !== undefined
         ? !!shellRootController.screenRecordingActive
         : false
+    property bool autoHideVisible: false
+    property bool autoHidePointerInside: false
+    property bool autoHideForcedHidden: false
 
     readonly property var userConfig: UserConfig
 
@@ -53,9 +56,9 @@ PanelWindow {
         // Input is the union of the island's visible surfaces plus a compact top
         // gesture strip. The gesture strip must not grow with expanded content.
         Region {
-            x: 0
+            x: Math.floor(root.topGestureInputX)
             y: 0
-            width: root.width
+            width: Math.ceil(root.topGestureInputWidth)
             height: Math.ceil(root.topGestureInputHeight)
         }
 
@@ -91,7 +94,7 @@ PanelWindow {
             Math.ceil(root.controlCenterWindowHeight)
         )
         : Math.max(Math.ceil(4 + root.connectivityDetailHeight + 12), Math.ceil(root.controlCenterWindowHeight))
-    exclusiveZone: 4 + userConfig.islandHeight + 3
+    exclusiveZone: Math.ceil(root.baseExclusiveZone * root.autoHideProgress)
     aboveWindows: true
     focusable: islandContainer.wallpaperPickerLayerVisible
         || islandContainer.expandedPlayerKeyboardFocusRequested
@@ -125,9 +128,41 @@ PanelWindow {
         const action = Number(userConfig.hoverExpandAction);
         return isNaN(action) ? 0 : Math.max(0, Math.min(2, Math.round(action)));
     }
+    readonly property real baseExclusiveZone: 4 + userConfig.islandHeight + 3
     readonly property bool hoverExpandEnabled: configuredHoverExpandAction > 0
     readonly property bool topGestureInputActive: !root.overviewVisible && islandContainer.canShowSideSwipe
-    readonly property real topGestureInputHeight: topGestureInputActive ? root.exclusiveZone : 0
+    readonly property bool autoHideRuntimeEnabled: !shellRootController
+        || shellRootController.islandAutoHideRuntimeEnabled === undefined
+        || !!shellRootController.islandAutoHideRuntimeEnabled
+    readonly property bool autoHideEnabled: userConfig.islandAutoHideEnabled && autoHideRuntimeEnabled
+    readonly property bool autoHideRestingState: islandContainer.islandState === "normal"
+        || islandContainer.islandState === "custom"
+        || islandContainer.islandState === "lyrics"
+    readonly property bool autoHideCanHideNow: autoHideEnabled
+        && autoHideRestingState
+        && !root.overviewVisible
+        && !root.connectivityPromptActive
+        && !root.anyConnectivityDetailMounted
+    readonly property bool autoHideMustShow: !autoHideRestingState
+        || root.overviewVisible
+        || root.connectivityPromptActive
+        || root.anyConnectivityDetailMounted
+    readonly property bool autoHideTargetVisible: autoHideMustShow
+        || (!autoHideForcedHidden && (!autoHideEnabled || autoHideVisible))
+    property real autoHideProgress: autoHideTargetVisible ? 1 : 0
+    readonly property real autoHideRevealWidth: Math.min(root.width, Math.max(userConfig.islandWidth + 120, 240))
+    readonly property real autoHideRevealHeight: autoHideEnabled ? 10 : 0
+    readonly property real autoHideRevealX: Math.max(
+        0,
+        Math.min(root.width - autoHideRevealWidth, root.width * userConfig.islandPositionX / 100 - autoHideRevealWidth / 2)
+    )
+    readonly property real topGestureInputX: autoHideEnabled ? autoHideRevealX : 0
+    readonly property real topGestureInputWidth: topGestureInputActive
+        ? (autoHideEnabled ? autoHideRevealWidth : root.width)
+        : 0
+    readonly property real topGestureInputHeight: topGestureInputActive
+        ? (autoHideEnabled ? autoHideRevealHeight : root.baseExclusiveZone)
+        : 0
     readonly property real overviewCapsuleWidth: islandContainer.overviewView ? islandContainer.overviewView.width : 760
     readonly property real overviewCapsuleHeight: islandContainer.overviewView ? islandContainer.overviewView.height : 308
     readonly property real overviewCapsuleRadius: islandContainer.overviewView
@@ -156,6 +191,89 @@ PanelWindow {
     readonly property int connectivityDetailAnimationDuration: 360
     readonly property string overviewWallpaperSource: overviewWallpaperCache.effectiveSource
     property string wallpaperPickerActiveWallpaper: userConfig.wallpaperPath
+
+    Behavior on autoHideProgress {
+        NumberAnimation {
+            duration: root.autoHideTargetVisible ? 120 : 300
+            easing.type: root.autoHideTargetVisible ? Easing.OutCubic : Easing.InCubic
+        }
+    }
+
+    function showAutoHiddenIsland() {
+        autoHideForcedHidden = false;
+        if (!autoHideEnabled) {
+            autoHideHideTimer.stop();
+            autoHideVisible = true;
+            return;
+        }
+
+        autoHideHideTimer.stop();
+        autoHideVisible = true;
+    }
+
+    function scheduleAutoHide() {
+        if (!autoHideEnabled) {
+            autoHideHideTimer.stop();
+            autoHideVisible = true;
+            return;
+        }
+
+        if (!autoHideCanHideNow || autoHidePointerInside) {
+            autoHideHideTimer.stop();
+            if (!autoHideCanHideNow)
+                autoHideVisible = true;
+            return;
+        }
+
+        autoHideHideTimer.interval = Math.max(100, Math.min(10000, userConfig.islandAutoHideDelayMs));
+        autoHideHideTimer.restart();
+    }
+
+    function hideAutoHiddenIsland(force) {
+        if (force === undefined) force = false;
+        if (!autoHideEnabled) {
+            autoHideHideTimer.stop();
+            if (!force && autoHideMustShow)
+                return;
+            autoHideForcedHidden = true;
+            autoHideVisible = false;
+            return;
+        }
+
+        if (!force && (!autoHideCanHideNow || autoHidePointerInside))
+            return;
+
+        autoHideHideTimer.stop();
+        autoHideForcedHidden = false;
+        autoHideVisible = false;
+    }
+
+    function toggleAutoHiddenIsland() {
+        if (autoHideTargetVisible)
+            hideAutoHiddenIsland(false);
+        else
+            showAutoHiddenIsland();
+    }
+
+    function showIslandWindow() {
+        showAutoHiddenIsland();
+    }
+
+    function hideIslandWindow() {
+        autoHidePointerInside = false;
+        hideAutoHiddenIsland(false);
+    }
+
+    function toggleIslandWindow() {
+        toggleAutoHiddenIsland();
+    }
+
+    function refreshAutoHideWindow() {
+        if (autoHideEnabled)
+            scheduleAutoHide();
+        else
+            showAutoHiddenIsland();
+    }
 
     function beginOverviewOpening() {
         if (!overviewPreparing) return;
@@ -292,9 +410,21 @@ PanelWindow {
         islandContainer.showNotificationCapsule(appName, summary, body);
     }
 
-    function showClockWindow() { islandContainer.showTimeCapsule(); }
-    function showCustomInfoWindow() { islandContainer.showCustomCapsule(); }
-    function showLyricsWindow() { islandContainer.showLyricsCapsule(); }
+    function showClockWindow() {
+        islandContainer.showTimeCapsule();
+        showAutoHiddenIsland();
+        scheduleAutoHide();
+    }
+    function showCustomInfoWindow() {
+        islandContainer.showCustomCapsule();
+        showAutoHiddenIsland();
+        scheduleAutoHide();
+    }
+    function showLyricsWindow() {
+        islandContainer.showLyricsCapsule();
+        showAutoHiddenIsland();
+        scheduleAutoHide();
+    }
 
     function togglePlayerWindow() {
         if (islandContainer.islandState === "expanded")
@@ -319,10 +449,30 @@ PanelWindow {
 
     onOverviewVisibleChanged: {
         if (overviewVisible && monitorFocused) overviewFocusTimer.restart();
+        if (overviewVisible)
+            showAutoHiddenIsland();
+        else
+            scheduleAutoHide();
     }
     onConnectivityPromptActiveChanged: {
         if (connectivityPromptActive && monitorFocused)
             connectivityPromptFocusTimer.restart();
+        if (connectivityPromptActive)
+            showAutoHiddenIsland();
+        else
+            scheduleAutoHide();
+    }
+    onAutoHideEnabledChanged: {
+        if (autoHideEnabled)
+            scheduleAutoHide();
+        else
+            showAutoHiddenIsland();
+    }
+    onAutoHideCanHideNowChanged: {
+        if (autoHideCanHideNow)
+            scheduleAutoHide();
+        else
+            showAutoHiddenIsland();
     }
     onOverviewVisualReadyChanged: {
         if (overviewVisualReady) beginOverviewOpening();
@@ -353,6 +503,13 @@ PanelWindow {
         onTriggered: {
             islandContainer.forceActiveFocus();
         }
+    }
+
+    Timer {
+        id: autoHideHideTimer
+        interval: Math.max(100, Math.min(10000, userConfig.islandAutoHideDelayMs))
+        repeat: false
+        onTriggered: root.hideAutoHiddenIsland(false)
     }
 
     Timer {
@@ -1411,12 +1568,15 @@ PanelWindow {
                 islandContainer.swipeTransitionProgress
             )
             color: root.overviewContentVisible ? root.overviewCapsuleColor : StyleTokens.black
-            y: 4
+            y: 4 - (1 - root.autoHideProgress) * (targetHeight + 12)
             x: parent ? parent.width * userConfig.islandPositionX / 100 - width / 2 : 0
             clip: true
             width: displayedWidth
             height: targetHeight
             radius: targetRadius
+            opacity: root.autoHideProgress
+            scale: 0.96 + root.autoHideProgress * 0.04
+            transformOrigin: Item.Top
 
             onBaseTargetWidthChanged: {
                 if (!capsuleMouseArea.sideSwipeInteractive && !islandContainer.sideSwipeSettling)
@@ -1469,7 +1629,7 @@ PanelWindow {
                 enabled: !root.overviewVisible && twoFingerTouchArea.touchPoints.length < 2
                 acceptedButtons: root.dynamicIslandAcceptedButtons
                 preventStealing: true
-                hoverEnabled: root.hoverExpandEnabled
+                hoverEnabled: root.hoverExpandEnabled || root.autoHideEnabled
                 property real swipeStartX: 0
                 property real swipeStartY: 0
                 property real swipeStartProgress: 0
@@ -1489,13 +1649,23 @@ PanelWindow {
                 }
 
                 onEntered: {
-                    if (!root.hoverExpandEnabled) return;
-                    hoverCollapseDelayTimer.stop();
-                    hoverExpandDelayTimer.restart();
+                    if (root.autoHideEnabled) {
+                        root.autoHidePointerInside = true;
+                        root.showAutoHiddenIsland();
+                    }
+                    if (root.hoverExpandEnabled) {
+                        hoverCollapseDelayTimer.stop();
+                        hoverExpandDelayTimer.restart();
+                    }
                 }
 
                 onExited: {
-                    hoverCollapseDelayTimer.restart();
+                    if (root.autoHideEnabled) {
+                        root.autoHidePointerInside = false;
+                        root.scheduleAutoHide();
+                    }
+                    if (root.hoverExpandEnabled)
+                        hoverCollapseDelayTimer.restart();
                 }
 
                 onPressed: (mouse) => {
@@ -2036,8 +2206,8 @@ PanelWindow {
             y: centerY + (1 - reveal) * 10
             z: 6
             visible: mounted
-            opacity: reveal
-            scale: (0.55 + reveal * 0.45) * (1 + islandContainer.timerCompletionPulse * 0.12)
+            opacity: reveal * root.autoHideProgress
+            scale: (0.55 + reveal * 0.45) * (0.96 + root.autoHideProgress * 0.04) * (1 + islandContainer.timerCompletionPulse * 0.12)
             transformOrigin: Item.Center
 
             Connections {
@@ -2243,9 +2413,21 @@ PanelWindow {
 
             MouseArea {
                 anchors.fill: parent
-                enabled: timerBubble.mounted
+                enabled: timerBubble.mounted && root.autoHideProgress > 0.5
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
+                onEntered: {
+                    if (root.autoHideEnabled) {
+                        root.autoHidePointerInside = true;
+                        root.showAutoHiddenIsland();
+                    }
+                }
+                onExited: {
+                    if (root.autoHideEnabled) {
+                        root.autoHidePointerInside = false;
+                        root.scheduleAutoHide();
+                    }
+                }
                 onClicked: islandContainer.showExpandedTimerPage()
             }
         }
@@ -2284,6 +2466,29 @@ PanelWindow {
             iconFontFamily: root.iconFontFamily
             textFontFamily: root.textFontFamily
             heroFontFamily: root.heroFontFamily
+        }
+    }
+
+    MouseArea {
+        id: autoHideRevealArea
+
+        x: root.autoHideRevealX
+        y: 0
+        z: 20
+        width: root.autoHideRevealWidth
+        height: root.autoHideRevealHeight
+        enabled: root.autoHideEnabled
+        hoverEnabled: true
+        acceptedButtons: Qt.NoButton
+
+        onEntered: {
+            root.autoHidePointerInside = true;
+            root.showAutoHiddenIsland();
+        }
+
+        onExited: {
+            root.autoHidePointerInside = false;
+            root.scheduleAutoHide();
         }
     }
 

@@ -11,6 +11,7 @@ Scope {
     property bool focusEnabled: false
     property bool nightLightEnabled: false
     property bool shuttingDown: false
+    property bool islandAutoHideRuntimeEnabled: true
 
     readonly property var userConfig: UserConfig
 
@@ -67,6 +68,45 @@ Scope {
             shellRoot.openOverviewAll();
     }
 
+    function anyIslandShown() {
+        const windows = panelVariants.instances ? panelVariants.instances : [];
+        for (let index = 0; index < windows.length; index++) {
+            const window = windows[index];
+            if (window && window.autoHideTargetVisible)
+                return true;
+        }
+
+        return false;
+    }
+
+    function showIslandAll() {
+        shellRoot.forEachWindow((window) => {
+            if (window && window.showIslandWindow)
+                window.showIslandWindow();
+        });
+    }
+
+    function hideIslandAll() {
+        shellRoot.forEachWindow((window) => {
+            if (window && window.hideIslandWindow)
+                window.hideIslandWindow();
+        });
+    }
+
+    function toggleIslandAll() {
+        if (shellRoot.anyIslandShown())
+            shellRoot.hideIslandAll();
+        else
+            shellRoot.showIslandAll();
+    }
+
+    function refreshIslandAutoHideAll() {
+        shellRoot.forEachWindow((window) => {
+            if (window && window.refreshAutoHideWindow)
+                window.refreshAutoHideWindow();
+        });
+    }
+
     function forFocusedWindow(callback) {
         const windows = panelVariants.instances ? panelVariants.instances : [];
         for (let index = 0; index < windows.length; index++) {
@@ -98,6 +138,40 @@ Scope {
                 if (window && window.prewarmWallpaperCache)
                     window.prewarmWallpaperCache();
             });
+        }
+    }
+
+    IpcHandler {
+        target: "island"
+
+        function show() {
+            shellRoot.showIslandAll();
+        }
+
+        function open() {
+            shellRoot.showIslandAll();
+        }
+
+        function reveal() {
+            shellRoot.showIslandAll();
+        }
+
+        function hide() {
+            shellRoot.hideIslandAll();
+        }
+
+        function toggle() {
+            shellRoot.toggleIslandAll();
+        }
+
+        function enableAutoHide() {
+            shellRoot.islandAutoHideRuntimeEnabled = true;
+            shellRoot.refreshIslandAutoHideAll();
+        }
+
+        function disableAutoHide() {
+            shellRoot.islandAutoHideRuntimeEnabled = false;
+            shellRoot.showIslandAll();
         }
     }
 

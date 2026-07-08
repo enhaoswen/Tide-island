@@ -11,6 +11,7 @@ class UserConfigBackendTests final : public QObject {
 private slots:
     void loadsTypedValuesFromJson();
     void exposesParseErrorsAndFallsBackToDefaults();
+    void clampsAutoHideDelay();
     void mapsConfiguredMouseButtons();
 };
 
@@ -51,7 +52,9 @@ void UserConfigBackendTests::loadsTypedValuesFromJson()
         "wallpaperTransitionInvertY": true,
         "textFontFamily": "Test Text",
         "tlpPermissionMode": "skip",
-        "dynamicIslandLeftSwipeItems": ["time", "ram"]
+        "dynamicIslandLeftSwipeItems": ["time", "ram"],
+        "islandAutoHideEnabled": false,
+        "islandAutoHideDelayMs": 2500
     })json");
     QVERIFY(!configPath.isEmpty());
 
@@ -73,6 +76,8 @@ void UserConfigBackendTests::loadsTypedValuesFromJson()
     QCOMPARE(config.textFontFamily(), QStringLiteral("Test Text"));
     QCOMPARE(config.tlpPermissionMode(), QStringLiteral("skip"));
     QCOMPARE(config.dynamicIslandLeftSwipeItems(), QVariantList({QStringLiteral("time"), QStringLiteral("ram")}));
+    QCOMPARE(config.islandAutoHideEnabled(), false);
+    QCOMPARE(config.islandAutoHideDelayMs(), 2500);
 }
 
 void UserConfigBackendTests::exposesParseErrorsAndFallsBackToDefaults()
@@ -98,6 +103,37 @@ void UserConfigBackendTests::exposesParseErrorsAndFallsBackToDefaults()
     QCOMPARE(config.wallpaperTransitionWave(), QStringLiteral("20,20"));
     QCOMPARE(config.wallpaperTransitionInvertY(), false);
     QCOMPARE(config.dynamicIslandLeftSwipeItems(), QVariantList({QStringLiteral("cava"), QStringLiteral("battery")}));
+    QCOMPARE(config.islandAutoHideEnabled(), true);
+    QCOMPARE(config.islandAutoHideDelayMs(), 1000);
+}
+
+void UserConfigBackendTests::clampsAutoHideDelay()
+{
+    {
+        QTemporaryDir configHome;
+        QVERIFY(configHome.isValid());
+        qputenv("XDG_CONFIG_HOME", configHome.path().toLocal8Bit());
+
+        QVERIFY(!writeConfig(configHome, R"json({
+            "islandAutoHideDelayMs": 20
+        })json").isEmpty());
+
+        UserConfigBackend config;
+        QCOMPARE(config.islandAutoHideDelayMs(), 100);
+    }
+
+    {
+        QTemporaryDir configHome;
+        QVERIFY(configHome.isValid());
+        qputenv("XDG_CONFIG_HOME", configHome.path().toLocal8Bit());
+
+        QVERIFY(!writeConfig(configHome, R"json({
+            "islandAutoHideDelayMs": 20000
+        })json").isEmpty());
+
+        UserConfigBackend config;
+        QCOMPARE(config.islandAutoHideDelayMs(), 10000);
+    }
 }
 
 void UserConfigBackendTests::mapsConfiguredMouseButtons()

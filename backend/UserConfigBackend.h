@@ -44,6 +44,8 @@ class UserConfigBackend final : public QObject {
     Q_PROPERTY(QVariantList dynamicIslandLeftSwipeItems READ dynamicIslandLeftSwipeItems NOTIFY dynamicIslandLeftSwipeItemsChanged FINAL)
     Q_PROPERTY(bool disableAutoExpandOnTrackChange READ disableAutoExpandOnTrackChange NOTIFY disableAutoExpandOnTrackChangeChanged FINAL)
     Q_PROPERTY(int hoverExpandAction READ hoverExpandAction NOTIFY hoverExpandActionChanged FINAL)
+    Q_PROPERTY(bool islandAutoHideEnabled READ islandAutoHideEnabled NOTIFY islandAutoHideEnabledChanged FINAL)
+    Q_PROPERTY(int islandAutoHideDelayMs READ islandAutoHideDelayMs NOTIFY islandAutoHideDelayMsChanged FINAL)
 
     Q_PROPERTY(int islandWidth READ islandWidth NOTIFY islandWidthChanged FINAL)
     Q_PROPERTY(int islandHeight READ islandHeight NOTIFY islandHeightChanged FINAL)
@@ -85,6 +87,8 @@ public:
     const QVariantList &dynamicIslandLeftSwipeItems() const;
     bool disableAutoExpandOnTrackChange() const;
     int hoverExpandAction() const;
+    bool islandAutoHideEnabled() const;
+    int islandAutoHideDelayMs() const;
     int islandWidth() const;
     int islandHeight() const;
     int islandPositionX() const;
@@ -128,6 +132,8 @@ signals:
     void dynamicIslandLeftSwipeItemsChanged();
     void disableAutoExpandOnTrackChangeChanged();
     void hoverExpandActionChanged();
+    void islandAutoHideEnabledChanged();
+    void islandAutoHideDelayMsChanged();
     void islandWidthChanged();
     void islandHeightChanged();
     void islandPositionXChanged();
@@ -171,6 +177,8 @@ private:
     QVariantList m_dynamicIslandLeftSwipeItems;
     bool m_disableAutoExpandOnTrackChange = false;
     int m_hoverExpandAction = 1;
+    bool m_islandAutoHideEnabled = true;
+    int m_islandAutoHideDelayMs = 1000;
     int m_islandWidth = 140;
     int m_islandHeight = 38;
     int m_islandPositionX = 50;
