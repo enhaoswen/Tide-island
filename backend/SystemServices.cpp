@@ -27,6 +27,8 @@
 
 namespace {
 
+constexpr qsizetype kMaximumStreamBufferBytes = 64 * 1024;
+
 struct ThumbnailResult {
     QString sourcePath;
     QString cachePath;
@@ -34,6 +36,53 @@ struct ThumbnailResult {
     bool updated = false;
     QString errorString;
 };
+
+QString thumbnailMetadataPath(const QString &cachePath) {
+    return cachePath + QStringLiteral(".meta.json");
+}
+
+QJsonObject thumbnailMetadata(const QFileInfo &sourceInfo,
+                              int targetWidth,
+                              int targetHeight,
+                              int quality) {
+    return {
+        {QStringLiteral("sourcePath"), sourceInfo.absoluteFilePath()},
+        {QStringLiteral("sourceModifiedMs"), sourceInfo.lastModified().toMSecsSinceEpoch()},
+        {QStringLiteral("sourceSize"), sourceInfo.size()},
+        {QStringLiteral("targetWidth"), targetWidth},
+        {QStringLiteral("targetHeight"), targetHeight},
+        {QStringLiteral("quality"), quality}
+    };
+}
+
+bool thumbnailMetadataMatches(const QString &cachePath, const QJsonObject &expected) {
+    if (!QFileInfo::exists(cachePath)) return false;
+
+    QFile metadataFile(thumbnailMetadataPath(cachePath));
+    if (!metadataFile.open(QIODevice::ReadOnly)) return false;
+
+    QJsonParseError parseError;
+    const QJsonDocument document = QJsonDocument::fromJson(metadataFile.readAll(), &parseError);
+    return parseError.error == QJsonParseError::NoError
+        && document.isObject()
+        && document.object() == expected;
+}
+
+bool writeThumbnailMetadata(const QString &cachePath, const QJsonObject &metadata, QString *errorString) {
+    QSaveFile metadataFile(thumbnailMetadataPath(cachePath));
+    if (!metadataFile.open(QIODevice::WriteOnly)) {
+        if (errorString) *errorString = metadataFile.errorString();
+        return false;
+    }
+
+    if (metadataFile.write(QJsonDocument(metadata).toJson(QJsonDocument::Compact)) < 0
+        || !metadataFile.commit()) {
+        if (errorString) *errorString = metadataFile.errorString();
+        return false;
+    }
+
+    return true;
+}
 
 ThumbnailResult createWallpaperThumbnail(const QString &sourcePath,
                                          const QString &cachePath,
@@ -66,8 +115,29 @@ ThumbnailResult createWallpaperThumbnail(const QString &sourcePath,
         return result;
     }
 
+    const int boundedQuality = std::clamp(quality, 1, 100);
+    const QJsonObject expectedMetadata = thumbnailMetadata(
+        sourceInfo,
+        targetWidth,
+        targetHeight,
+        boundedQuality
+    );
+    if (thumbnailMetadataMatches(cachePath, expectedMetadata)) {
+        result.cacheAvailable = true;
+        return result;
+    }
+
     QImageReader reader(sourcePath);
     reader.setAutoTransform(true);
+    const QSize sourceSize = reader.size();
+    const QSize requestedSize(targetWidth, targetHeight);
+    if (sourceSize.isValid()) {
+        const QSize decodeSize = sourceSize.scaled(requestedSize, Qt::KeepAspectRatioByExpanding);
+        if (qint64(decodeSize.width()) * decodeSize.height()
+                < qint64(sourceSize.width()) * sourceSize.height()) {
+            reader.setScaledSize(decodeSize);
+        }
+    }
     const QImage sourceImage = reader.read();
     if (sourceImage.isNull()) {
         result.errorString = reader.errorString().isEmpty()
@@ -89,7 +159,7 @@ ThumbnailResult createWallpaperThumbnail(const QString &sourcePath,
     }
 
     QImageWriter writer(&output, "jpg");
-    writer.setQuality(std::clamp(quality, 1, 100));
+    writer.setQuality(boundedQuality);
     if (!writer.write(cropped)) {
         result.errorString = writer.errorString().isEmpty()
             ? QStringLiteral("Could not write wallpaper thumbnail.")
@@ -105,6 +175,8 @@ ThumbnailResult createWallpaperThumbnail(const QString &sourcePath,
 
     result.cacheAvailable = QFileInfo::exists(cachePath);
     result.updated = result.cacheAvailable;
+    if (result.cacheAvailable)
+        writeThumbnailMetadata(cachePath, expectedMetadata, &result.errorString);
     return result;
 }
 
@@ -295,6 +367,7 @@ void SystemServices::startNotificationMonitor() {
     }
 
     m_notificationMonitor = new QProcess(this);
+    m_notificationMonitor->setProcessChannelMode(QProcess::MergedChannels);
     m_notificationMonitor->setProgram(executable);
     m_notificationMonitor->setArguments({
         QStringLiteral("--session"),
@@ -322,6 +395,7 @@ void SystemServices::startPipeWireMonitor() {
     }
 
     m_pipeWireMonitor = new QProcess(this);
+    m_pipeWireMonitor->setProcessChannelMode(QProcess::MergedChannels);
     m_pipeWireMonitor->setProgram(executable);
     m_pipeWireMonitor->setArguments({QStringLiteral("-p"), QStringLiteral("-a")});
     connect(m_pipeWireMonitor, &QProcess::readyReadStandardOutput, this, &SystemServices::handlePipeWireOutput);
@@ -345,6 +419,7 @@ void SystemServices::startRecordingPortalMonitor() {
     }
 
     m_recordingPortalMonitor = new QProcess(this);
+    m_recordingPortalMonitor->setProcessChannelMode(QProcess::MergedChannels);
     m_recordingPortalMonitor->setProgram(executable);
     m_recordingPortalMonitor->setArguments({
         QStringLiteral("--session"),
@@ -374,6 +449,11 @@ void SystemServices::processLines(QByteArray &buffer,
         const QByteArray rawLine = buffer.left(newlineIndex);
         buffer.remove(0, newlineIndex + 1);
         handler(QString::fromUtf8(rawLine).trimmed());
+    }
+
+    if (buffer.size() > kMaximumStreamBufferBytes) {
+        qWarning() << "[SystemServices] Dropping an oversized unterminated monitor line";
+        buffer.clear();
     }
 }
 
@@ -675,9 +755,19 @@ void SystemServices::generateWallpaperThumbnail(const QString &sourcePath,
                                                 int targetWidth,
                                                 int targetHeight,
                                                 int quality) {
+    const QString requestKey = QStringLiteral("%1\x1f%2\x1f%3x%4\x1f%5")
+        .arg(sourcePath, cachePath)
+        .arg(targetWidth)
+        .arg(targetHeight)
+        .arg(quality);
+    if (m_wallpaperThumbnailRequests.contains(requestKey))
+        return;
+
+    m_wallpaperThumbnailRequests.insert(requestKey);
     auto *watcher = new QFutureWatcher<ThumbnailResult>(this);
-    connect(watcher, &QFutureWatcher<ThumbnailResult>::finished, this, [this, watcher]() {
+    connect(watcher, &QFutureWatcher<ThumbnailResult>::finished, this, [this, watcher, requestKey]() {
         const ThumbnailResult result = watcher->result();
+        m_wallpaperThumbnailRequests.remove(requestKey);
         emit wallpaperThumbnailFinished(
             result.sourcePath,
             result.cachePath,
@@ -1000,7 +1090,7 @@ void SystemServices::startCava() {
     m_cavaProcess = new QProcess(this);
     m_cavaProcess->setProgram(executable);
     m_cavaProcess->setArguments({QStringLiteral("-p"), QStringLiteral("/dev/stdin")});
-    m_cavaProcess->setProcessChannelMode(QProcess::SeparateChannels);
+    m_cavaProcess->setProcessChannelMode(QProcess::MergedChannels);
 
     connect(m_cavaProcess, &QProcess::started, m_cavaProcess, [this]() {
         if (!m_cavaProcess) return;

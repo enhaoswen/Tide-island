@@ -112,13 +112,40 @@ PanelWindow {
             height: bluetoothConnectivityDetailShell.visible ? Math.ceil(bluetoothConnectivityDetailShell.height) : 0
         }
     }
-    implicitHeight: root.overviewVisible
-        ? Math.max(
-            Math.ceil(userConfig.islandTopMargin + root.connectivityDetailHeight + 12),
-            Math.ceil(userConfig.islandTopMargin + root.overviewCapsuleHeight + 8),
-            Math.ceil(root.controlCenterWindowHeight)
-        )
-        : Math.max(Math.ceil(userConfig.islandTopMargin + root.connectivityDetailHeight + 12), Math.ceil(root.controlCenterWindowHeight))
+    readonly property real capsuleWindowHeight: Math.ceil(
+        userConfig.islandTopMargin + mainCapsule.targetHeight + 12
+    )
+    readonly property real connectivityDetailWindowHeight: root.anyConnectivityDetailMounted
+        ? Math.ceil(userConfig.islandTopMargin + root.connectivityDetailHeight + 12)
+        : 0
+    readonly property real overviewWindowHeight: root.overviewVisible
+        ? Math.ceil(userConfig.islandTopMargin + root.overviewCapsuleHeight + 8)
+        : 0
+    readonly property real requestedWindowHeight: Math.max(
+        root.capsuleWindowHeight,
+        root.connectivityDetailWindowHeight,
+        root.overviewWindowHeight,
+        Math.ceil(root.controlCenterWindowHeight)
+    )
+    // Grow the layer surface immediately, but keep the old extent while the
+    // capsule finishes its collapse animation. A later expansion interrupts
+    // the pending shrink instead of letting a stale timer clip new content.
+    property real retainedWindowHeight: 0
+    implicitHeight: Math.max(root.requestedWindowHeight, root.retainedWindowHeight)
+
+    function reconcileWindowHeight() {
+        if (root.requestedWindowHeight >= root.retainedWindowHeight) {
+            windowShrinkTimer.stop();
+            root.retainedWindowHeight = root.requestedWindowHeight;
+            return;
+        }
+
+        windowShrinkTimer.restart();
+    }
+
+    onRequestedWindowHeightChanged: root.reconcileWindowHeight()
+    Component.onCompleted: root.retainedWindowHeight = root.requestedWindowHeight
+
     exclusiveZone: Math.ceil(root.baseExclusiveZone * root.exclusiveZoneProgress)
     WlrLayershell.layer: islandContainer.wallpaperPickerLayerVisible
         ? WlrLayer.Overlay
@@ -468,6 +495,14 @@ PanelWindow {
         overviewWallpaperCache.prewarm();
     }
 
+    function handleWallpaperApplySucceeded(filePath) {
+        wallpaperPickerActiveWallpaper = filePath;
+        if (shellRootController && shellRootController.refreshOverviewWallpaperCaches)
+            shellRootController.refreshOverviewWallpaperCaches(filePath);
+        else
+            prewarmWallpaperCache();
+    }
+
     function showNotification(appName, summary, body) {
         islandContainer.showNotificationCapsule(appName, summary, body);
     }
@@ -575,6 +610,13 @@ PanelWindow {
         onTriggered: {
             islandContainer.forceActiveFocus();
         }
+    }
+
+    Timer {
+        id: windowShrinkTimer
+        interval: 1000
+        repeat: false
+        onTriggered: root.retainedWindowHeight = root.requestedWindowHeight
     }
 
     Timer {
@@ -796,6 +838,7 @@ PanelWindow {
             id: mediaController
 
             expanded: islandContainer.islandState === "expanded"
+            clientId: "island-mpris-" + root.screenOutputName
         }
 
         BluetoothConnectionTracker {
@@ -2199,6 +2242,7 @@ PanelWindow {
                         activeWallpaper: root.wallpaperPickerActiveWallpaper
                         showCondition: islandContainer.wallpaperPickerLayerVisible
                         onWallpaperApplied: filePath => root.wallpaperPickerActiveWallpaper = filePath
+                        onWallpaperApplySucceeded: filePath => root.handleWallpaperApplySucceeded(filePath)
                         onCloseRequested: islandContainer.smartRestoreState()
                     }
                 }

@@ -1,12 +1,20 @@
 #!/bin/bash
 # Launcher for Tide Island Quickshell component
 
-# Standard path for system installation. Use the config directory rather than
-# shell.qml so Hyprland's `/usr/bin/quickshell ipc -p /usr/share/tide-island ...` targets the
-# same Quickshell instance. Prefer the packaged Quickshell binary; stale local
-# builds in /usr/local/bin can be older than the system Qt libraries.
-QML_PATH="/usr/share/tide-island"
+# Resolve resources relative to the installed launcher. This keeps system
+# installs under /usr and unprivileged installs under ~/.local self-contained.
+LAUNCHER_PATH="$(readlink -f "$0")"
+INSTALL_PREFIX="$(dirname "$(dirname "$LAUNCHER_PATH")")"
+QML_PATH="${TIDE_ISLAND_QML_PATH:-$INSTALL_PREFIX/share/tide-island}"
+CONFIG_APP="${TIDE_ISLAND_CONFIG_APP:-$INSTALL_PREFIX/bin/tide-island-config-app}"
+QML_MODULE_PATH="$INSTALL_PREFIX/lib/qt6/qml"
 SERVICE_NAME="tide-island.service"
+
+export QML_IMPORT_PATH="$QML_MODULE_PATH${QML_IMPORT_PATH:+:$QML_IMPORT_PATH}"
+export QUICKSHELL_LYRICS_BACKEND="${QUICKSHELL_LYRICS_BACKEND:-$QML_PATH/bin/lyricsmpris}"
+# Quickshell uses jemalloc. Reclaim released Loader/image allocations in the
+# background instead of keeping their high-water mark resident indefinitely.
+export MALLOC_CONF="${MALLOC_CONF:-narenas:2,background_thread:true,dirty_decay_ms:2000,muzzy_decay_ms:2000}"
 
 if [[ "${SYSTEMD_EXEC_PID:-}" != "$$" ]]; then
   if systemctl --user is-active --quiet "$SERVICE_NAME" \
@@ -21,7 +29,7 @@ compositor_override="${TIDE_ISLAND_COMPOSITOR,,}"
 if [[ "$compositor_override" == "niri" ]] \
     || [[ -z "$compositor_override" && "$desktop_name" == *":niri:"* ]] \
     || [[ -z "$compositor_override" && "$desktop_name" != *":hyprland:"* && -n "${NIRI_SOCKET:-}" ]]; then
-  /usr/bin/tide-island-config-app --ensure-niri-shortcuts || true
+  "$CONFIG_APP" --ensure-niri-shortcuts || true
 fi
 
 exec /usr/bin/quickshell -p "$QML_PATH" "$@"

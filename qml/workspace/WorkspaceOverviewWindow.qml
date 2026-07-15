@@ -157,9 +157,11 @@ Item {
 
         Rectangle {
             anchors.fill: parent
-            color: root.pressed
-                ? "#40000000"
-                : (root.hovered ? "#18000000" : "#08000000")
+            color: root.draggingActive
+                ? "#14ffffff"
+                : (root.pressed
+                    ? "#26000000"
+                    : (root.hovered ? "#10ffffff" : "transparent"))
         }
 
         Image {

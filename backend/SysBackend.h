@@ -3,6 +3,7 @@
 #include <QObject>
 #include <QtQml/qqml.h>
 #include <QProcess>
+#include <QSet>
 #include <QFileSystemWatcher>
 #include <QSocketNotifier>
 #include <QString>
@@ -33,6 +34,7 @@ public:
     QString lyricsCurrentLyric() const;
     bool lyricsIsSynced() const;
     QString lyricsBackendStatus() const;
+    Q_INVOKABLE void setLyricsClientActive(const QString &clientId, bool active);
 
 signals:
     void brightnessChanged(double val);
@@ -69,6 +71,7 @@ private:
     void setupAudio();
     void setupBrightness();
     void setupLyrics();
+    void stopLyricsBackend();
     void checkDefaultAudioDevice();
     void startTimedProcess(QProcess *process, QTimer *timeoutTimer, const QString &program, const QStringList &arguments);
     void detectPowerSupplyPaths();
@@ -98,6 +101,7 @@ private:
     QString m_lyricsCurrentLyric;
     QString m_lyricsBackendStatus;
     bool m_lyricsIsSynced;
+    QSet<QString> m_lyricsClients;
 
     QString m_batteryPath;
     QString m_acPath;

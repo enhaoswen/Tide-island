@@ -10,6 +10,8 @@ Item {
     height: 0
 
     property bool expanded: false
+    property string clientId: "island-mpris-default"
+    property string registeredLyricsClientId: ""
 
     property string lastActivePlayerDbusName: ""
     property var playersList: Mpris.players.values !== undefined ? Mpris.players.values : Mpris.players
@@ -46,6 +48,7 @@ Item {
     property string timeTotal: "0:00"
 
     onActivePlayerChanged: {
+        syncLyricsBackend();
         Qt.callLater(function() {
             const nextDbusName = root.activePlayer && root.activePlayer.dbusName
                 ? root.activePlayer.dbusName
@@ -56,8 +59,25 @@ Item {
     }
 
     onInlineLyricsRawChanged: updatePlainLyric()
+    onClientIdChanged: syncLyricsBackend()
 
-    Component.onCompleted: updatePlainLyric()
+    Component.onCompleted: {
+        updatePlainLyric();
+        syncLyricsBackend();
+    }
+    Component.onDestruction: {
+        if (registeredLyricsClientId !== "")
+            SysBackend.setLyricsClientActive(registeredLyricsClientId, false);
+    }
+
+    function syncLyricsBackend() {
+        const nextClientId = String(clientId || "island-mpris-default");
+        if (registeredLyricsClientId !== "" && registeredLyricsClientId !== nextClientId)
+            SysBackend.setLyricsClientActive(registeredLyricsClientId, false);
+
+        registeredLyricsClientId = nextClientId;
+        SysBackend.setLyricsClientActive(registeredLyricsClientId, activePlayer !== null);
+    }
 
     function formatTime(value) {
         const numberValue = Number(value);

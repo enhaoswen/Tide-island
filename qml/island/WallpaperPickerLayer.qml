@@ -9,6 +9,7 @@ FocusScope {
 
     signal closeRequested
     signal wallpaperApplied(string filePath)
+    signal wallpaperApplySucceeded(string filePath)
 
     property bool showCondition: false
     property string iconFontFamily: ""
@@ -112,6 +113,7 @@ FocusScope {
         + "result=subprocess.run(cmd,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)\n"
         + "if pywal_enabled == 'true' and result.returncode == 0:\n"
         + "    subprocess.run(['wal','-i',applied],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)\n"
+        + "sys.exit(result.returncode)\n"
 
     readonly property var transitionTypes: ["none", "simple", "fade", "left", "right", "top", "bottom", "wipe", "wave", "grow", "center", "any", "outer", "random"]
     readonly property string configuredTransitionType: validTransitionType(userConfig.wallpaperTransitionType)
@@ -441,8 +443,10 @@ FocusScope {
             root.transitionInvertY ? "true" : "false",
             root.pywalEnabled ? "true" : "false"
         ]
-        onExited: {
+        onExited: function(exitCode) {
             running = false;
+            if (exitCode === 0)
+                root.wallpaperApplySucceeded(wallpaperPath);
             if (root.closeAfterApply) {
                 root.closeAfterApply = false;
                 root.closeRequested();
@@ -461,8 +465,10 @@ FocusScope {
             wallpaperPath,
             targetPath
         ]
-        onExited: {
+        onExited: function(exitCode) {
             running = false;
+            if (exitCode === 0)
+                root.wallpaperApplySucceeded(wallpaperPath);
             if (root.closeAfterApply) {
                 root.closeAfterApply = false;
                 root.closeRequested();

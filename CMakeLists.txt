@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(TideIsland VERSION 1.0.21 LANGUAGES CXX)
+project(TideIsland VERSION 1.0.23 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -157,6 +157,13 @@ qt_add_qml_module(IslandBackend
         backend/WifiNetworkModel.cpp
 )
 
+# The QML plugin is installed below lib/qt6/qml/IslandBackend while its backing
+# library lives directly in lib. Keep installed packages independent of the
+# build tree and make the relationship relocatable.
+set_target_properties(IslandBackendplugin PROPERTIES
+    INSTALL_RPATH "\$ORIGIN/../../.."
+)
+
 target_include_directories(IslandBackend PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/backend
 )
@@ -220,4 +227,4 @@ install(TARGETS lyricsmpris
 install(FILES tide-island.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
 
 # Install systemd user service
-install(FILES tide-island.service DESTINATION /usr/lib/systemd/user)
+install(FILES tide-island.service DESTINATION ${CMAKE_INSTALL_LIBDIR}/systemd/user)

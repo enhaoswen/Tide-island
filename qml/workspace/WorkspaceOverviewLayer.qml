@@ -52,8 +52,8 @@ Item {
     readonly property color cardColor: StyleTokens.overviewCard
     readonly property color cardBorderColor: StyleTokens.overviewBorder
     readonly property color workspaceColor: StyleTokens.workspaceCell
-    readonly property color workspaceHoverColor: StyleTokens.workspaceCellHover
-    readonly property color workspaceBorderHoverColor: StyleTokens.workspaceCellBorderHover
+    readonly property color workspaceHoverColor: "#ff25272c"
+    readonly property color workspaceBorderHoverColor: "#3dd9f6ff"
     readonly property real workspaceImplicitWidth: {
         const res = monitorData && monitorData.reserved ? monitorData.reserved : [0,0,0,0]
         const sw = monitor ? monitor.width : (screen ? screen.width : 1920)
@@ -307,7 +307,7 @@ Item {
                                 topRightRadius: atRight&&atTop ? root.largeWorkspaceRadius : root.smallWorkspaceRadius
                                 bottomLeftRadius: atLeft&&atBottom ? root.largeWorkspaceRadius : root.smallWorkspaceRadius
                                 bottomRightRadius: atRight&&atBottom ? root.largeWorkspaceRadius : root.smallWorkspaceRadius
-                                border.width: hoveredDrag ? 2 : 1
+                                border.width: 1
                                 border.color: hoveredDrag ? root.workspaceBorderHoverColor : StyleTokens.workspaceCellBorder
                                 clip: true
 
@@ -330,7 +330,7 @@ Item {
                                     }
                                     Rectangle {
                                         anchors.fill: parent
-                                        color: hoveredDrag ? StyleTokens.workspaceOverlayHover : StyleTokens.workspaceOverlay
+                                        color: hoveredDrag ? "#360d131a" : StyleTokens.workspaceOverlay
                                     }
 
                                     Item {

@@ -124,6 +124,19 @@ Scope {
         });
     }
 
+    function refreshOverviewWallpaperCaches(wallpaperPath) {
+        shellRoot.forEachWindow((window) => {
+            if (window
+                    && wallpaperPath !== undefined
+                    && wallpaperPath !== null
+                    && String(wallpaperPath) !== "") {
+                window.wallpaperPickerActiveWallpaper = String(wallpaperPath);
+            }
+            if (window && window.prewarmWallpaperCache)
+                window.prewarmWallpaperCache();
+        });
+    }
+
     function forFocusedWindow(callback) {
         const windows = panelVariants.instances ? panelVariants.instances : [];
         let fallbackWindow = null;
@@ -157,10 +170,7 @@ Scope {
         }
 
         function refreshWallpaperCache() {
-            shellRoot.forEachWindow((window) => {
-                if (window && window.prewarmWallpaperCache)
-                    window.prewarmWallpaperCache();
-            });
+            shellRoot.refreshOverviewWallpaperCaches();
         }
     }
 

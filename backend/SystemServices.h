@@ -154,6 +154,7 @@ private:
 
     QVariantList m_cavaLevels;
     QSet<QString> m_cavaClients;
+    QSet<QString> m_wallpaperThumbnailRequests;
     bool m_cavaMissingWarned = false;
     int m_tlpCommandGeneration = 0;
     bool m_configAppLaunchRequested = false;

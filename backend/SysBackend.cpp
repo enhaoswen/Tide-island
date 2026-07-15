@@ -50,6 +50,7 @@ SysBackend::SysBackend(QObject *parent)
 }
 
 SysBackend::~SysBackend() {
+    stopLyricsBackend();
     if (m_batteryMonitor) udev_monitor_unref(m_batteryMonitor);
     if (m_udev) udev_unref(m_udev);
 }
@@ -329,6 +330,7 @@ void SysBackend::handleUpowerBatteryChanged() {
 // 3. volume
 void SysBackend::setupAudio() {
     m_paSubscriber = new QProcess(this);
+    m_paSubscriber->setProcessChannelMode(QProcess::MergedChannels);
     connect(m_paSubscriber, &QProcess::readyReadStandardOutput, this, &SysBackend::handleVolumeEvent);
 
     m_volumeQueryProcess = new QProcess(this);
@@ -510,7 +512,23 @@ void SysBackend::setupLyrics() {
     connect(m_lyricsProcess, &QProcess::errorOccurred, this, &SysBackend::handleLyricsProcessError);
     connect(m_lyricsProcess, &QProcess::finished, this, &SysBackend::handleLyricsProcessFinished);
 
-    startLyricsBackend();
+}
+
+void SysBackend::setLyricsClientActive(const QString &clientId, bool active) {
+    const QString normalizedId = clientId.trimmed();
+    if (normalizedId.isEmpty()) return;
+
+    if (active)
+        m_lyricsClients.insert(normalizedId);
+    else
+        m_lyricsClients.remove(normalizedId);
+
+    if (m_lyricsClients.isEmpty()) {
+        stopLyricsBackend();
+    } else if (m_lyricsProcess && m_lyricsProcess->state() == QProcess::NotRunning
+               && !m_lyricsRestartTimer->isActive()) {
+        startLyricsBackend();
+    }
 }
 
 QString SysBackend::findLyricsBackendExecutable() const {
@@ -565,6 +583,7 @@ void SysBackend::setLyricsBackendStatus(const QString &status) {
 
 void SysBackend::startLyricsBackend() {
     if (!m_lyricsProcess) return;
+    if (m_lyricsClients.isEmpty()) return;
     if (m_lyricsProcess->state() != QProcess::NotRunning) return;
 
     m_lyricsExecutablePath = findLyricsBackendExecutable();
@@ -584,6 +603,23 @@ void SysBackend::startLyricsBackend() {
     m_lyricsProcess->setProgram(m_lyricsExecutablePath);
     m_lyricsProcess->setArguments({ "--pipe" });
     m_lyricsProcess->start();
+}
+
+void SysBackend::stopLyricsBackend() {
+    if (m_lyricsRestartTimer)
+        m_lyricsRestartTimer->stop();
+    if (m_lyricsProcess && m_lyricsProcess->state() != QProcess::NotRunning) {
+        m_lyricsProcess->terminate();
+        if (!m_lyricsProcess->waitForFinished(150)) {
+            m_lyricsProcess->kill();
+            m_lyricsProcess->waitForFinished(300);
+        }
+    }
+
+    m_lyricsStdoutBuffer.clear();
+    setLyricsCurrentLyric("");
+    setLyricsIsSynced(false);
+    setLyricsBackendStatus("idle");
 }
 
 void SysBackend::handleLyricsReadyRead() {
@@ -646,7 +682,7 @@ void SysBackend::handleLyricsProcessFinished(int exitCode, QProcess::ExitStatus 
     setLyricsCurrentLyric("");
     setLyricsIsSynced(false);
 
-    if (!m_lyricsExecutablePath.isEmpty()) {
+    if (!m_lyricsClients.isEmpty() && !m_lyricsExecutablePath.isEmpty()) {
         setLyricsBackendStatus("error");
         m_lyricsRestartTimer->start();
     }
@@ -662,7 +698,8 @@ void SysBackend::handleLyricsProcessError(QProcess::ProcessError error) {
     }
 
     setLyricsBackendStatus("error");
-    if (m_lyricsRestartTimer && !m_lyricsRestartTimer->isActive()) m_lyricsRestartTimer->start();
+    if (!m_lyricsClients.isEmpty() && m_lyricsRestartTimer && !m_lyricsRestartTimer->isActive())
+        m_lyricsRestartTimer->start();
 }
 
 void SysBackend::handleLyricsStderr() {
