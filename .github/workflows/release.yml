@@ -1,0 +1,105 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "[0-9]*.[0-9]*.[0-9]*"
+      - "v[0-9]*.[0-9]*.[0-9]*"
+
+permissions:
+  contents: write
+
+jobs:
+  source-release:
+    name: Test and publish source release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install build dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            pkg-config \
+            xz-utils \
+            qt6-base-dev \
+            qt6-declarative-dev \
+            libudev-dev
+
+      - name: Validate release version
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          cmake_version="$(sed -nE 's/^project\(TideIsland VERSION ([0-9.]+).*/\1/p' CMakeLists.txt)"
+          pkgbuild_version="$(sed -nE 's/^pkgver=([0-9.]+)$/\1/p' PKGBUILD)"
+          test -n "$version"
+          test "$version" = "$cmake_version"
+          test "$version" = "$pkgbuild_version"
+
+      - name: Test installer branches
+        run: tests/installer_tests.sh
+
+      - name: Build and test Tide Island
+        run: |
+          cmake -GNinja -S . -B build-release-ci \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=/usr \
+            -DCMAKE_INSTALL_LIBDIR=lib
+          cmake --build build-release-ci --parallel
+          ctest --test-dir build-release-ci --output-on-failure
+
+      - name: Validate installation layout
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          stage="$RUNNER_TEMP/tide-island-stage"
+          DESTDIR="$stage" cmake --install build-release-ci
+          test -x "$stage/usr/bin/tide-island"
+          test -x "$stage/usr/bin/tide-island-config-app"
+          test -f "$stage/usr/share/tide-island/shell.qml"
+          test -f "$stage/usr/lib/libIslandBackend.so"
+          test -f "$stage/usr/lib/qt6/qml/IslandBackend/libIslandBackendplugin.so"
+          test -f "$stage/usr/lib/systemd/user/tide-island.service"
+          test ! -e "$stage/usr/lib/qt6/qml/TideIsland/Document.qml"
+          test -z "$(find "$stage" -name '*qml_module_dir_map.qrc' -print -quit)"
+
+      - name: Create reproducible source asset
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          git archive \
+            --format=tar \
+            --prefix="Tide-island-${version}/" \
+            "$GITHUB_SHA" \
+            | xz -9e > tide-island-source.tar.xz
+          sha256sum tide-island-source.tar.xz > SHA256SUMS
+          tar -tf tide-island-source.tar.xz | grep -Fq "Tide-island-${version}/install.sh"
+          sha256sum --check SHA256SUMS
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" \
+              tide-island-source.tar.xz SHA256SUMS --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              tide-island-source.tar.xz SHA256SUMS \
+              --verify-tag \
+              --generate-notes \
+              --title "Tide Island ${GITHUB_REF_NAME#v}"
+          fi

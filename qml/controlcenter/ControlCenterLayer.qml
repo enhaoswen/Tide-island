@@ -355,7 +355,11 @@ Item {
         batteryModeInfoMessage = "Applying " + batteryModeLabel(nextIndex) + "...";
         setBatteryModeVisualIndex(nextIndex, true);
         batteryModeLastCommandOutput = "";
-        SystemServices.setTlpMode(batteryModeCommand(nextIndex), trimString(userConfig.tlpSudoPassword));
+        const permissionMode = trimString(userConfig.tlpPermissionMode);
+        const sudoPassword = permissionMode === "password"
+            ? trimString(userConfig.tlpSudoPassword)
+            : "";
+        SystemServices.setTlpMode(batteryModeCommand(nextIndex), sudoPassword, permissionMode === "ask");
     }
 
     function finishBatteryModeApply(success, exitCode, output, errorString) {

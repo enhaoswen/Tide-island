@@ -40,7 +40,9 @@ public:
     Q_INVOKABLE void setVolume(double value);
     Q_INVOKABLE void requestSystemStats();
     Q_INVOKABLE void requestTlpState();
-    Q_INVOKABLE void setTlpMode(const QString &mode, const QString &sudoPassword = QString());
+    Q_INVOKABLE void setTlpMode(const QString &mode,
+                                const QString &sudoPassword = QString(),
+                                bool promptForPassword = false);
     Q_INVOKABLE void cancelTlpApply();
     Q_INVOKABLE void setCavaClientActive(const QString &clientId, bool active);
     Q_INVOKABLE void ensureUserConfigAvailable();

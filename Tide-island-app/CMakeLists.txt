@@ -73,7 +73,6 @@ qt_add_qml_module(tide-island-config-app
         WallpaperSettings.qml
         TlpSettings.qml
         FontSettings.qml
-        Document.qml
         Interaction.qml
         Shortcut.qml
 )
@@ -84,6 +83,7 @@ install(TARGETS tide-island-config-app
 
 install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/TideIsland
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/qt6/qml
+    PATTERN "*.qrc" EXCLUDE
 )
 
 install(FILES tide-island-config.desktop

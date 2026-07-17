@@ -5,10 +5,6 @@ import QtQuick
 PagePanel {
     id: root
 
-    readonly property bool supportsTideWorkspaceOverview: backend.supportsTideWorkspaceOverview()
-    readonly property string compositorName: backend.compositorDisplayName()
-    readonly property string nightLightBackendName: backend.nightLightBackendName()
-
     function intValue(key, fallback) {
         return String(ConfigStore.value(key, fallback))
     }
@@ -68,7 +64,7 @@ PagePanel {
             Text {
                 id: apperanceTitle
                 text: "Island apperance"
-                anchors.top : desktopHint.bottom
+                anchors.top: title.bottom
                 anchors.topMargin: 34
                 anchors.left: parent.left
                 anchors.leftMargin: 32
@@ -76,23 +72,6 @@ PagePanel {
                 anchors.rightMargin: 40
                 font.family: Theme.titleFontFamily
                 font.pixelSize: 23
-            }
-
-            Text {
-                id: desktopHint
-                anchors.top: title.bottom
-                anchors.topMargin: 18
-                anchors.left: parent.left
-                anchors.leftMargin: 60
-                anchors.right: parent.right
-                anchors.rightMargin: 40
-                text: supportsTideWorkspaceOverview
-                    ? "Current desktop: " + compositorName + ". Full Tide workspace overview and shortcuts are available; Night Light uses " + nightLightBackendName + "."
-                    : "Current desktop: " + compositorName + ". Settings shows all Tide features except Tide workspace overview; Night Light uses " + nightLightBackendName + "."
-                color: Theme.subtleTextColor
-                wrapMode: Text.WordWrap
-                font.family: Theme.textFontFamily
-                font.pixelSize: 14
             }
 
             Rectangle {

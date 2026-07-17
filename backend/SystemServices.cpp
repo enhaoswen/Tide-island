@@ -964,7 +964,7 @@ void SystemServices::requestTlpState() {
         });
 }
 
-void SystemServices::setTlpMode(const QString &mode, const QString &sudoPassword) {
+void SystemServices::setTlpMode(const QString &mode, const QString &sudoPassword, bool promptForPassword) {
     static const QSet<QString> allowedModes = {
         QStringLiteral("power-saver"),
         QStringLiteral("balanced"),
@@ -987,6 +987,44 @@ void SystemServices::setTlpMode(const QString &mode, const QString &sudoPassword
         m_tlpSetter->kill();
         m_tlpSetter = nullptr;
     }
+
+#ifdef Q_OS_UNIX
+    if (::getuid() != 0
+        && promptForPassword
+        && !findExecutable(QStringLiteral("zenity")).isEmpty()
+        && !findExecutable(QStringLiteral("sudo")).isEmpty()) {
+        const int promptGeneration = ++m_tlpCommandGeneration;
+        m_tlpSetter = startCommand(
+            QStringLiteral("zenity"),
+            {
+                QStringLiteral("--password"),
+                QStringLiteral("--title=Tide Island"),
+                QStringLiteral("--text=Enter your sudo password to change the TLP profile."),
+            },
+            0,
+            [this, normalizedMode, promptGeneration](const CommandResult &result) {
+                if (promptGeneration != m_tlpCommandGeneration)
+                    return;
+
+                m_tlpSetter = nullptr;
+                if (result.exitCode != 0 || result.exitStatus != QProcess::NormalExit) {
+                    emit tlpSetFinished(false, result.exitCode, QString(), QStringLiteral("Authentication canceled."));
+                    return;
+                }
+
+                QString password = QString::fromUtf8(result.stdoutData);
+                while (password.endsWith(QLatin1Char('\n')) || password.endsWith(QLatin1Char('\r')))
+                    password.chop(1);
+                if (password.isEmpty()) {
+                    emit tlpSetFinished(false, 126, QString(), QStringLiteral("A sudo password is required."));
+                    return;
+                }
+
+                setTlpMode(normalizedMode, password, false);
+            });
+        return;
+    }
+#endif
 
     QString program;
     QStringList arguments;

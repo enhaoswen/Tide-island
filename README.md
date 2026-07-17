@@ -140,22 +140,56 @@ Install from the AUR:
 yay -S tide-island
 ```
 
-Or build manually:
+### Other Linux distributions
+
+Download the source package and checksum from the
+[latest GitHub Release](https://github.com/enhaoswen/Tide-island/releases/latest):
 
 ```bash
-git clone https://github.com/enhaoswen/Tide-island.git
-cd Tide-island
-makepkg -si
+curl -fLO https://github.com/enhaoswen/Tide-island/releases/latest/download/tide-island-source.tar.xz
+curl -fLO https://github.com/enhaoswen/Tide-island/releases/latest/download/SHA256SUMS
+sha256sum --check SHA256SUMS
+tar -xf tide-island-source.tar.xz
+cd Tide-island-*
+./install.sh
 ```
 
-### Ubuntu / Debian
+The installer writes Tide Island to `/usr`, requests `sudo` only for package
+and file installation, and enables the systemd user service. It automatically
+installs dependencies on:
 
-Clone the repository and run the installer:
+- Debian, Ubuntu, and derivatives using `apt`
+- Fedora, RHEL, and derivatives using `dnf`
+- openSUSE using `zypper`
+
+Arch-based systems should use the AUR package. Other Linux distributions can
+install the dependencies manually and run:
 
 ```bash
-git clone https://github.com/enhaoswen/Tide-island.git
-cd Tide-island
-./scripts/install-debian-ubuntu.sh
+./install.sh --skip-deps
+```
+
+Quickshell is used from `/usr/bin/quickshell` when available. Otherwise the
+installer builds the pinned, verified Quickshell version compatible with this
+release. Qt 6.6 or newer is required.
+
+Support is determined by the Qt version shipped by the distribution, not only
+its name. For example, Ubuntu 24.04 ships Qt 6.4 in its official repositories,
+so it needs a newer Qt source/repository before this installer can build the
+pinned Quickshell. The installer stops with a clear error instead of mixing
+incompatible Qt versions.
+
+This source installer targets conventional Linux systems with a writable
+`/usr`. Declarative or immutable systems such as NixOS and Fedora Silverblue
+should use a native package or a mutable development container instead.
+
+Useful installer options:
+
+```bash
+./install.sh --no-service
+./install.sh --skip-quickshell
+./install.sh --force-build-quickshell
+./install.sh --uninstall
 ```
 
 <br>

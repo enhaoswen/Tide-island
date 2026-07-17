@@ -24,8 +24,6 @@ ApplicationWindow {
             return shortcutPage
         case 5:
             return interactionPage
-        case 6:
-            return documentPage
         default:
             return null
         }
@@ -237,31 +235,6 @@ ApplicationWindow {
             }
         }
 
-        Text{
-            id: documentButton
-            anchors.horizontalCenter: parent.horizontalCenter
-            y: 540
-            color: currentPage === 6 ? Theme.selectedColor : Theme.textColor
-            text: documentButtonText.width > mainSplitLine.x ? "D" : "Document"
-            font.family: Theme.titleFontFamily
-            font.pixelSize: 23
-
-            TextMetrics {
-                id: documentButtonText
-                font: documentButton.font
-                text: "Document"
-            }
-
-            Behavior on color {ColorAnimation{ duration:Theme.animationDuration}}
-
-            MouseArea{
-                anchors.fill:parent
-
-                onClicked: {
-                    selectPage(6)
-                }
-            }
-        }
     }
 
 
@@ -308,12 +281,6 @@ ApplicationWindow {
             opacity: 0
         }
 
-        Document {
-            id: documentPage
-            anchors.fill: parent
-            visible: false
-            opacity: 0
-        }
     }
 
     Rectangle {

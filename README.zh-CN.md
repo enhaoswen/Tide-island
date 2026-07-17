@@ -141,22 +141,50 @@ Tide Island 可以显示以下临时反馈：
 yay -S tide-island
 ```
 
-或者手动构建：
+### 其他 Linux 发行版
+
+从[最新 GitHub Release](https://github.com/enhaoswen/Tide-island/releases/latest)
+下载源码包和校验文件：
 
 ```bash
-git clone https://github.com/enhaoswen/Tide-island.git
-cd Tide-island
-makepkg -si
+curl -fLO https://github.com/enhaoswen/Tide-island/releases/latest/download/tide-island-source.tar.xz
+curl -fLO https://github.com/enhaoswen/Tide-island/releases/latest/download/SHA256SUMS
+sha256sum --check SHA256SUMS
+tar -xf tide-island-source.tar.xz
+cd Tide-island-*
+./install.sh
 ```
 
-### Ubuntu / Debian
+安装器会把 Tide Island 固定安装到 `/usr`，仅在安装软件包和文件时请求
+`sudo`，并启用 systemd 用户服务。目前可以自动安装以下发行版的依赖：
 
-克隆仓库后运行安装脚本：
+- Debian、Ubuntu 及其衍生版：`apt`
+- Fedora、RHEL 及其衍生版：`dnf`
+- openSUSE：`zypper`
+
+Arch 系发行版请使用 AUR。其他 Linux 发行版可以自行安装依赖，然后运行：
 
 ```bash
-git clone https://github.com/enhaoswen/Tide-island.git
-cd Tide-island
-./scripts/install-debian-ubuntu.sh
+./install.sh --skip-deps
+```
+
+如果 `/usr/bin/quickshell` 已存在，安装器会直接使用；否则会构建并校验本版本
+固定的 Quickshell 版本。要求 Qt 6.6 或更高版本。
+
+是否支持取决于发行版提供的 Qt 版本，而不只是发行版名称。例如 Ubuntu 24.04
+官方仓库提供的是 Qt 6.4，若要使用这个安装器构建固定版本的 Quickshell，需要先
+配置较新的 Qt 软件源或源码环境。安装器会明确报错退出，不会混装不兼容的 Qt。
+
+这个源码安装器面向 `/usr` 可写的常规 Linux 系统。NixOS、Fedora Silverblue
+等声明式或不可变系统应使用原生软件包，或在可写的开发容器中安装。
+
+常用安装选项：
+
+```bash
+./install.sh --no-service
+./install.sh --skip-quickshell
+./install.sh --force-build-quickshell
+./install.sh --uninstall
 ```
 
 <br>

@@ -476,12 +476,15 @@ PagePanel {
         const lines = []
         for (let i = 0; i < shortcuts.length; ++i) {
             const shortcut = shortcuts[i]
-            lines.push("hyprland.bind("
-                + luaQuote(shortcut.mods) + ", "
-                + luaQuote(shortcut.key) + ", "
-                + "\"exec\", "
+            const modifiers = String(shortcut.mods).split(" ").filter(function(value) {
+                return value.length > 0
+            })
+            const chord = modifiers.concat([displayToken(shortcut.key)]).join(" + ")
+            lines.push("hl.bind("
+                + luaQuote(chord) + ", "
+                + "hl.dsp.exec_cmd("
                 + luaQuote(shortcutCommand(shortcut))
-                + ")")
+                + "))")
         }
         return lines.join("\n")
     }

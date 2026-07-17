@@ -6,6 +6,11 @@ Rectangle {
     id: root
 
     property int revision: 0
+    readonly property var permissionOptions: [
+        { "label": "Disabled", "value": "skip" },
+        { "label": "Ask", "value": "ask" },
+        { "label": "Enable", "value": "password" }
+    ]
 
     color: "transparent"
     radius: 10
@@ -20,12 +25,11 @@ Rectangle {
     function permissionMode() {
         revision
         const mode = textValue("tlpPermissionMode", "skip").trim()
-        return mode.length > 0 ? mode : "skip"
-    }
-
-    function tlpEnabled() {
-        const mode = permissionMode()
-        return mode !== "skip"
+        if (mode === "ask")
+            return "ask"
+        if (mode === "password" || mode === "enable")
+            return "password"
+        return "skip"
     }
 
     function passwordValue() {
@@ -33,16 +37,17 @@ Rectangle {
         return textValue("tlpSudoPassword", "")
     }
 
-    function saveEnabled(enabled) {
-        ConfigStore.setValue("tlpPermissionMode", enabled ? "password" : "skip")
+    function savePermissionMode(mode) {
+        ConfigStore.setValue("tlpPermissionMode", mode)
+        if (mode !== "password")
+            ConfigStore.remove("tlpSudoPassword")
         ConfigStore.save()
         revision += 1
     }
 
     function savePassword(value) {
         ConfigStore.setValue("tlpSudoPassword", String(value))
-        if (tlpEnabled())
-            ConfigStore.setValue("tlpPermissionMode", "password")
+        ConfigStore.setValue("tlpPermissionMode", "password")
         ConfigStore.save()
         revision += 1
     }
@@ -58,38 +63,32 @@ Rectangle {
         anchors.rightMargin: 18
         spacing: 16
 
-        ToggleRow {
-            title: "Enable TLP"
-            description: "Show TLP power profile controls in Control Center"
+        PermissionModeRow {
             width: parent.width
         }
 
-        SplitLine { width: parent.width }
+        Rectangle {
+            width: parent.width
+            height: 2
+            visible: root.permissionMode() === "password"
+            color: Theme.splitLineColor
+        }
 
         PasswordRow {
-            title: "Sudo Password"
-            description: "Used when switching TLP power profiles"
+            visible: root.permissionMode() === "password"
             width: parent.width
         }
     }
 
-    component SplitLine: Rectangle {
-        height: 2
-        color: Theme.splitLineColor
-    }
-
-    component ToggleRow: Item {
+    component PermissionModeRow: Item {
         id: row
-
-        property string title: ""
-        property string description: ""
 
         height: 49
 
         Text {
             id: rowTitle
 
-            text: row.title
+            text: "TLP Permission"
             anchors.left: parent.left
             anchors.top: parent.top
             color: Theme.textColor
@@ -98,22 +97,31 @@ Rectangle {
         }
 
         Text {
-            text: row.description
+            text: root.permissionMode() === "skip"
+                ? "Hide TLP power profile controls"
+                : root.permissionMode() === "ask"
+                    ? "Ask through the system authentication dialog"
+                    : "Use the saved sudo password when changing profiles"
             anchors.left: rowTitle.left
             anchors.top: rowTitle.bottom
             anchors.topMargin: 5
+            width: Math.max(80, parent.width - permissionGroup.width - 28)
             color: Theme.subtleTextColor
+            elide: Text.ElideRight
             font.family: Theme.textFontFamily
             font.pixelSize: 14
         }
 
-        StyledSwitch {
+        ButtonGroup {
+            id: permissionGroup
+
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            checked: root.tlpEnabled()
+            options: root.permissionOptions
+            selectedValue: root.permissionMode()
 
-            onToggled: function(checked) {
-                root.saveEnabled(checked)
+            onSelected: function(value) {
+                root.savePermissionMode(value)
             }
         }
     }
@@ -121,15 +129,12 @@ Rectangle {
     component PasswordRow: Item {
         id: row
 
-        property string title: ""
-        property string description: ""
-
         height: 49
 
         Text {
             id: rowTitle
 
-            text: row.title
+            text: "Sudo Password"
             anchors.left: parent.left
             anchors.top: parent.top
             color: Theme.textColor
@@ -138,7 +143,7 @@ Rectangle {
         }
 
         Text {
-            text: row.description
+            text: "Used when switching TLP power profiles"
             anchors.left: rowTitle.left
             anchors.top: rowTitle.bottom
             anchors.topMargin: 5
@@ -155,9 +160,9 @@ Rectangle {
             width: Math.max(180, Math.min(300, parent.width / 3))
             height: 36
             radius: 8
-            color: root.tlpEnabled() ? Theme.inputBgColor : "#d6d0c8"
+            color: Theme.inputBgColor
             border.width: 2
-            border.color: passwordField.activeFocus ? Theme.focusBorderColor : (root.tlpEnabled() ? Theme.inputBorderColor : "#c7beb5")
+            border.color: passwordField.activeFocus ? Theme.focusBorderColor : Theme.inputBorderColor
 
             Behavior on color {
                 ColorAnimation { duration: Theme.animationDuration }
@@ -171,10 +176,9 @@ Rectangle {
                 id: passwordField
 
                 anchors.fill: parent
-                enabled: root.tlpEnabled()
                 background: null
                 echoMode: TextInput.Password
-                color: root.tlpEnabled() ? Theme.textColor : Theme.subtleTextColor
+                color: Theme.textColor
                 placeholderText: "Password"
                 placeholderTextColor: Theme.subtleTextColor
                 selectionColor: Theme.selectedColor
@@ -193,57 +197,62 @@ Rectangle {
         }
     }
 
-    component StyledSwitch: Item {
-        id: control
+    component ButtonGroup: Row {
+        id: group
 
-        signal toggled(bool checked)
+        signal selected(string value)
 
-        property bool checked: false
+        property var options: []
+        property string selectedValue: ""
 
-        width: 48
-        height: 26
+        width: implicitWidth
+        height: implicitHeight
+        spacing: 6
 
-        Rectangle {
-            id: track
+        Repeater {
+            model: group.options
 
-            anchors.verticalCenter: parent.verticalCenter
-            width: 48
-            height: 24
-            radius: 12
-            color: control.checked ? Theme.selectedColor : Qt.rgba(100 / 255, 116 / 255, 139 / 255, 0.377)
+            Rectangle {
+                id: option
 
-            Behavior on color {
-                ColorAnimation { duration: 300; easing.type: Easing.InOutQuad }
+                property bool selectedState: group.selectedValue === modelData.value
+
+                width: Math.max(74, optionText.implicitWidth + 24)
+                height: 36
+                radius: 8
+                color: selectedState ? Theme.selectedColor : (optionMouse.containsMouse ? Theme.accentSoftColor : Theme.inputBgColor)
+                border.width: 2
+                border.color: selectedState ? Theme.selectedColor : Theme.inputBorderColor
+
+                Behavior on color {
+                    ColorAnimation { duration: Theme.animationDuration }
+                }
+
+                Behavior on border.color {
+                    ColorAnimation { duration: Theme.animationDuration }
+                }
+
+                Text {
+                    id: optionText
+
+                    anchors.centerIn: parent
+                    text: modelData.label
+                    color: option.selectedState ? Theme.buttonTextColor : Theme.textColor
+                    font.family: Theme.textFontFamily
+                    font.pixelSize: 14
+                    font.weight: option.selectedState ? Font.DemiBold : Font.Normal
+                }
+
+                MouseArea {
+                    id: optionMouse
+
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+
+                    onClicked: group.selected(modelData.value)
+                }
             }
-        }
-
-        Rectangle {
-            id: knob
-
-            width: 26
-            height: 26
-            radius: 13
-            x: control.checked ? 22 : 0
-            y: 0
-            color: "white"
-            border.width: 1
-            border.color: control.checked ? Theme.selectedColor : Qt.rgba(100 / 255, 116 / 255, 139 / 255, 0.527)
-
-            Behavior on x {
-                NumberAnimation { duration: 300; easing.type: Easing.InOutQuad }
-            }
-
-            Behavior on border.color {
-                ColorAnimation { duration: 300; easing.type: Easing.InOutQuad }
-            }
-        }
-
-        MouseArea {
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-
-            onClicked: control.toggled(!control.checked)
         }
     }
 }
