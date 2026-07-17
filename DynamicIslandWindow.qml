@@ -122,6 +122,7 @@ PanelWindow {
         ? Math.ceil(userConfig.islandTopMargin + root.overviewCapsuleHeight + 8)
         : 0
     readonly property real requestedWindowHeight: Math.max(
+        root.notificationCenterWindowHeight,
         root.capsuleWindowHeight,
         root.connectivityDetailWindowHeight,
         root.overviewWindowHeight,
@@ -242,6 +243,10 @@ PanelWindow {
         : 120
     readonly property real controlCenterWindowHeight: islandContainer.controlCenterLayerVisible
         ? userConfig.islandTopMargin + 320 + root.controlCenterMaximumExtraHeight + 12
+        : 0
+
+    readonly property real notificationCenterWindowHeight: islandContainer.notificationCenterLayerVisible
+        ? userConfig.islandTopMargin + (notificationCenterLoader.item ? notificationCenterLoader.item.contentHeight : 400) + 6
         : 0
     readonly property real connectivityDetailGap: 16
     readonly property int connectivityDetailAnimationDuration: 360
@@ -547,6 +552,13 @@ PanelWindow {
             islandContainer.showControlCenter();
     }
 
+    function toggleNotificationCenterWindow() {
+        if (islandContainer.islandState === "notification_center")
+            islandContainer.smartRestoreState();
+        else
+            islandContainer.showNotificationCenter();
+    }
+
     function toggleWallpaperPickerWindow() {
         if (islandContainer.islandState === "wallpaper_picker")
             islandContainer.smartRestoreState();
@@ -713,6 +725,7 @@ PanelWindow {
         property string notificationBody: ""
         property bool notificationExpanded: false
         property var bluetoothExpandedDevice: null
+        property var notificationHistoryModel: ListModel {}
         readonly property var cavaLevels: systemState.cavaLevels
         property real swipeTransitionProgress: 0
         property string workspaceOriginSide: "none"
@@ -789,6 +802,7 @@ PanelWindow {
         readonly property bool bluetoothExpandedLayerVisible: !root.overviewVisible && islandState === "bluetooth_expanded"
         readonly property bool notificationLayerVisible: !root.overviewVisible && islandState === "notification"
         readonly property bool controlCenterLayerVisible: !root.overviewVisible && islandState === "control_center"
+        readonly property bool notificationCenterLayerVisible: !root.overviewVisible && islandState === "notification_center"
         readonly property bool wallpaperPickerLayerVisible: !root.overviewVisible && islandState === "wallpaper_picker"
         readonly property var activePlayer: mediaController.activePlayer
         readonly property string lyricsDisplayText: mediaController.displayText
@@ -927,6 +941,19 @@ PanelWindow {
                 return;
             case "closeExpandedPlayer":
                 if (islandState === "expanded")
+                    smartRestoreState();
+                return;
+            case "toggleNotificationCenter":
+                if (islandState === "notification_center")
+                    smartRestoreState();
+                else
+                    showNotificationCenter();
+                return;
+            case "openNotificationCenter":
+                showNotificationCenter();
+                return;
+            case "closeNotificationCenter":
+                if (islandState === "notification_center")
                     smartRestoreState();
                 return;
             case "toggleControlCenter":
@@ -1316,6 +1343,18 @@ PanelWindow {
             notificationExpanded = false;
             islandState = "notification";
             restartAutoHideTimer(notificationAutoHideInterval);
+            // Store in notification history
+                if (notificationHistoryModel) {
+                    notificationHistoryModel.insert(0, {
+                        appName: cleanedAppName !== "" ? cleanedAppName : "Notification",
+                        summary: resolvedSummary,
+                        body: cleanedSummary !== "" ? cleanedBody : "",
+                        timestamp: new Date()
+                    });
+                    if (notificationHistoryModel.count > 50)
+                        notificationHistoryModel.remove(50, notificationHistoryModel.count - 50);
+                }
+
         }
 
         function toggleNotificationExpansionIfNeeded() {
@@ -1415,6 +1454,16 @@ PanelWindow {
             mainCapsule.displayedWidth = mainCapsule.baseTargetWidth;
             stopAutoHideTimer();
         }
+
+        function showNotificationCenter() {
+            cancelSideSwipeSettle();
+            abortSideTransientMode();
+            clearTransientCapsule();
+            islandState = "notification_center";
+            mainCapsule.displayedWidth = mainCapsule.baseTargetWidth;
+            stopAutoHideTimer();
+        }
+
 
         function showWallpaperPicker() {
             cancelSideSwipeSettle();
@@ -1590,6 +1639,8 @@ PanelWindow {
                     return islandContainer.lyricsCapsuleWidth;
                 case "control_center":
                     return 420;
+                case "notification_center":
+                    return 400;
                 case "wallpaper_picker":
                     return 1100;
                 case "expanded":
@@ -1611,6 +1662,8 @@ PanelWindow {
                 switch (islandContainer.islandState) {
                 case "control_center":
                     return 320 + (controlCenterLoader.item ? controlCenterLoader.item.controlCenterExtraHeight : 32);
+                case "notification_center":
+                    return notificationCenterLoader.item ? notificationCenterLoader.item.contentHeight : 200;
                 case "wallpaper_picker":
                     return 260;
                 case "expanded":
@@ -1629,6 +1682,8 @@ PanelWindow {
 
                 switch (islandContainer.islandState) {
                 case "control_center":
+                    return 34;
+                case "notification_center":
                     return 34;
                 case "wallpaper_picker":
                     return 34;
@@ -2222,6 +2277,31 @@ PanelWindow {
                         }
                         onConnectivityPanelRequested: function(kind, open) {
                             root.setConnectivityDetailVisible(kind, open);
+                        }
+                    }
+                }
+            }
+
+            Loader {
+                id: notificationCenterLoader
+                anchors.fill: parent
+                active: islandContainer.notificationCenterLayerVisible
+                asynchronous: false
+                visible: active
+
+                sourceComponent: Component {
+                    NotificationCenterLayer {
+                        notificationModel: islandContainer.notificationHistoryModel
+                        iconFontFamily: root.iconFontFamily
+                        textFontFamily: root.textFontFamily
+                        heroFontFamily: root.heroFontFamily
+
+                        onRequestDismiss: {
+                            islandContainer.smartRestoreState();
+                        }
+
+                        onClearAllRequested: {
+                            islandContainer.notificationHistoryModel.clear();
                         }
                     }
                 }
