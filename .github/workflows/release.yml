@@ -111,7 +111,8 @@ jobs:
             "$GITHUB_SHA" \
             | xz -9e > tide-island-source.tar.xz
           sha256sum tide-island-source.tar.xz > SHA256SUMS
-          tar -tf tide-island-source.tar.xz | grep -Fq "Tide-island-${version}/install.sh"
+          tar -tf tide-island-source.tar.xz \
+            "Tide-island-${version}/install.sh" >/dev/null
           sha256sum --check SHA256SUMS
 
       - name: Publish GitHub Release
