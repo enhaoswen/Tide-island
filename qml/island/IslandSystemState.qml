@@ -1,5 +1,6 @@
 import QtQuick
 import IslandBackend
+import Quickshell.Io
 
 Item {
     id: root
@@ -19,6 +20,7 @@ Item {
     readonly property var configuredLeftSwipeIds: buildNormalizedSwipeItemIds(configuredLeftSwipeItems)
     readonly property bool usesSystemStatsModule: configuredLeftSwipeIds.indexOf("cpu") !== -1
         || configuredLeftSwipeIds.indexOf("ram") !== -1
+    readonly property bool usesStorageModule: configuredLeftSwipeIds.indexOf("storage") !== -1
     readonly property bool usesCavaModule: configuredLeftSwipeIds.indexOf("cava") !== -1
     readonly property bool hasCustomLeftItems: customLeftItems.length > 0
     readonly property string systemServicesClientId: "island-system-state-" + Math.random().toString(36).slice(2)
@@ -42,6 +44,8 @@ Item {
     property real currentCpuUsage: -1
     property real currentRamUsage: -1
     property var cavaLevels: [0, 0, 0, 0, 0, 0, 0, 0]
+    property real currentStorageUsage: -1
+    readonly property string storageStatusIcon: "\u{F1C0}"
     property var customLeftItems: []
 
     property string _lastChargeStatus: SysBackend.batteryStatus
@@ -59,6 +63,7 @@ Item {
         updateCavaSubscription();
     }
     onUsesSystemStatsModuleChanged: refreshMissingValues()
+    onUsesStorageModuleChanged: refreshMissingValues()
     onUsesCavaModuleChanged: updateCavaSubscription()
     onCustomSwipeActiveChanged: updateCavaSubscription()
     onBatteryCapacityChanged: syncCustomLeftItems()
@@ -68,6 +73,7 @@ Item {
     onCurrentBrightnessChanged: syncCustomLeftItems()
     onCurrentCpuUsageChanged: syncCustomLeftItems()
     onCurrentRamUsageChanged: syncCustomLeftItems()
+    onCurrentStorageUsageChanged: syncCustomLeftItems()
     onCurrentWorkspaceChanged: syncCustomLeftItems()
     onTimeTextChanged: syncCustomLeftItems()
     onDateTextChanged: syncCustomLeftItems()
@@ -151,6 +157,8 @@ Item {
             SystemServices.requestVolume();
         if (usesSystemStatsModule)
             SystemServices.requestSystemStats();
+        if (usesStorageModule)
+            storagePollTimer.restart();
     }
 
     function updateCavaSubscription() {
@@ -221,6 +229,12 @@ Item {
             };
         case "cava":
             return { id: itemId, kind: "cava" };
+        case "storage":
+            return {
+                id: itemId,
+                icon: storageStatusIcon,
+                text: currentStorageUsage >= 0 ? Math.round(currentStorageUsage) + "%" : "--%"
+            };
         default:
             return null;
         }
@@ -319,6 +333,34 @@ Item {
 
         onTriggered: SystemServices.requestSystemStats()
     }
+    Process {
+        id: storagePollProcess
+        command: ["df", "--output=pcent", "/"]
+        running: false
+
+        stdout: SplitParser {
+            onRead: function(line) {
+                const trimmed = line.trim();
+                if (trimmed === "" || trimmed.indexOf("Use%") >= 0)
+                    return;
+                const pct = parseInt(trimmed.replace("%", ""));
+                if (!isNaN(pct))
+                    root.currentStorageUsage = pct;
+            }
+        }
+    }
+
+    Timer {
+        id: storagePollTimer
+
+        interval: 10000
+        repeat: true
+        running: root.usesStorageModule
+        triggeredOnStart: true
+
+        onTriggered: storagePollProcess.running = true
+    }
+
 
     Connections {
         target: SystemServices

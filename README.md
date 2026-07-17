@@ -124,6 +124,7 @@ It's built with Quickshell, QML, and C++/Qt 6. Most of the effort went into maki
 - Memory usage
 - Brightness
 - Cava
+- Storage usage
 
 ### Compositor support
 
