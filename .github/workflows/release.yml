@@ -50,13 +50,18 @@ jobs:
       - name: Test installer branches
         run: tests/installer_tests.sh
 
-      - name: Build and test Tide Island
+      - name: Configure Tide Island
         run: |
           cmake -GNinja -S . -B build-release-ci \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_INSTALL_PREFIX=/usr \
             -DCMAKE_INSTALL_LIBDIR=lib
-          cmake --build build-release-ci --parallel
+
+      - name: Build Tide Island
+        run: cmake --build build-release-ci --parallel 2
+
+      - name: Test Tide Island
+        run: |
           ctest --test-dir build-release-ci --output-on-failure
 
       - name: Validate installation layout
