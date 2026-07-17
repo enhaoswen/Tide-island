@@ -154,20 +154,14 @@ cd Tide-island-*
 ./install.sh
 ```
 
-The installer writes Tide Island to `/usr`, requests `sudo` only for package
-and file installation, and enables the systemd user service. It automatically
-installs dependencies on:
+The installer writes Tide Island to `/usr` and can automatically install
+dependencies on:
 
 - Debian, Ubuntu, and derivatives using `apt`
 - Fedora, RHEL, and derivatives using `dnf`
 - openSUSE using `zypper`
 
-Every tagged release is built, tested, and installation-layout checked in
-Fedora 43, Debian 13, and openSUSE Tumbleweed containers before it is
-published.
-
-Arch-based systems should use the AUR package. Other Linux distributions can
-install the dependencies manually and run:
+For other distributions, install the dependencies manually and run:
 
 ```bash
 ./install.sh --skip-deps
@@ -189,12 +183,12 @@ should use a native package or a mutable development container instead.
 
 Useful installer options:
 
-```bash
-./install.sh --no-service
-./install.sh --skip-quickshell
-./install.sh --force-build-quickshell
-./install.sh --uninstall
-```
+| Option | Description |
+| --- | --- |
+| `./install.sh --no-service` | Install Tide Island without enabling or starting the systemd user service. |
+| `./install.sh --skip-quickshell` | Skip building Quickshell from source and use the existing `/usr/bin/quickshell`; installation stops with an error if that file does not exist. |
+| `./install.sh --force-build-quickshell` | Rebuild and install the project's pinned Quickshell version even when Quickshell is already installed. |
+| `./install.sh --uninstall` | Remove the Tide Island files installed by the source installer; installed dependencies and Quickshell are kept. |
 
 <br>
 

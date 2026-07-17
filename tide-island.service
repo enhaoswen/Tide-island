@@ -1,7 +1,6 @@
 [Unit]
 Description=Tide Island Dynamic Island for Hyprland and niri
 After=graphical-session.target
-BindsTo=graphical-session.target
 
 [Service]
 Type=simple

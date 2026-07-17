@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=Tide Island Settings
 Comment=Configure Tide Island
-Exec=tide-island-config-app
+Exec=/usr/bin/tide-island-config-app
 Icon=preferences-system
 Terminal=false
 Type=Application

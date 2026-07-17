@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=Tide Island
 Comment=Dynamic Island for Hyprland and niri
-Exec=tide-island
+Exec=/usr/bin/tide-island
 Icon=preferences-desktop-notification
 Terminal=false
 Type=Application
