@@ -37,6 +37,8 @@
   <a href="#configuration">Configuration</a>
   ·
   <a href="#common-commands">Common Commands</a>
+  ·
+  <a href="#notification-centre">Notification Centre</a>
 </p>
 
 ---
@@ -96,6 +98,7 @@ It's built with Quickshell, QML, and C++/Qt 6. Most of the effort went into maki
 - Wallpaper switcher
 - Workspace overview
 - Custom page
+- Notification Centre
 
 
 
@@ -121,6 +124,7 @@ It's built with Quickshell, QML, and C++/Qt 6. Most of the effort went into maki
 - Memory usage
 - Brightness
 - Cava
+- Storage usage
 
 ### Compositor support
 
@@ -246,7 +250,46 @@ systemctl --user stop tide-island
 journalctl --user -u tide-island -f
 ```
 
+#### IPC Commands
+
+Tide Island can be controlled remotely via `quickshell ipc call`:
+
+| Command | Action |
+| --- | --- |
+| `quickshell ipc call tide toggleNotificationCenter` | Open or close the Notification Centre |
+| `quickshell ipc call tide openNotificationCenter` | Open the Notification Centre |
+| `quickshell ipc call tide closeNotificationCenter` | Close the Notification Centre |
+
 <br>
+
+## Notification Centre
+
+The Notification Centre is a scrollable history panel that collects all incoming system notifications. It opens as a centred overlay above the island capsule, displaying each notification as a card with the app icon, summary, body, and timestamp.
+
+### Opening the Notification Centre
+
+- **IPC commands** — see [IPC Commands](#common-commands) above
+- **Keybind** — bind a key to call `quickshell ipc call tide toggleNotificationCenter` in your Hyprland config:
+  ```conf
+  bind = $mainMod, N, exec, quickshell ipc call tide toggleNotificationCenter
+  ```
+  Or in Lua:
+  ```lua
+  hl.keybind("$mainMod", "N", "quickshell ipc call tide toggleNotificationCenter")
+  ```
+
+### Behaviour
+
+- Notifications are automatically stored in the history when they arrive via the system notification daemon
+- The list is capped at 50 notifications — oldest entries are removed first
+- Each card shows the app name, summary text, body (if present), and relative timestamp
+- Use **Clear all** in the header to dismiss every notification at once
+- Tap the **✕** button or dismiss to close the panel
+- The panel height adjusts dynamically based on the notification list content
+
+### Dismissing notifications
+
+Individual notifications can be dismissed by tapping the × button on the card. Use **Clear all** to remove all notifications at once.
 
 ## Contributing
 

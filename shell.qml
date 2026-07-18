@@ -235,6 +235,10 @@ Scope {
             shellRoot.forFocusedWindow((window) => window.toggleControlCenterWindow());
         }
 
+        function toggleNotificationCenter() {
+            shellRoot.forFocusedWindow((window) => window.toggleNotificationCenterWindow());
+        }
+
         function toggleWallpaperPicker() {
             shellRoot.forFocusedWindow((window) => window.toggleWallpaperPickerWindow());
         }
