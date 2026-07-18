@@ -269,6 +269,6 @@ Thanks to:
 
 <p align="center">
   <sub>
-    Made for Hyprland and niri users who like quiet and practical desktops.
+    Made for Wayland users who like quiet and practical desktops.
   </sub>
 </p>
