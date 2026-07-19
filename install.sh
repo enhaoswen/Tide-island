@@ -87,39 +87,39 @@ EOF
 parse_args() {
   while (($#)); do
     case "$1" in
-      --skip-deps)
-        INSTALL_DEPENDENCIES=0
-        ;;
-      --skip-quickshell)
-        QUICKSHELL_MODE="skip"
-        QUICKSHELL_SKIP_REQUESTED=1
-        ;;
-      --force-build-quickshell)
-        QUICKSHELL_MODE="force"
-        QUICKSHELL_FORCE_REQUESTED=1
-        ;;
-      --no-service)
-        ENABLE_SERVICE=0
-        ;;
-      --uninstall)
-        UNINSTALL=1
-        ;;
-      --dry-run)
-        DRY_RUN=1
-        ;;
-      --force)
-        FORCE=1
-        ;;
-      -y|--yes)
-        ASSUME_YES=1
-        ;;
-      -h|--help)
-        usage
-        exit 0
-        ;;
-      *)
-        die "unknown option: $1"
-        ;;
+    --skip-deps)
+      INSTALL_DEPENDENCIES=0
+      ;;
+    --skip-quickshell)
+      QUICKSHELL_MODE="skip"
+      QUICKSHELL_SKIP_REQUESTED=1
+      ;;
+    --force-build-quickshell)
+      QUICKSHELL_MODE="force"
+      QUICKSHELL_FORCE_REQUESTED=1
+      ;;
+    --no-service)
+      ENABLE_SERVICE=0
+      ;;
+    --uninstall)
+      UNINSTALL=1
+      ;;
+    --dry-run)
+      DRY_RUN=1
+      ;;
+    --force)
+      FORCE=1
+      ;;
+    -y | --yes)
+      ASSUME_YES=1
+      ;;
+    -h | --help)
+      usage
+      exit 0
+      ;;
+    *)
+      die "unknown option: $1"
+      ;;
     esac
     shift
   done
@@ -151,31 +151,31 @@ load_os_release() {
   ID_LIKE=" ${ID_LIKE,,} "
 
   case "$ID" in
-    debian|ubuntu|linuxmint|pop|elementary|zorin)
+  debian | ubuntu | linuxmint | pop | elementary | zorin)
+    DISTRO_FAMILY="apt"
+    ;;
+  fedora | rhel | centos | rocky | almalinux | ultramarine | nobara)
+    DISTRO_FAMILY="dnf"
+    ;;
+  opensuse* | sles)
+    DISTRO_FAMILY="zypper"
+    ;;
+  arch | endeavouros | manjaro | cachyos | garuda)
+    DISTRO_FAMILY="arch"
+    ;;
+  *)
+    if [[ "$ID_LIKE" == *" debian "* || "$ID_LIKE" == *" ubuntu "* ]]; then
       DISTRO_FAMILY="apt"
-      ;;
-    fedora|rhel|centos|rocky|almalinux|ultramarine|nobara)
+    elif [[ "$ID_LIKE" == *" fedora "* || "$ID_LIKE" == *" rhel "* ]]; then
       DISTRO_FAMILY="dnf"
-      ;;
-    opensuse*|sles)
+    elif [[ "$ID_LIKE" == *" suse "* ]]; then
       DISTRO_FAMILY="zypper"
-      ;;
-    arch|endeavouros|manjaro|cachyos|garuda)
+    elif [[ "$ID_LIKE" == *" arch "* ]]; then
       DISTRO_FAMILY="arch"
-      ;;
-    *)
-      if [[ "$ID_LIKE" == *" debian "* || "$ID_LIKE" == *" ubuntu "* ]]; then
-        DISTRO_FAMILY="apt"
-      elif [[ "$ID_LIKE" == *" fedora "* || "$ID_LIKE" == *" rhel "* ]]; then
-        DISTRO_FAMILY="dnf"
-      elif [[ "$ID_LIKE" == *" suse "* ]]; then
-        DISTRO_FAMILY="zypper"
-      elif [[ "$ID_LIKE" == *" arch "* ]]; then
-        DISTRO_FAMILY="arch"
-      else
-        DISTRO_FAMILY="unknown"
-      fi
-      ;;
+    else
+      DISTRO_FAMILY="unknown"
+    fi
+    ;;
   esac
 }
 
@@ -208,8 +208,8 @@ package_install_conflict() {
   if command -v pacman >/dev/null 2>&1 && pacman -Q tide-island >/dev/null 2>&1; then
     die "the pacman/AUR tide-island package is installed; update it with your AUR helper instead (or use --force)"
   fi
-  if command -v dpkg-query >/dev/null 2>&1 \
-      && dpkg-query -W -f='${Status}' tide-island 2>/dev/null | grep -q 'install ok installed'; then
+  if command -v dpkg-query >/dev/null 2>&1 &&
+    dpkg-query -W -f='${Status}' tide-island 2>/dev/null | grep -q 'install ok installed'; then
     die "a dpkg-managed tide-island package is installed; remove it first (or use --force)"
   fi
   if command -v rpm >/dev/null 2>&1 && rpm -q tide-island >/dev/null 2>&1; then
@@ -247,10 +247,10 @@ apt_install_dependencies() {
       missing+=("$package")
     fi
   done
-  ((${#available[@]} > 0)) \
-    && sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y "${available[@]}"
-  ((${#missing[@]} == 0)) \
-    || warn "packages unavailable in enabled apt repositories: ${missing[*]}"
+  ((${#available[@]} > 0)) &&
+    sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y "${available[@]}"
+  ((${#missing[@]} == 0)) ||
+    warn "packages unavailable in enabled apt repositories: ${missing[*]}"
 }
 
 dnf_install_dependencies() {
@@ -282,8 +282,8 @@ dnf_install_dependencies() {
     fi
   done
   ((${#available[@]} > 0)) && sudo dnf install -y "${available[@]}"
-  ((${#missing[@]} == 0)) \
-    || warn "packages unavailable in enabled dnf repositories: ${missing[*]}"
+  ((${#missing[@]} == 0)) ||
+    warn "packages unavailable in enabled dnf repositories: ${missing[*]}"
 }
 
 zypper_install_dependencies() {
@@ -292,7 +292,7 @@ zypper_install_dependencies() {
     qt6-base-devel qt6-declarative-devel qt6-wayland-devel
     qt6-shadertools-devel qt6-svg-devel
     systemd-devel libdrm-devel wayland-devel wayland-protocols-devel
-    Mesa-libgbm-devel vulkan-headers libjemalloc-devel CLI11-devel spirv-tools-devel
+    Mesa-libgbm-devel vulkan-headers libjemalloc-devel cli11-devel spirv-tools-devel
     wireplumber pulseaudio-utils brightnessctl dbus-1 upower bluez
     polkit zenity NetworkManager
   )
@@ -307,18 +307,18 @@ zypper_install_dependencies() {
   local missing=()
   local package
   for package in "${packages[@]}"; do
-    if rpm -q "$package" >/dev/null 2>&1 \
-        || zypper --xmlout --non-interactive search --match-exact --type package "$package" 2>/dev/null \
-          | grep -Fq "name=\"$package\""; then
+    if rpm -q "$package" >/dev/null 2>&1 ||
+      zypper --xmlout --non-interactive search --match-exact --type package "$package" 2>/dev/null |
+      grep -Fq "name=\"$package\""; then
       available+=("$package")
     else
       missing+=("$package")
     fi
   done
-  ((${#available[@]} > 0)) \
-    && sudo zypper --non-interactive install --no-recommends "${available[@]}"
-  ((${#missing[@]} == 0)) \
-    || warn "packages unavailable in enabled zypper repositories: ${missing[*]}"
+  ((${#available[@]} > 0)) &&
+    sudo zypper --non-interactive install --no-recommends "${available[@]}"
+  ((${#missing[@]} == 0)) ||
+    warn "packages unavailable in enabled zypper repositories: ${missing[*]}"
 }
 
 install_dependencies() {
@@ -328,21 +328,21 @@ install_dependencies() {
   }
 
   case "$DISTRO_FAMILY" in
-    apt)
-      apt_install_dependencies
-      ;;
-    dnf)
-      dnf_install_dependencies
-      ;;
-    zypper)
-      zypper_install_dependencies
-      ;;
-    arch)
-      die "Arch-based systems should install Tide Island with the AUR package; use --skip-deps --force only for development"
-      ;;
-    *)
-      die "unsupported distribution '$ID'; install dependencies manually and rerun with --skip-deps"
-      ;;
+  apt)
+    apt_install_dependencies
+    ;;
+  dnf)
+    dnf_install_dependencies
+    ;;
+  zypper)
+    zypper_install_dependencies
+    ;;
+  arch)
+    die "Arch-based systems should install Tide Island with the AUR package; use --skip-deps --force only for development"
+    ;;
+  *)
+    die "unsupported distribution '$ID'; install dependencies manually and rerun with --skip-deps"
+    ;;
   esac
 }
 
@@ -381,8 +381,8 @@ verify_build_tools() {
   local version
   version="$(qt_version)"
   [[ -n "$version" ]] || die "Qt 6 development files were not detected"
-  version_at_least "$version" "6.6.0" \
-    || die "Qt $version is too old; Tide Island's pinned Quickshell requires Qt 6.6 or newer"
+  version_at_least "$version" "6.6.0" ||
+    die "Qt $version is too old; Tide Island's pinned Quickshell requires Qt 6.6 or newer"
   log "Detected Qt $version"
 }
 
@@ -415,15 +415,15 @@ prepare_quickshell_source() {
   if ((!DRY_RUN)); then
     local actual_commit
     actual_commit="$(git -C "$source_dir" rev-parse HEAD)"
-    [[ "$actual_commit" == "$QUICKSHELL_COMMIT" ]] \
-      || die "Quickshell checkout verification failed"
+    [[ "$actual_commit" == "$QUICKSHELL_COMMIT" ]] ||
+      die "Quickshell checkout verification failed"
   fi
 }
 
 build_quickshell() {
   if [[ "$QUICKSHELL_MODE" == "skip" ]]; then
-    [[ -x /usr/bin/quickshell || $DRY_RUN -eq 1 ]] \
-      || die "--skip-quickshell requires /usr/bin/quickshell"
+    [[ -x /usr/bin/quickshell || $DRY_RUN -eq 1 ]] ||
+      die "--skip-quickshell requires /usr/bin/quickshell"
     log "Using the existing /usr/bin/quickshell"
     return
   fi
@@ -471,7 +471,7 @@ build_quickshell() {
     local build_info
     build_info="$(mktemp)"
     printf 'version=%s\ncommit=%s\nqt=%s\n' \
-      "$QUICKSHELL_VERSION" "$QUICKSHELL_COMMIT" "$(qt_version)" > "$build_info"
+      "$QUICKSHELL_VERSION" "$QUICKSHELL_COMMIT" "$(qt_version)" >"$build_info"
     sudo install -d -m 0755 "$STATE_DIR"
     sudo install -m 0644 "$build_info" "$QUICKSHELL_BUILD_INFO"
     rm -f "$build_info"
@@ -479,8 +479,8 @@ build_quickshell() {
     print_command sudo install -m 0644 quickshell-source-build.txt "$QUICKSHELL_BUILD_INFO"
   fi
 
-  [[ -x /usr/bin/quickshell || $DRY_RUN -eq 1 ]] \
-    || die "Quickshell installation did not create /usr/bin/quickshell"
+  [[ -x /usr/bin/quickshell || $DRY_RUN -eq 1 ]] ||
+    die "Quickshell installation did not create /usr/bin/quickshell"
 }
 
 remove_manifest_files() {
@@ -488,9 +488,9 @@ remove_manifest_files() {
 
   log "Removing files from the previous source installation"
   local paths=()
-  mapfile -t paths < "$INSTALL_MANIFEST"
+  mapfile -t paths <"$INSTALL_MANIFEST"
   local index path
-  for ((index=${#paths[@]} - 1; index >= 0; --index)); do
+  for ((index = ${#paths[@]} - 1; index >= 0; --index)); do
     path="${paths[index]}"
     [[ "$path" == /usr/* ]] || die "unsafe path in $INSTALL_MANIFEST: $path"
     run sudo rm -f -- "$path"
@@ -508,7 +508,7 @@ remove_obsolete_manifest_files() {
     [[ -n "$path" ]] || continue
     [[ "$path" == /usr/* ]] || die "unsafe path in previous install manifest: $path"
     grep -Fqx -- "$path" "$next_manifest" || run sudo rm -f -- "$path"
-  done < "$previous_manifest"
+  done <"$previous_manifest"
 }
 
 build_tide_island() {
@@ -534,7 +534,7 @@ build_tide_island() {
   if [[ -r "$INSTALL_MANIFEST" ]]; then
     cp "$INSTALL_MANIFEST" "$previous_manifest"
   else
-    : > "$previous_manifest"
+    : >"$previous_manifest"
   fi
 
   log "Installing Tide Island to /usr"
@@ -574,8 +574,8 @@ configure_service() {
 uninstall_tide_island() {
   require_regular_user
   sudo_init
-  [[ -f "$INSTALL_MANIFEST" || $DRY_RUN -eq 1 ]] \
-    || die "no source installation manifest was found at $INSTALL_MANIFEST"
+  [[ -f "$INSTALL_MANIFEST" || $DRY_RUN -eq 1 ]] ||
+    die "no source installation manifest was found at $INSTALL_MANIFEST"
 
   if command -v systemctl >/dev/null 2>&1; then
     run systemctl --user disable --now tide-island.service || true
