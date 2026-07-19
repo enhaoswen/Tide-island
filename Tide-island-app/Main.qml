@@ -24,6 +24,8 @@ ApplicationWindow {
             return shortcutPage
         case 5:
             return interactionPage
+        case 6:
+            return applicationLauncherPage
         default:
             return null
         }
@@ -108,7 +110,7 @@ ApplicationWindow {
         Text{
             id: islandButton
             anchors.horizontalCenter: parent.horizontalCenter
-            y: 240
+            y: 210
             color: currentPage === 1 ? Theme.selectedColor : Theme.textColor
             text: islandButtonText.width > mainSplitLine.x ? "G" : "General"
             font.family: Theme.titleFontFamily
@@ -134,7 +136,7 @@ ApplicationWindow {
         Text{
             id: wallpaperButton
             anchors.horizontalCenter: parent.horizontalCenter
-            y: 300
+            y: 265
             color: currentPage === 2 ? Theme.selectedColor : Theme.textColor
             text: wallpaperButtonText.width > mainSplitLine.x ? "W" : "Wallpaper"
             font.family: Theme.titleFontFamily
@@ -160,7 +162,7 @@ ApplicationWindow {
         Text{
             id: fontButton
             anchors.horizontalCenter: parent.horizontalCenter
-            y: 360
+            y: 320
             color: currentPage === 3 ? Theme.selectedColor : Theme.textColor
             text: fontButtonText.width > mainSplitLine.x ? "F" : "Font"
             font.family: Theme.titleFontFamily
@@ -186,7 +188,7 @@ ApplicationWindow {
         Text{
             id: shortcutButton
             anchors.horizontalCenter: parent.horizontalCenter
-            y: 420
+            y: 375
             color: currentPage === 4 ? Theme.selectedColor : Theme.textColor
             text: shortcutButtonText.width > mainSplitLine.x ? "S" : "Shortcut"
             font.family: Theme.titleFontFamily
@@ -212,7 +214,7 @@ ApplicationWindow {
         Text{
             id: interactionButton
             anchors.horizontalCenter: parent.horizontalCenter
-            y: 480
+            y: 430
             color: currentPage === 5 ? Theme.selectedColor : Theme.textColor
             text: interactionButtonText.width > mainSplitLine.x ? "I" : "Interaction"
             font.family: Theme.titleFontFamily
@@ -232,6 +234,29 @@ ApplicationWindow {
                 onClicked: {
                     selectPage(5)
                 }
+            }
+        }
+
+        Text{
+            id: applicationLauncherButton
+            anchors.horizontalCenter: parent.horizontalCenter
+            y: 485
+            color: currentPage === 6 ? Theme.selectedColor : Theme.textColor
+            text: applicationLauncherButtonText.width > mainSplitLine.x ? "A" : "Launcher"
+            font.family: Theme.titleFontFamily
+            font.pixelSize: 23
+
+            TextMetrics {
+                id: applicationLauncherButtonText
+                font: applicationLauncherButton.font
+                text: "Launcher"
+            }
+
+            Behavior on color {ColorAnimation{ duration:Theme.animationDuration}}
+
+            MouseArea{
+                anchors.fill:parent
+                onClicked: selectPage(6)
             }
         }
 
@@ -276,6 +301,13 @@ ApplicationWindow {
 
         Interaction {
             id: interactionPage
+            anchors.fill: parent
+            visible: false
+            opacity: 0
+        }
+
+        ApplicationLauncherSettings {
+            id: applicationLauncherPage
             anchors.fill: parent
             visible: false
             opacity: 0

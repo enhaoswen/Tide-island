@@ -242,6 +242,10 @@ Scope {
         function toggleWallpaperPicker() {
             shellRoot.forFocusedWindow((window) => window.toggleWallpaperPickerWindow());
         }
+
+        function toggleApplicationLauncher() {
+            shellRoot.forFocusedWindow((window) => window.toggleApplicationLauncherWindow());
+        }
     }
 
     Connections {

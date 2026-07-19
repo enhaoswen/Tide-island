@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(TideIsland VERSION 1.0.25 LANGUAGES CXX)
+project(TideIsland VERSION 1.0.26 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -195,7 +195,10 @@ install(FILES
 )
 install(DIRECTORY qml
     DESTINATION ${CMAKE_INSTALL_DATADIR}/tide-island
-    FILES_MATCHING PATTERN "*.qml"
+    FILES_MATCHING
+        PATTERN "*.qml"
+        PATTERN "*.svg"
+        PATTERN "*.json"
 )
 
 # Install IslandBackend backing library to /usr/lib

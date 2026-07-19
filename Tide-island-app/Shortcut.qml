@@ -76,6 +76,13 @@ PagePanel {
                 "method": "toggleWallpaperPicker"
             },
             {
+                "action": "Application launcher",
+                "mods": "SUPER",
+                "key": "slash",
+                "target": "tide",
+                "method": "toggleApplicationLauncher"
+            },
+            {
                 "action": "Toggle island",
                 "mods": "SUPER",
                 "key": "F",
@@ -123,6 +130,10 @@ PagePanel {
         applyShortcutBindings()
         if (finishCapture)
             endCapture()
+    }
+
+    function disableShortcut(index) {
+        setShortcut(index, "", "", true)
     }
 
     function shortcutIdentity(shortcut) {
@@ -437,7 +448,9 @@ PagePanel {
             return "Press keys"
 
         const shortcut = shortcuts[index]
-        return displayChord(shortcut.mods, shortcut.key)
+        return String(shortcut.key).length === 0
+            ? "Disable"
+            : displayChord(shortcut.mods, shortcut.key)
     }
 
     function handleShortcutKey(event) {
@@ -446,6 +459,13 @@ PagePanel {
 
         if (event.key === Qt.Key_Escape) {
             endCapture()
+            event.accepted = true
+            return
+        }
+
+        if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
+                && captureTokens.length === 0) {
+            disableShortcut(captureIndex)
             event.accepted = true
             return
         }
@@ -473,6 +493,8 @@ PagePanel {
         const lines = []
         for (let i = 0; i < shortcuts.length; ++i) {
             const shortcut = shortcuts[i]
+            if (String(shortcut.key).length === 0)
+                continue
             lines.push("bind = " + shortcut.mods + ", " + shortcut.key + ", exec, " + shortcutCommand(shortcut))
         }
         return lines.join("\n")
@@ -483,6 +505,8 @@ PagePanel {
         const lines = []
         for (let i = 0; i < shortcuts.length; ++i) {
             const shortcut = shortcuts[i]
+            if (String(shortcut.key).length === 0)
+                continue
             const modifiers = String(shortcut.mods).split(" ").filter(function(value) {
                 return value.length > 0
             })
@@ -577,6 +601,15 @@ PagePanel {
                 Text {
                     width: parent.width
                     text: "Island shortcuts call Quickshell IPC and can be reused in shell scripts; the default island action is toggle."
+                    color: Theme.subtleTextColor
+                    wrapMode: Text.WordWrap
+                    font.family: Theme.textFontFamily
+                    font.pixelSize: 14
+                }
+
+                Text {
+                    width: parent.width
+                    text: "To disable an action, click its shortcut field and press Enter without entering any keys."
                     color: Theme.subtleTextColor
                     wrapMode: Text.WordWrap
                     font.family: Theme.textFontFamily

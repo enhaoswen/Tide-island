@@ -1,6 +1,6 @@
 # Maintainer: whysooraj <whysooraj.official@gmail.com>
 pkgname=tide-island
-pkgver=1.0.25
+pkgver=1.0.26
 pkgrel=1
 _srcdir=Tide-island-$pkgver
 _builddir=build-$pkgver

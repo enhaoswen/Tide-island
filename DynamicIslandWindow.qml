@@ -149,10 +149,12 @@ PanelWindow {
 
     exclusiveZone: Math.ceil(root.baseExclusiveZone * root.exclusiveZoneProgress)
     WlrLayershell.layer: islandContainer.wallpaperPickerLayerVisible
+        || islandContainer.applicationLauncherLayerVisible
         ? WlrLayer.Overlay
         : WlrLayer.Top
     WlrLayershell.keyboardFocus: {
-        if (islandContainer.wallpaperPickerLayerVisible)
+        if (islandContainer.wallpaperPickerLayerVisible
+                || islandContainer.applicationLauncherLayerVisible)
             return WlrKeyboardFocus.Exclusive;
         if (islandContainer.expandedPlayerKeyboardFocusRequested)
             return WlrKeyboardFocus.OnDemand;
@@ -566,6 +568,13 @@ PanelWindow {
             islandContainer.showWallpaperPicker();
     }
 
+    function toggleApplicationLauncherWindow() {
+        if (islandContainer.islandState === "application_launcher")
+            islandContainer.smartRestoreState();
+        else
+            islandContainer.showApplicationLauncher();
+    }
+
     onOverviewVisibleChanged: {
         if (overviewVisible && monitorFocused) overviewFocusTimer.restart();
         if (overviewVisible)
@@ -644,6 +653,12 @@ PanelWindow {
             wallpaperPickerLoader.item.grabKeyboardFocus();
     }
 
+    function focusApplicationLauncher() {
+        islandContainer.forceActiveFocus();
+        if (applicationLauncherLoader.item && applicationLauncherLoader.item.grabKeyboardFocus)
+            applicationLauncherLoader.item.grabKeyboardFocus();
+    }
+
     Timer {
         id: overviewRevealTimer
         interval: 0
@@ -704,6 +719,7 @@ PanelWindow {
         id: islandContainer
         anchors.fill: parent
         focus: wallpaperPickerLayerVisible
+            || applicationLauncherLayerVisible
             || expandedPlayerKeyboardFocusRequested
             || (root.monitorFocused && (root.overviewVisible || root.connectivityPromptActive))
 
@@ -762,6 +778,7 @@ PanelWindow {
             || islandState === "control_center"
             || islandState === "notification"
             || islandState === "wallpaper_picker"
+            || islandState === "application_launcher"
         readonly property bool splitShowsProgress: islandState === "split" && osdProgress >= 0
         readonly property bool splitShowsText: islandState === "split" && osdProgress < 0 && osdCustomText !== ""
         readonly property bool splitShowsIconOnly: islandState === "split" && osdProgress < 0 && osdCustomText === ""
@@ -804,6 +821,7 @@ PanelWindow {
         readonly property bool controlCenterLayerVisible: !root.overviewVisible && islandState === "control_center"
         readonly property bool notificationCenterLayerVisible: !root.overviewVisible && islandState === "notification_center"
         readonly property bool wallpaperPickerLayerVisible: !root.overviewVisible && islandState === "wallpaper_picker"
+        readonly property bool applicationLauncherLayerVisible: !root.overviewVisible && islandState === "application_launcher"
         readonly property var activePlayer: mediaController.activePlayer
         readonly property string lyricsDisplayText: mediaController.displayText
         readonly property string currentTrack: mediaController.currentTrack
@@ -1474,6 +1492,15 @@ PanelWindow {
             stopAutoHideTimer();
         }
 
+        function showApplicationLauncher() {
+            cancelSideSwipeSettle();
+            abortSideTransientMode();
+            clearTransientCapsule();
+            islandState = "application_launcher";
+            mainCapsule.displayedWidth = mainCapsule.baseTargetWidth;
+            stopAutoHideTimer();
+        }
+
         function showCustomCapsule() {
             if (!hasCustomLeftItems) {
                 showTimeCapsule();
@@ -1645,6 +1672,7 @@ PanelWindow {
                 case "notification_center":
                     return 410;
                 case "wallpaper_picker":
+                case "application_launcher":
                     return 1100;
                 case "expanded":
                 case "bluetooth_expanded":
@@ -1668,6 +1696,7 @@ PanelWindow {
                 case "notification_center":
                     return notificationCenterLoader.item ? notificationCenterLoader.item.contentHeight : 200;
                 case "wallpaper_picker":
+                case "application_launcher":
                     return 260;
                 case "expanded":
                 case "bluetooth_expanded":
@@ -1689,6 +1718,7 @@ PanelWindow {
                 case "notification_center":
                     return mainCapsule.targetHeight * 40 / 165;
                 case "wallpaper_picker":
+                case "application_launcher":
                     return 34;
                 case "expanded":
                 case "bluetooth_expanded":
@@ -2324,6 +2354,24 @@ PanelWindow {
                         showCondition: islandContainer.wallpaperPickerLayerVisible
                         onWallpaperApplied: filePath => root.wallpaperPickerActiveWallpaper = filePath
                         onWallpaperApplySucceeded: filePath => root.handleWallpaperApplySucceeded(filePath)
+                        onCloseRequested: islandContainer.smartRestoreState()
+                    }
+                }
+            }
+
+            Loader {
+                id: applicationLauncherLoader
+                anchors.fill: parent
+                active: islandContainer.applicationLauncherLayerVisible
+                asynchronous: false
+                visible: islandContainer.applicationLauncherLayerVisible
+                onLoaded: root.focusApplicationLauncher()
+
+                sourceComponent: Component {
+                    ApplicationLauncherLayer {
+                        iconFontFamily: root.iconFontFamily
+                        textFontFamily: root.textFontFamily
+                        showCondition: islandContainer.applicationLauncherLayerVisible
                         onCloseRequested: islandContainer.smartRestoreState()
                     }
                 }

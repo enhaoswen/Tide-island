@@ -9,7 +9,9 @@
 #include <QJsonObject>
 #include <QJsonParseError>
 #include <QProcess>
+#include <QRegularExpression>
 #include <QSaveFile>
+#include <QSettings>
 #include <QTemporaryFile>
 #include <QVariant>
 #include <QVariantList>
@@ -54,6 +56,7 @@ QVariantList defaultShortcutBindings()
         shortcutMap(QStringLiteral("SUPER"), QStringLiteral("C"), QStringLiteral("tide"), QStringLiteral("toggleControlCenter")),
         shortcutMap(QStringLiteral("SUPER"), QStringLiteral("N"), QStringLiteral("tide"), QStringLiteral("toggleNotificationCenter")),
         shortcutMap(QStringLiteral("SUPER"), QStringLiteral("W"), QStringLiteral("tide"), QStringLiteral("toggleWallpaperPicker")),
+        shortcutMap(QStringLiteral("SUPER"), QStringLiteral("slash"), QStringLiteral("tide"), QStringLiteral("toggleApplicationLauncher")),
         shortcutMap(QStringLiteral("SUPER"), QStringLiteral("F"), QStringLiteral("island"), QStringLiteral("toggle")),
     };
 }
@@ -65,6 +68,73 @@ QString configHome()
         return QString::fromLocal8Bit(xdgConfigHome);
 
     return QDir::homePath() + QStringLiteral("/.config");
+}
+
+QString dataHome()
+{
+    const QByteArray xdgDataHome = qgetenv("XDG_DATA_HOME");
+    if (!xdgDataHome.isEmpty())
+        return QString::fromLocal8Bit(xdgDataHome);
+
+    return QDir::homePath() + QStringLiteral("/.local/share");
+}
+
+QStringList dataDirectories()
+{
+    QStringList directories{dataHome()};
+    const QString configured = QString::fromLocal8Bit(qgetenv("XDG_DATA_DIRS"));
+    const QStringList systemDirectories = (configured.isEmpty()
+        ? QStringLiteral("/usr/local/share:/usr/share")
+        : configured).split(u':', Qt::SkipEmptyParts);
+
+    for (const QString &directory : systemDirectories) {
+        if (!directories.contains(directory))
+            directories.append(directory);
+    }
+    return directories;
+}
+
+QString desktopFileForId(QString desktopId)
+{
+    desktopId = desktopId.trimmed();
+    if (desktopId.isEmpty())
+        return QString();
+    if (!desktopId.endsWith(QStringLiteral(".desktop")))
+        desktopId.append(QStringLiteral(".desktop"));
+
+    for (const QString &directory : dataDirectories()) {
+        const QString candidate = QDir(directory).filePath(QStringLiteral("applications/") + desktopId);
+        if (QFileInfo(candidate).isFile())
+            return candidate;
+    }
+    return QString();
+}
+
+QString desktopEntryName(const QString &desktopId)
+{
+    const QString desktopFile = desktopFileForId(desktopId);
+    if (desktopFile.isEmpty())
+        return desktopId;
+
+    QSettings settings(desktopFile, QSettings::IniFormat);
+    settings.beginGroup(QStringLiteral("Desktop Entry"));
+    const QString name = settings.value(QStringLiteral("Name")).toString().trimmed();
+    return name.isEmpty() ? desktopId : name;
+}
+
+QVariantList applicationLauncherFavoriteIds(const QString &path)
+{
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+        return {};
+
+    QJsonParseError parseError;
+    const QJsonDocument document = QJsonDocument::fromJson(file.readAll(), &parseError);
+    if (parseError.error != QJsonParseError::NoError || !document.isObject())
+        return {};
+
+    const QVariant value = document.object().value(QStringLiteral("favoriteIds")).toVariant();
+    return value.toList();
 }
 
 QString expandedPath(const QString &path)
@@ -143,7 +213,7 @@ QVariantList normalizedShortcutBindings(const QVariantList &shortcutBindings)
     QVariantList normalized;
     for (const QVariant &value : shortcutBindings) {
         const ShortcutBinding binding = migratedShortcutBinding(bindingFromVariant(value));
-        if (binding.key.isEmpty() || binding.target.isEmpty() || binding.method.isEmpty())
+        if (binding.target.isEmpty() || binding.method.isEmpty())
             continue;
         if (isIslandBinding(binding) && binding.method.compare(QStringLiteral("toggle"), Qt::CaseInsensitive) != 0)
             continue;
@@ -203,6 +273,30 @@ QString hyprlandConfBindLine(const ShortcutBinding &binding)
 {
     return QStringLiteral("bind = %1, %2, exec, %3")
         .arg(binding.mods, binding.key, shortcutCommand(binding));
+}
+
+QString kdlQuote(QString value);
+
+QString hyprlandLuaShortcutBlock(const QVariantList &shortcutBindings)
+{
+    QStringList lines;
+    lines.append(QStringLiteral("-- Tide Island shortcuts: begin (managed by Tide Island Config App)."));
+    lines.append(QStringLiteral("-- Empty shortcuts are disabled and intentionally omitted."));
+    for (const QVariant &value : shortcutBindings) {
+        ShortcutBinding binding = bindingFromVariant(value);
+        if (binding.key.isEmpty())
+            continue;
+
+        binding.mods.replace(u'+', u' ');
+        const QStringList modifiers = binding.mods.split(u' ', Qt::SkipEmptyParts);
+        QStringList chordParts = modifiers;
+        chordParts.append(binding.key);
+
+        lines.append(QStringLiteral("hl.bind(%1, hl.dsp.exec_cmd(%2))")
+            .arg(kdlQuote(chordParts.join(QStringLiteral(" + "))), kdlQuote(shortcutCommand(binding))));
+    }
+    lines.append(QStringLiteral("-- Tide Island shortcuts: end."));
+    return lines.join(u'\n');
 }
 
 QString kdlQuote(QString value)
@@ -304,7 +398,7 @@ QString niriConfigForBindings(const QVariantList &shortcutBindings)
 
     for (const QVariant &value : shortcutBindings) {
         const ShortcutBinding binding = bindingFromVariant(value);
-        if (niriBindChord(binding).isEmpty())
+        if (binding.key.isEmpty() || niriBindChord(binding).isEmpty())
             continue;
         lines.append(niriSpawnLine(binding));
     }
@@ -611,6 +705,9 @@ bool Backend::applyShortcutBindings(const QVariantList &shortcutBindings){
     if (!ensureManagedShortcutSource())
         return false;
 
+    if (hyprlandUsesLuaConfig() && !writeManagedShortcutLuaConfig(compositorBindings))
+        return false;
+
     if (!reloadHyprland()) {
         setErrorString(QStringLiteral("Saved shortcuts, but Hyprland did not reload. Run hyprctl reload or restart Hyprland."));
         return false;
@@ -620,12 +717,95 @@ bool Backend::applyShortcutBindings(const QVariantList &shortcutBindings){
     return true;
 }
 
+QString Backend::applicationLauncherFavoritesPath() const{
+    return configHome() + QStringLiteral("/tide-island/application-launcher.json");
+}
+
+QVariantList Backend::applicationLauncherFavoriteEntries() const{
+    QVariantList entries;
+    QStringList seenIds;
+    for (const QVariant &value : applicationLauncherFavoriteIds(applicationLauncherFavoritesPath())) {
+        const QString id = value.toString().trimmed();
+        if (id.isEmpty() || seenIds.contains(id))
+            continue;
+
+        seenIds.append(id);
+        entries.append(QVariantMap{
+            {QStringLiteral("id"), id},
+            {QStringLiteral("name"), desktopEntryName(id)},
+        });
+    }
+    return entries;
+}
+
+bool Backend::saveApplicationLauncherFavorites(const QVariantList &favoriteIds){
+    QVariantList normalizedIds;
+    QStringList seenIds;
+    for (const QVariant &value : favoriteIds) {
+        const QString id = value.toString().trimmed();
+        if (id.isEmpty() || seenIds.contains(id))
+            continue;
+        seenIds.append(id);
+        normalizedIds.append(id);
+    }
+
+    const QFileInfo configInfo(applicationLauncherFavoritesPath());
+    if (!QDir().mkpath(configInfo.absolutePath())) {
+        setErrorString(QStringLiteral("Could not create %1").arg(configInfo.absolutePath()));
+        return false;
+    }
+
+    const QJsonDocument document = QJsonDocument::fromVariant(QVariantMap{
+        {QStringLiteral("favoriteIds"), normalizedIds},
+    });
+    QSaveFile file(configInfo.absoluteFilePath());
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        setErrorString(QStringLiteral("Could not write %1: %2")
+            .arg(configInfo.absoluteFilePath(), file.errorString()));
+        return false;
+    }
+
+    file.write(document.toJson(QJsonDocument::Indented));
+    if (!file.commit()) {
+        setErrorString(QStringLiteral("Could not save %1: %2")
+            .arg(configInfo.absoluteFilePath(), file.errorString()));
+        return false;
+    }
+
+    setErrorString(QString());
+    return true;
+}
+
+bool Backend::toggleApplicationLauncher(){
+    const bool started = QProcess::startDetached(
+        QString::fromLatin1(quickshellPath),
+        {
+            QStringLiteral("ipc"),
+            QStringLiteral("--any-display"),
+            QStringLiteral("-p"),
+            QString::fromLatin1(tideQmlPath),
+            QStringLiteral("call"),
+            QStringLiteral("tide"),
+            QStringLiteral("toggleApplicationLauncher"),
+        });
+    setErrorString(started ? QString() : QStringLiteral("Could not start the application launcher command."));
+    return started;
+}
+
 QString Backend::hyprlandConfigPath() const{
     const QString override = QString::fromLocal8Bit(qgetenv("TIDE_ISLAND_HYPRLAND_CONFIG"));
     if (!override.isEmpty())
         return expandedPath(override);
 
     return configHome() + QStringLiteral("/hypr/hyprland.conf");
+}
+
+QString Backend::hyprlandLuaConfigPath() const{
+    const QString override = QString::fromLocal8Bit(qgetenv("TIDE_ISLAND_HYPRLAND_LUA_CONFIG"));
+    if (!override.isEmpty())
+        return expandedPath(override);
+
+    return configHome() + QStringLiteral("/hypr/hyprland.lua");
 }
 
 QString Backend::niriConfigPath() const{
@@ -661,6 +841,8 @@ bool Backend::writeManagedShortcutConfig(const QVariantList &shortcutBindings){
     lines.append(QStringLiteral("# Island command: island toggle."));
     for (const QVariant &value : shortcutBindings) {
         const ShortcutBinding binding = bindingFromVariant(value);
+        if (binding.key.isEmpty())
+            continue;
         lines.append(hyprlandConfBindLine(binding));
     }
     lines.append(QString());
@@ -674,6 +856,73 @@ bool Backend::writeManagedShortcutConfig(const QVariantList &shortcutBindings){
     file.write(lines.join(u'\n').toUtf8());
     if (!file.commit()) {
         setErrorString(QStringLiteral("Could not save %1: %2").arg(configInfo.absoluteFilePath(), file.errorString()));
+        return false;
+    }
+
+    return true;
+}
+
+bool Backend::hyprlandUsesLuaConfig() const{
+    if (!QFileInfo::exists(hyprlandLuaConfigPath()))
+        return false;
+
+    QProcess process;
+    process.setProgram(QStringLiteral("hyprctl"));
+    process.setArguments({QStringLiteral("binds")});
+    process.start();
+    if (!process.waitForFinished(3000)
+        || process.exitStatus() != QProcess::NormalExit
+        || process.exitCode() != 0) {
+        return false;
+    }
+
+    return process.readAllStandardOutput().contains("dispatcher: __lua");
+}
+
+bool Backend::writeManagedShortcutLuaConfig(const QVariantList &shortcutBindings){
+    const QFileInfo configInfo(hyprlandLuaConfigPath());
+    QFile input(configInfo.absoluteFilePath());
+    if (!input.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        setErrorString(QStringLiteral("Could not read %1: %2")
+            .arg(configInfo.absoluteFilePath(), input.errorString()));
+        return false;
+    }
+
+    QString config = QString::fromUtf8(input.readAll());
+    input.close();
+    const QString block = hyprlandLuaShortcutBlock(shortcutBindings);
+    const QString beginMarker = QStringLiteral("-- Tide Island shortcuts: begin (managed by Tide Island Config App).");
+    const QString endMarker = QStringLiteral("-- Tide Island shortcuts: end.");
+
+    const qsizetype begin = config.indexOf(beginMarker);
+    const qsizetype end = begin < 0 ? -1 : config.indexOf(endMarker, begin);
+    if (begin >= 0 && end >= 0) {
+        config.replace(begin, end + endMarker.size() - begin, block);
+    } else {
+        const QRegularExpression legacyPattern(
+            QStringLiteral("(?ms)^-- Tide Island shortcuts\\..*?(?=^for i = 1, 10 do)"));
+        const QRegularExpressionMatch legacyMatch = legacyPattern.match(config);
+        if (legacyMatch.hasMatch()) {
+            config.replace(legacyMatch.capturedStart(), legacyMatch.capturedLength(), block + QStringLiteral("\n\n"));
+        } else {
+            if (!config.endsWith(u'\n'))
+                config.append(u'\n');
+            config.append(u'\n');
+            config.append(block);
+            config.append(u'\n');
+        }
+    }
+
+    QSaveFile output(configInfo.absoluteFilePath());
+    if (!output.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        setErrorString(QStringLiteral("Could not write %1: %2")
+            .arg(configInfo.absoluteFilePath(), output.errorString()));
+        return false;
+    }
+    output.write(config.toUtf8());
+    if (!output.commit()) {
+        setErrorString(QStringLiteral("Could not save %1: %2")
+            .arg(configInfo.absoluteFilePath(), output.errorString()));
         return false;
     }
 

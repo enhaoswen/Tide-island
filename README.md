@@ -95,6 +95,7 @@ It's built with Quickshell, QML, and C++/Qt 6. Most of the effort went into maki
 - Control Center
 - Timer
 - Lyrics displayer
+- Application launcher (`Super + /` by default)
 - Wallpaper switcher
 - Workspace overview
 - Custom page
@@ -259,6 +260,7 @@ Tide Island can be controlled remotely via `quickshell ipc call`:
 | `quickshell ipc call tide toggleNotificationCenter` | Open or close the Notification Centre |
 | `quickshell ipc call tide openNotificationCenter` | Open the Notification Centre |
 | `quickshell ipc call tide closeNotificationCenter` | Close the Notification Centre |
+| `quickshell ipc call tide toggleApplicationLauncher` | Open or close the application launcher |
 
 <br>
 

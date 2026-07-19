@@ -39,16 +39,23 @@ public:
     Q_INVOKABLE bool niriShortcutBindingsNeedApply() const;
     Q_INVOKABLE bool ensureNiriShortcutBindings();
     Q_INVOKABLE bool applyShortcutBindings(const QVariantList &shortcutBindings);
+    Q_INVOKABLE QString applicationLauncherFavoritesPath() const;
+    Q_INVOKABLE QVariantList applicationLauncherFavoriteEntries() const;
+    Q_INVOKABLE bool saveApplicationLauncherFavorites(const QVariantList &favoriteIds);
+    Q_INVOKABLE bool toggleApplicationLauncher();
 
 signals:
     void errorStringChanged();
 
 private:
     QString hyprlandConfigPath() const;
+    QString hyprlandLuaConfigPath() const;
     QString niriConfigPath() const;
     QString managedShortcutConfigPath() const;
     QString managedNiriShortcutConfigPath() const;
     bool writeManagedShortcutConfig(const QVariantList &shortcutBindings);
+    bool writeManagedShortcutLuaConfig(const QVariantList &shortcutBindings);
+    bool hyprlandUsesLuaConfig() const;
     bool installManagedNiriShortcutConfig(const QVariantList &shortcutBindings);
     bool ensureManagedShortcutSource();
     bool reloadHyprland();
