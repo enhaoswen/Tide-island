@@ -62,6 +62,13 @@ PagePanel {
                 "method": "toggleControlCenter"
             },
             {
+                "action": "Notification history",
+                "mods": "SUPER",
+                "key": "N",
+                "target": "tide",
+                "method": "toggleNotificationCenter"
+            },
+            {
                 "action": "Wallpaper library",
                 "mods": "SUPER",
                 "key": "W",

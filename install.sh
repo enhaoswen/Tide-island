@@ -260,7 +260,7 @@ dnf_install_dependencies() {
     qt6-qtdeclarative-devel qt6-qtwayland-devel
     qt6-qtshadertools-devel qt6-qtsvg-devel
     systemd-devel libdrm-devel wayland-devel wayland-protocols-devel
-    mesa-libgbm-devel vulkan-headers jemalloc-devel CLI11-devel spirv-tools-devel
+    mesa-libgbm-devel vulkan-headers jemalloc-devel cli11-devel spirv-tools-devel
     wireplumber pulseaudio-utils brightnessctl dbus-daemon upower bluez bluez-tools
     polkit zenity NetworkManager
   )
@@ -519,10 +519,9 @@ build_tide_island() {
   mkdir -p "$cache_dir"
 
   log "Configuring Tide Island"
-  run cmake -GNinja -S "$root" -B "$build_dir" \
+  run cmake -U CMAKE_INSTALL_LIBDIR -GNinja -S "$root" -B "$build_dir" \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX="$PREFIX" \
-    -DCMAKE_INSTALL_LIBDIR=lib
+    -DCMAKE_INSTALL_PREFIX="$PREFIX"
   run cmake --build "$build_dir" --parallel
   run ctest --test-dir "$build_dir" --output-on-failure
 

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(TideIsland VERSION 1.0.24 LANGUAGES CXX)
+project(TideIsland VERSION 1.0.25 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -138,6 +138,8 @@ add_subdirectory(Tide-island-app)
 qt_add_qml_module(IslandBackend
     URI IslandBackend
     VERSION 1.0
+    RESOURCE_PREFIX /qt/qml
+    OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/IslandBackend
     SOURCES
         backend/SysBackend.h
         backend/SysBackend.cpp
@@ -209,14 +211,15 @@ install(TARGETS IslandBackendplugin
 
 # Install qmldir and other generated files for IslandBackend
 install(FILES 
-    ${CMAKE_CURRENT_BINARY_DIR}/qmldir
-    ${CMAKE_CURRENT_BINARY_DIR}/IslandBackend.qmltypes
+    ${CMAKE_CURRENT_BINARY_DIR}/IslandBackend/qmldir
+    ${CMAKE_CURRENT_BINARY_DIR}/IslandBackend/IslandBackend.qmltypes
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/qt6/qml/IslandBackend
 )
 
 
 # Install launcher
-install(PROGRAMS tide-island-launcher DESTINATION ${CMAKE_INSTALL_BINDIR} RENAME tide-island)
+configure_file(tide-island-launcher ${CMAKE_CURRENT_BINARY_DIR}/tide-island @ONLY)
+install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/tide-island DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 # Install helper executables
 install(TARGETS lyricsmpris
@@ -227,4 +230,4 @@ install(TARGETS lyricsmpris
 install(FILES tide-island.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
 
 # Install systemd user service
-install(FILES tide-island.service DESTINATION ${CMAKE_INSTALL_LIBDIR}/systemd/user)
+install(FILES tide-island.service DESTINATION lib/systemd/user)

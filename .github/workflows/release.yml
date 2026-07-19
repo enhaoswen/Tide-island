@@ -53,8 +53,7 @@ jobs:
         run: |
           cmake -GNinja -S . -B build-release-ci \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_INSTALL_PREFIX=/usr \
-            -DCMAKE_INSTALL_LIBDIR=lib
+            -DCMAKE_INSTALL_PREFIX=/usr
 
       - name: Build Tide Island
         run: cmake --build build-release-ci --parallel 2
@@ -68,15 +67,20 @@ jobs:
         run: |
           set -Eeuo pipefail
           stage="$RUNNER_TEMP/tide-island-stage"
+          libdir="$(sed -n 's/^CMAKE_INSTALL_LIBDIR:PATH=//p' build-release-ci/CMakeCache.txt)"
+          test -n "$libdir"
           DESTDIR="$stage" cmake --install build-release-ci
           test -x "$stage/usr/bin/tide-island"
           test -x "$stage/usr/bin/tide-island-config-app"
           test -f "$stage/usr/share/tide-island/shell.qml"
-          test -f "$stage/usr/lib/libIslandBackend.so"
-          test -f "$stage/usr/lib/qt6/qml/IslandBackend/libIslandBackendplugin.so"
+          test -f "$stage/usr/$libdir/libIslandBackend.so"
+          test -f "$stage/usr/$libdir/qt6/qml/IslandBackend/libIslandBackendplugin.so"
           test -f "$stage/usr/lib/systemd/user/tide-island.service"
-          test ! -e "$stage/usr/lib/qt6/qml/TideIsland/Document.qml"
+          test ! -e "$stage/usr/$libdir/qt6/qml/TideIsland/Document.qml"
           test -z "$(find "$stage" -name '*qml_module_dir_map.qrc' -print -quit)"
+          grep -Fq "/$libdir/qt6/qml\"" "$stage/usr/bin/tide-island"
+          grep -Fq "prefer :/qt/qml/TideIsland/" "$stage/usr/$libdir/qt6/qml/TideIsland/qmldir"
+          QT_QPA_PLATFORM=offscreen "$stage/usr/bin/tide-island-config-app" --validate-qml
 
   source-release:
     name: Publish source release

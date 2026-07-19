@@ -1,11 +1,11 @@
 pkgbase = tide-island
 	pkgdesc = A dynamic island for Hyprland and niri using Quickshell
-	pkgver = 1.0.23
+	pkgver = 1.0.25
 	pkgrel = 1
 	url = https://github.com/enhaoswen/Tide-island
 	install = tide-island.install
 	arch = x86_64
-	license = unknown
+	license = GPL-3.0-only
 	makedepends = cmake
 	depends = qt6-base
 	depends = qt6-declarative
@@ -35,10 +35,11 @@ pkgbase = tide-island
 	optdepends = tlp: for TLP power profile controls
 	optdepends = polkit: for applying TLP profiles via pkexec
 	optdepends = sudo: alternative for applying TLP profiles
+	optdepends = zenity: for Ask-mode TLP password prompts when no Polkit agent is running
 	conflicts = tide-island-git
 	options = !debug
 	options = !strip
-	source = tide-island-1.0.23.tar.gz::https://github.com/enhaoswen/Tide-island/archive/refs/tags/1.0.23.tar.gz
+	source = tide-island-1.0.25.tar.gz::https://github.com/enhaoswen/Tide-island/archive/refs/tags/1.0.25.tar.gz
 	sha256sums = SKIP
 
 pkgname = tide-island

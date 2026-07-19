@@ -38,6 +38,7 @@ class ShortcutConfigTests : public QObject {
 
 private slots:
     void hyprlandDefaultsIncludeWorkspaceOverview();
+    void defaultsIncludeNotificationHistory();
     void hyprlandDesktopWinsOverInheritedNiriSocket();
     void niriDefaultsExcludeWorkspaceOverview();
     void niriConfigUsesNiriKeyNames();
@@ -69,6 +70,26 @@ void ShortcutConfigTests::hyprlandDefaultsIncludeWorkspaceOverview()
     QVERIFY(foundOverview);
 }
 
+void ShortcutConfigTests::defaultsIncludeNotificationHistory()
+{
+    QTemporaryDir configHome;
+    QVERIFY(configHome.isValid());
+    qputenv("XDG_CONFIG_HOME", configHome.path().toLocal8Bit());
+    qputenv("TIDE_ISLAND_COMPOSITOR", "hyprland");
+
+    Backend backend;
+    bool foundNotificationHistory = false;
+    for (const QVariant &value : backend.shortcutBindings()) {
+        const QVariantMap binding = value.toMap();
+        foundNotificationHistory = foundNotificationHistory
+            || (binding.value(QStringLiteral("mods")).toString() == QStringLiteral("SUPER")
+                && binding.value(QStringLiteral("key")).toString() == QStringLiteral("N")
+                && binding.value(QStringLiteral("target")).toString() == QStringLiteral("tide")
+                && binding.value(QStringLiteral("method")).toString() == QStringLiteral("toggleNotificationCenter"));
+    }
+    QVERIFY(foundNotificationHistory);
+}
+
 void ShortcutConfigTests::hyprlandDesktopWinsOverInheritedNiriSocket()
 {
     QTemporaryDir configHome;
@@ -93,7 +114,7 @@ void ShortcutConfigTests::niriDefaultsExcludeWorkspaceOverview()
     Backend backend;
     QVERIFY(!backend.supportsTideWorkspaceOverview());
     QVERIFY(backend.supportsNiriShortcutSnippets());
-    QCOMPARE(backend.shortcutBindings().size(), 7);
+    QCOMPARE(backend.shortcutBindings().size(), 8);
 
     for (const QVariant &value : backend.shortcutBindings()) {
         const QVariantMap binding = value.toMap();
@@ -117,6 +138,8 @@ void ShortcutConfigTests::niriConfigUsesNiriKeyNames()
     QVERIFY(!config.contains(QStringLiteral("\"tide\" \"showLyrics\"")));
     QVERIFY(config.contains(QStringLiteral("Super+W")));
     QVERIFY(config.contains(QStringLiteral("\"tide\" \"toggleWallpaperPicker\"")));
+    QVERIFY(config.contains(QStringLiteral("Super+N")));
+    QVERIFY(config.contains(QStringLiteral("\"tide\" \"toggleNotificationCenter\"")));
     QVERIFY(!config.contains(QStringLiteral("overview")));
     QVERIFY(!config.contains(QStringLiteral("Super+Tab")));
     QVERIFY(!config.contains(QStringLiteral("SUPER+TAB")));
@@ -154,6 +177,8 @@ void ShortcutConfigTests::niriShortcutBindingsCanBeInstalled()
     const QString managedConfig = readTextFile(configHome.path() + QStringLiteral("/tide-island/niri-shortcuts.kdl"));
     QVERIFY(managedConfig.contains(QStringLiteral("Super+W")));
     QVERIFY(managedConfig.contains(QStringLiteral("\"tide\" \"toggleWallpaperPicker\"")));
+    QVERIFY(managedConfig.contains(QStringLiteral("Super+N")));
+    QVERIFY(managedConfig.contains(QStringLiteral("\"tide\" \"toggleNotificationCenter\"")));
     QVERIFY(!managedConfig.contains(QStringLiteral("overview")));
 
     const QString installedConfig = readTextFile(niriConfig);

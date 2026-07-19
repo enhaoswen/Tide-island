@@ -8,8 +8,12 @@
 
 int main(int argc, char *argv[]) {
     bool ensureNiriShortcuts = false;
-    for (int index = 1; index < argc; ++index)
-        ensureNiriShortcuts = ensureNiriShortcuts || QString::fromLocal8Bit(argv[index]) == QStringLiteral("--ensure-niri-shortcuts");
+    bool validateQml = false;
+    for (int index = 1; index < argc; ++index) {
+        const QString argument = QString::fromLocal8Bit(argv[index]);
+        ensureNiriShortcuts = ensureNiriShortcuts || argument == QStringLiteral("--ensure-niri-shortcuts");
+        validateQml = validateQml || argument == QStringLiteral("--validate-qml");
+    }
 
     if (ensureNiriShortcuts) {
         QCoreApplication app(argc, argv);
@@ -28,5 +32,6 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
     engine.loadFromModule(QStringLiteral("TideIsland"), QStringLiteral("Main"));
     if (engine.rootObjects().isEmpty()) return -1;
+    if (validateQml) return 0;
     return app.exec();
 }

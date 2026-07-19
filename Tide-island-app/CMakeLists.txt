@@ -60,6 +60,7 @@ set_source_files_properties(Theme.qml ConfigStore.qml PROPERTIES
 qt_add_qml_module(tide-island-config-app
     URI TideIsland
     VERSION 1.0
+    RESOURCE_PREFIX /qt/qml
 
     QML_FILES
         Main.qml
@@ -88,4 +89,11 @@ install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/TideIsland
 
 install(FILES tide-island-config.desktop
     DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
+)
+
+add_test(NAME tide_island_config_qml
+    COMMAND tide-island-config-app --validate-qml
+)
+set_tests_properties(tide_island_config_qml PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
 )

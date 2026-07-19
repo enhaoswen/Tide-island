@@ -1609,8 +1609,11 @@ PanelWindow {
             id: mainCapsule
             z: 5
             property int morphDuration: 400
-            property real outlineWidth: root.overviewContentVisible ? 1 : 0
-            property color outlineColor: root.overviewContentVisible ? root.overviewCapsuleBorderColor : StyleTokens.clearBlack
+            readonly property bool notificationHistorySurface: islandContainer.islandState === "notification_center"
+            property real outlineWidth: root.overviewContentVisible || notificationHistorySurface ? 1 : 0
+            property color outlineColor: root.overviewContentVisible
+                ? root.overviewCapsuleBorderColor
+                : (notificationHistorySurface ? "#1affffff" : StyleTokens.clearBlack)
             property real displayedWidth: baseTargetWidth
             readonly property real baseTargetWidth: {
                 if (root.overviewVisible) return root.overviewCapsuleWidth;
@@ -1640,7 +1643,7 @@ PanelWindow {
                 case "control_center":
                     return 420;
                 case "notification_center":
-                    return 400;
+                    return 410;
                 case "wallpaper_picker":
                     return 1100;
                 case "expanded":
@@ -1684,7 +1687,7 @@ PanelWindow {
                 case "control_center":
                     return 34;
                 case "notification_center":
-                    return 34;
+                    return mainCapsule.targetHeight * 40 / 165;
                 case "wallpaper_picker":
                     return 34;
                 case "expanded":
@@ -1708,7 +1711,9 @@ PanelWindow {
             readonly property real sideSwipePreviewWidth: mainCapsule.sideSwipeWidthForProgress(
                 islandContainer.swipeTransitionProgress
             )
-            color: root.overviewContentVisible ? root.overviewCapsuleColor : StyleTokens.black
+            color: root.overviewContentVisible
+                ? root.overviewCapsuleColor
+                : (notificationHistorySurface ? "#080808" : StyleTokens.black)
             y: userConfig.islandTopMargin
                 - (1 - root.autoHideProgress) * (targetHeight + userConfig.islandTopMargin + 8)
             x: parent ? parent.width * userConfig.islandPositionX / 100 - width / 2 : 0
@@ -2295,10 +2300,6 @@ PanelWindow {
                         iconFontFamily: root.iconFontFamily
                         textFontFamily: root.textFontFamily
                         heroFontFamily: root.heroFontFamily
-
-                        onRequestDismiss: {
-                            islandContainer.smartRestoreState();
-                        }
 
                         onClearAllRequested: {
                             islandContainer.notificationHistoryModel.clear();

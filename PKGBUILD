@@ -1,13 +1,13 @@
 # Maintainer: whysooraj <whysooraj.official@gmail.com>
 pkgname=tide-island
-pkgver=1.0.24
+pkgver=1.0.25
 pkgrel=1
 _srcdir=Tide-island-$pkgver
 _builddir=build-$pkgver
 pkgdesc="A dynamic island for Hyprland and niri using Quickshell"
 arch=('x86_64')
 url="https://github.com/enhaoswen/Tide-island"
-license=('unknown')
+license=('GPL-3.0-only')
 depends=(
     'qt6-base'
     'qt6-declarative'

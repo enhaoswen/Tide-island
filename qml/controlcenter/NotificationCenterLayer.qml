@@ -1,118 +1,153 @@
-    import QtQuick
-    import IslandBackend
-    import "../island"
+import QtQuick
+import QtQuick.Shapes
+import IslandBackend
+import "../island"
 
+Item {
+    id: notificationCenter
+
+    signal clearAllRequested()
+
+    property var notificationModel: null
+    property string iconFontFamily: userConfig.iconFontFamily
+    property string textFontFamily: userConfig.textFontFamily
+    property string heroFontFamily: userConfig.heroFontFamily
+
+    readonly property bool hasNotifications: notificationModel && notificationModel.count > 0
+    readonly property real contentHeight: 218
+    readonly property real verticalPadding: 10
+    readonly property real horizontalPadding: 22
+
+    NotificationHistory {
+        id: notificationHistory
+
+        anchors.fill: parent
+        anchors.topMargin: notificationCenter.verticalPadding
+        anchors.bottomMargin: notificationCenter.verticalPadding
+        anchors.leftMargin: notificationCenter.horizontalPadding
+        anchors.rightMargin: notificationCenter.horizontalPadding
+        notificationModel: notificationCenter.notificationModel
+        iconFontFamily: notificationCenter.iconFontFamily
+        textFontFamily: notificationCenter.textFontFamily
+        heroFontFamily: notificationCenter.heroFontFamily
+    }
+
+    // Keep the action inside the first notification card so it does not create
+    // a separate black toolbar above the list.
     Item {
-        id: notificationCenter
+        id: clearButton
 
-        signal requestDismiss()
+        z: 100
+        opacity: notificationCenter.hasNotifications ? 1 : 0.5
+        anchors.top: parent.top
+        anchors.right: parent.right
+        anchors.topMargin: notificationCenter.verticalPadding + 3
+        anchors.rightMargin: notificationCenter.horizontalPadding + 2
+        width: 24
+        height: 24
 
-        property var notificationModel: null
-        property string iconFontFamily: userConfig.iconFontFamily
-        property string textFontFamily: userConfig.textFontFamily
-        property string heroFontFamily: userConfig.heroFontFamily
-
-        property color panelBg: "#80000000"
-        property int cardRadius: 14
-        // Exposed for parent to dynamically size the panel
-        readonly property real contentHeight: notificationHistory.listContentHeight + 36 + 20
-
-        signal clearAllRequested()
-
-            // Panel background for blur
-            Rectangle {
-                anchors.fill: parent
-                radius: parent.cardRadius
-                color: "#0d0d0d"
-            }
-
-        Column {
-            anchors.fill: parent
-            spacing: 0
-
-            // Unified header — "Notifications" title + count + clear all + close
-            Item {
-                width: parent.width
-                height: 36
-
-                Text {
-                    anchors.left: parent.left
-                    anchors.leftMargin: 14
-                    anchors.verticalCenter: parent.verticalCenter
-                    id: headerTitle
-                    text: "Notifications"
-                    color: "#f4f5f7"
-                    font.pixelSize: 15
-                    font.family: notificationCenter.heroFontFamily
-                    font.weight: Font.Medium
-                }
-
-                // Count badge
-                Text {
-                    anchors.left: headerTitle.right
-                    anchors.leftMargin: 8
-                    anchors.verticalCenter: parent.verticalCenter
-                    anchors.verticalCenterOffset: -1
-                    text: notificationModel ? String(notificationModel.count) : ""
-                    color: "#9ca3af"
-                    font.pixelSize: 12
-                    font.family: notificationCenter.textFontFamily
-                    visible: notificationModel && notificationModel.count > 0
-                }
-
-                // Clear All
-                Text {
-                    id: clearBtn
-                    anchors.right: closeBtn.left
-                    anchors.rightMargin: 14
-                    anchors.verticalCenter: parent.verticalCenter
-                    anchors.verticalCenterOffset: -2
-                    text: "Clear all"
-                    color: notificationModel && notificationModel.count > 0 ? "#f87171" : "transparent"
-                    font.pixelSize: 11
-                    font.family: notificationCenter.textFontFamily
-                    visible: notificationModel && notificationModel.count > 0
-
-                    MouseArea {
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: notificationCenter.clearAllRequested()
-                        onEntered: clearBtn.color = "#fca5a5"
-                        onExited: clearBtn.color = "#f87171"
-                    }
-                }
-
-                Text {
-                    id: closeBtn
-                    anchors.right: parent.right
-                    anchors.rightMargin: 14
-                    anchors.verticalCenter: parent.verticalCenter
-                    anchors.verticalCenterOffset: 0.5
-                    text: "\u2715"
-                    color: "#9ca3af"
-                    font.pixelSize: 16
-
-                    MouseArea {
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: notificationCenter.requestDismiss()
-                        onEntered: closeBtn.color = "#f4f5f7"
-                        onExited: closeBtn.color = "#9ca3af"
-                    }
-                }
-            }
-
-            // NotificationHistory — cards, no duplicate header
-            NotificationHistory {
-                id: notificationHistory
-                width: parent.width
-                height: parent.height - 36
-                notificationModel: notificationCenter.notificationModel
-                iconFontFamily: notificationCenter.iconFontFamily
-                textFontFamily: notificationCenter.textFontFamily
-                heroFontFamily: notificationCenter.heroFontFamily
+        Behavior on opacity {
+            NumberAnimation {
+                duration: 180
+                easing.type: Easing.OutCubic
             }
         }
+
+        Item {
+            id: trashIcon
+
+            anchors.centerIn: parent
+            width: 24
+            height: 24
+            scale: clearMouse.pressed ? 0.70 : 0.75
+
+            Behavior on scale {
+                NumberAnimation {
+                    duration: 280
+                    easing.type: Easing.OutCubic
+                }
+            }
+
+            Shape {
+                id: trashBody
+
+                x: 0
+                y: clearMouse.containsMouse ? 1 : 0
+                width: parent.width
+                height: parent.height
+                preferredRendererType: Shape.CurveRenderer
+
+                Behavior on y {
+                    NumberAnimation {
+                        duration: 360
+                        easing.type: Easing.OutCubic
+                    }
+                }
+
+                ShapePath {
+                    fillColor: StyleTokens.transparent
+                    strokeColor: StyleTokens.textDim
+                    strokeWidth: 1.8
+                    capStyle: ShapePath.RoundCap
+                    joinStyle: ShapePath.RoundJoin
+
+                    PathSvg {
+                        path: "M5 6v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6 M10 11v6 M14 11v6"
+                    }
+                }
+            }
+
+            Item {
+                id: trashLid
+
+                x: 0
+                transformOrigin: Item.Right
+                y: clearMouse.containsMouse ? -1.5 : 0
+                width: parent.width
+                height: parent.height
+                rotation: clearMouse.containsMouse ? 12 : 0
+
+                Behavior on y {
+                    NumberAnimation {
+                        duration: 360
+                        easing.type: Easing.OutCubic
+                    }
+                }
+
+                Behavior on rotation {
+                    NumberAnimation {
+                        duration: 360
+                        easing.type: Easing.OutCubic
+                    }
+                }
+
+                Shape {
+                    anchors.fill: parent
+                    preferredRendererType: Shape.CurveRenderer
+
+                    ShapePath {
+                        fillColor: StyleTokens.transparent
+                        strokeColor: StyleTokens.textDim
+                        strokeWidth: 1.8
+                        capStyle: ShapePath.RoundCap
+                        joinStyle: ShapePath.RoundJoin
+
+                        PathSvg {
+                            path: "M3 6h18 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                        }
+                    }
+                }
+            }
+        }
+
+        MouseArea {
+            id: clearMouse
+
+            anchors.fill: parent
+            enabled: notificationCenter.hasNotifications
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: notificationCenter.clearAllRequested()
+        }
     }
+}

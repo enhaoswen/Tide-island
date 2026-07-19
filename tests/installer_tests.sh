@@ -20,6 +20,7 @@ run_case() {
   local name="$1"
   local expected="$2"
   local dbus_package="$3"
+  local extra_package="${4:-}"
   local output
   output="$(
     TIDE_INSTALLER_OS_RELEASE="$TMP_DIR/$name" \
@@ -36,6 +37,7 @@ run_case() {
   grep -Fq -- "59e9c47b0eb48a9e4bcf9631fa062ee939bd2e83" <<< "$output"
   grep -Fq -- "-DCMAKE_INSTALL_PREFIX=/usr" <<< "$output"
   grep -Fq -- "$dbus_package" <<< "$output"
+  [[ -z "$extra_package" ]] || grep -Fq -- "$extra_package" <<< "$output"
 }
 
 run_failure_case() {
@@ -65,7 +67,7 @@ write_os_release arch arch arch
 write_os_release unknown void ""
 
 run_case ubuntu "apt-get install" " dbus "
-run_case fedora "sudo dnf install" " dbus-daemon "
+run_case fedora "sudo dnf install" " dbus-daemon " " cli11-devel "
 run_case opensuse "sudo zypper --non-interactive install" " dbus-1 "
 run_failure_case arch "6.8.0" "Arch-based systems should install" --force
 run_failure_case unknown "6.8.0" "unsupported distribution 'void'" --force
