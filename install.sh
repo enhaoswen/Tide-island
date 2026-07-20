@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-readonly SCRIPT_NAME="$(basename "$0")"
+SCRIPT_NAME="$(basename "$0")"
+readonly SCRIPT_NAME
 readonly PREFIX="/usr"
 readonly STATE_DIR="/var/lib/tide-island"
 readonly INSTALL_MANIFEST="$STATE_DIR/install-manifest.txt"
@@ -292,7 +293,7 @@ zypper_install_dependencies() {
     qt6-base-devel qt6-declarative-devel qt6-wayland-devel
     qt6-shadertools-devel qt6-svg-devel
     systemd-devel libdrm-devel wayland-devel wayland-protocols-devel
-    Mesa-libgbm-devel vulkan-headers libjemalloc-devel CLI11-devel spirv-tools-devel
+    Mesa-libgbm-devel vulkan-headers libjemalloc-devel cli11-devel spirv-tools-devel
     wireplumber pulseaudio-utils brightnessctl dbus-1 upower bluez
     polkit zenity NetworkManager
   )
