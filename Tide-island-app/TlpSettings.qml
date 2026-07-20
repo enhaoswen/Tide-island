@@ -12,9 +12,9 @@ Rectangle {
         { "label": "Enable", "value": "password" }
     ]
 
-    color: "transparent"
-    radius: 10
-    border.width: 2
+    color: Theme.cardBgColor
+    radius: 16
+    border.width: 1
     border.color: Theme.splitLineColor
     implicitHeight: tlpColumn.implicitHeight + 36
 
@@ -69,7 +69,7 @@ Rectangle {
 
         Rectangle {
             width: parent.width
-            height: 2
+            height: 1
             visible: root.permissionMode() === "password"
             color: Theme.splitLineColor
         }
@@ -159,10 +159,14 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             width: Math.max(180, Math.min(300, parent.width / 3))
             height: 36
-            radius: 8
-            color: Theme.inputBgColor
-            border.width: 2
-            border.color: passwordField.activeFocus ? Theme.focusBorderColor : Theme.inputBorderColor
+            radius: 6
+            color: passwordField.activeFocus ? Theme.cardBgColor
+                                             : passwordHover.hovered ? Theme.inputHoverBgColor
+                                                                     : Theme.inputBgColor
+            border.width: 1
+            border.color: passwordField.activeFocus ? Theme.focusBorderColor
+                                                    : passwordHover.hovered ? Theme.inputHoverBorderColor
+                                                                            : Theme.inputBorderColor
 
             Behavior on color {
                 ColorAnimation { duration: Theme.animationDuration }
@@ -170,6 +174,24 @@ Rectangle {
 
             Behavior on border.color {
                 ColorAnimation { duration: Theme.animationDuration }
+            }
+
+            Rectangle {
+                anchors.fill: parent
+                anchors.margins: -3
+                z: -1
+                radius: passwordBox.radius + 3
+                color: "transparent"
+                border.width: 3
+                border.color: Theme.focusRingColor
+                opacity: passwordField.activeFocus ? 1 : 0
+
+                Behavior on opacity { NumberAnimation { duration: Theme.animationDuration } }
+            }
+
+            HoverHandler {
+                id: passwordHover
+                cursorShape: Qt.IBeamCursor
             }
 
             TextField {
@@ -219,10 +241,12 @@ Rectangle {
 
                 width: Math.max(74, optionText.implicitWidth + 24)
                 height: 36
-                radius: 8
-                color: selectedState ? Theme.selectedColor : (optionMouse.containsMouse ? Theme.accentSoftColor : Theme.inputBgColor)
-                border.width: 2
-                border.color: selectedState ? Theme.selectedColor : Theme.inputBorderColor
+                radius: 7
+                color: selectedState ? Theme.cardBgColor
+                                     : optionMouse.pressed ? Theme.controlPressedColor
+                                                           : Theme.componentBgColor
+                border.width: 1
+                border.color: Theme.inputBorderColor
 
                 Behavior on color {
                     ColorAnimation { duration: Theme.animationDuration }
@@ -237,7 +261,7 @@ Rectangle {
 
                     anchors.centerIn: parent
                     text: modelData.label
-                    color: option.selectedState ? Theme.buttonTextColor : Theme.textColor
+                    color: option.selectedState ? Theme.textColor : Theme.secondaryTextColor
                     font.family: Theme.textFontFamily
                     font.pixelSize: 14
                     font.weight: option.selectedState ? Font.DemiBold : Font.Normal

@@ -91,9 +91,9 @@ PagePanel {
 
         width: parent ? parent.width : 0
         height: blockColumn.implicitHeight + 30
-        radius: 10
-        color: "transparent"
-        border.width: 2
+        radius: 16
+        color: Theme.cardBgColor
+        border.width: 1
         border.color: Theme.splitLineColor
 
         Column {

@@ -85,9 +85,9 @@ PagePanel {
 
             Rectangle {
                 id: fontPanel
-                color: "transparent"
-                radius: 10
-                border.width: 2
+                color: Theme.cardBgColor
+                radius: 16
+                border.width: 1
                 border.color: Theme.splitLineColor
 
                 anchors.top: fontTitle.bottom
@@ -187,7 +187,7 @@ PagePanel {
     }
 
     component SplitLine: Rectangle {
-        height: 2
+        height: 1
         color: Theme.splitLineColor
     }
 

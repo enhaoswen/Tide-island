@@ -15,15 +15,38 @@ Rectangle {
     signal accepted()
     signal editingFinished()
 
-    radius: 8
-    color: Theme.inputBgColor
-    border.width: 2
-    border.color: field.activeFocus ? Theme.focusBorderColor : Theme.inputBorderColor
+    readonly property bool hovered: hoverHandler.hovered
+
+    radius: 6
+    color: field.activeFocus ? Theme.cardBgColor
+                             : hovered ? Theme.inputHoverBgColor
+                                       : Theme.inputBgColor
+    border.width: 1
+    border.color: field.activeFocus ? Theme.focusBorderColor
+                                    : hovered ? Theme.inputHoverBorderColor
+                                              : Theme.inputBorderColor
     implicitWidth: 100
     implicitHeight: 36
 
-    Behavior on border.color {
-        ColorAnimation { duration: Theme.animationDuration }
+    Behavior on color { ColorAnimation { duration: Theme.animationDuration } }
+    Behavior on border.color { ColorAnimation { duration: Theme.animationDuration } }
+
+    Rectangle {
+        anchors.fill: parent
+        anchors.margins: -3
+        z: -1
+        radius: control.radius + 3
+        color: "transparent"
+        border.width: 3
+        border.color: Theme.focusRingColor
+        opacity: field.activeFocus ? 1 : 0
+
+        Behavior on opacity { NumberAnimation { duration: Theme.animationDuration } }
+    }
+
+    HoverHandler {
+        id: hoverHandler
+        cursorShape: Qt.IBeamCursor
     }
 
     TextField {

@@ -215,9 +215,9 @@ PagePanel {
             Rectangle {
                 id: clickPanel
 
-                color: "transparent"
-                radius: 10
-                border.width: 2
+                color: Theme.cardBgColor
+                radius: 16
+                border.width: 1
                 border.color: Theme.splitLineColor
                 anchors.top: clickTitle.bottom
                 anchors.topMargin: 15
@@ -276,9 +276,9 @@ PagePanel {
             Rectangle {
                 id: hoverPanel
 
-                color: "transparent"
-                radius: 10
-                border.width: 2
+                color: Theme.cardBgColor
+                radius: 16
+                border.width: 1
                 border.color: Theme.splitLineColor
                 anchors.top: hoverTitle.bottom
                 anchors.topMargin: 15
@@ -335,9 +335,9 @@ PagePanel {
             Rectangle {
                 id: playerPanel
 
-                color: "transparent"
-                radius: 10
-                border.width: 2
+                color: Theme.cardBgColor
+                radius: 16
+                border.width: 1
                 border.color: Theme.splitLineColor
                 anchors.top: playerTitle.bottom
                 anchors.topMargin: 15
@@ -366,7 +366,7 @@ PagePanel {
     }
 
     component SplitLine: Rectangle {
-        height: 2
+        height: 1
         color: Theme.splitLineColor
     }
 
@@ -624,38 +624,38 @@ PagePanel {
             id: track
 
             anchors.verticalCenter: parent.verticalCenter
-            width: 48
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: 40
             height: 24
             radius: 12
-            color: control.checked ? Theme.selectedColor : Qt.rgba(100 / 255, 116 / 255, 139 / 255, 0.377)
+            color: control.checked ? Theme.accentColor : Theme.componentBgColor
+            border.width: 1
+            border.color: control.checked ? Theme.accentColor : Theme.inputBorderColor
 
             Behavior on color {
-                ColorAnimation { duration: 300; easing.type: Easing.InOutQuad }
+                ColorAnimation { duration: 180; easing.type: Easing.InOutQuad }
             }
         }
 
         Rectangle {
             id: knob
 
-            width: 26
-            height: 26
-            radius: 13
-            x: control.checked ? 22 : 0
-            y: 0
-            color: "white"
-            border.width: 1
-            border.color: control.checked ? Theme.selectedColor : Qt.rgba(100 / 255, 116 / 255, 139 / 255, 0.527)
+            width: 18
+            height: 18
+            radius: 9
+            x: control.checked ? 22 : 6
+            y: 3
+            color: Theme.cardBgColor
+            border.width: 0
 
             Behavior on x {
-                NumberAnimation { duration: 300; easing.type: Easing.InOutQuad }
+                NumberAnimation { duration: 180; easing.type: Easing.InOutQuad }
             }
 
-            Behavior on border.color {
-                ColorAnimation { duration: 300; easing.type: Easing.InOutQuad }
-            }
         }
 
         MouseArea {
+            id: switchMouse
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
@@ -686,10 +686,12 @@ PagePanel {
 
                 width: Math.max(74, optionText.implicitWidth + 24)
                 height: 36
-                radius: 8
-                color: selectedState ? Theme.selectedColor : (optionMouse.containsMouse ? Theme.accentSoftColor : Theme.inputBgColor)
-                border.width: 2
-                border.color: selectedState ? Theme.selectedColor : Theme.inputBorderColor
+                radius: 7
+                color: selectedState ? Theme.cardBgColor
+                                     : optionMouse.pressed ? Theme.controlPressedColor
+                                                           : Theme.componentBgColor
+                border.width: 1
+                border.color: Theme.inputBorderColor
 
                 Behavior on color {
                     ColorAnimation { duration: Theme.animationDuration }
@@ -704,7 +706,7 @@ PagePanel {
 
                     anchors.centerIn: parent
                     text: modelData.label
-                    color: option.selectedState ? Theme.buttonTextColor : Theme.textColor
+                    color: option.selectedState ? Theme.textColor : Theme.secondaryTextColor
                     font.family: Theme.textFontFamily
                     font.pixelSize: 14
                     font.weight: option.selectedState ? Font.DemiBold : Font.Normal

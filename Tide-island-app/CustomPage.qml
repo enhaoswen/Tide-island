@@ -34,9 +34,9 @@ Rectangle {
     property string dragZone: ""
     readonly property bool dragPreviewUsesIslandStyle: dragFromSelection && dragZone === "island"
 
-    color: "transparent"
-    radius: 10
-    border.width: 2
+    color: Theme.cardBgColor
+    radius: 16
+    border.width: 1
     border.color: Theme.splitLineColor
     implicitHeight: selectorColumn.implicitHeight + 36
 
@@ -426,10 +426,17 @@ Rectangle {
 
         width: root.previewWidth(itemId)
         height: 34
-        radius: 8
-        color: "transparent"
+        radius: 6
+        color: !chip.fromSelection && chip.draggable && chipMouse.containsMouse
+            ? Theme.controlHoverColor
+            : "transparent"
+        border.width: !chip.fromSelection && chip.draggable ? 1 : 0
+        border.color: chipMouse.containsMouse ? Theme.inputHoverBorderColor : Theme.inputBorderColor
         opacity: hiddenByDrag ? 0 : (paletteDisabled ? 0.34 : 1)
         z: root.dragActive && hiddenByDrag ? 0 : 1
+
+        Behavior on color { ColorAnimation { duration: Theme.animationDuration } }
+        Behavior on border.color { ColorAnimation { duration: Theme.animationDuration } }
 
         Row {
             id: chipContent

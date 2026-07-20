@@ -2,7 +2,6 @@ import TideIsland 1.0
 import QtCore
 import QtQuick
 import QtQuick.Controls
-import QtQuick.Dialogs
 
 Rectangle {
     id: root
@@ -16,9 +15,9 @@ Rectangle {
     readonly property string customCommandSavedText: revision >= 0 ? textValue("wallpaperCustomCommand", "") : ""
     readonly property bool supportsTideWorkspaceOverview: backend.supportsTideWorkspaceOverview()
 
-    color: "transparent"
-    radius: 10
-    border.width: 2
+    color: Theme.cardBgColor
+    radius: 16
+    border.width: 1
     border.color: Theme.splitLineColor
     implicitHeight: wallpaperColumn.implicitHeight + 36
 
@@ -29,31 +28,6 @@ Rectangle {
     function boolValue(key, fallback) {
         const value = ConfigStore.value(key, fallback)
         return value === true || value === "true"
-    }
-
-    function localPath(value) {
-        if (value === undefined || value === null)
-            return ""
-        if (value.toLocalFile)
-            return value.toLocalFile()
-
-        const text = String(value)
-        return text.startsWith("file://") ? decodeURIComponent(text.substring(7)) : text
-    }
-
-    function folderUrl(path) {
-        const text = String(path || "")
-        if (text.length === 0)
-            return StandardPaths.writableLocation(StandardPaths.HomeLocation)
-        return text.startsWith("file://") ? text : "file://" + encodeURI(text)
-    }
-
-    function parentFolderUrl(path) {
-        const text = localPath(path)
-        const slashIndex = text.lastIndexOf("/")
-        if (slashIndex <= 0)
-            return StandardPaths.writableLocation(StandardPaths.HomeLocation)
-        return folderUrl(text.substring(0, slashIndex))
     }
 
     function saveText(key, value) {
@@ -158,34 +132,30 @@ Rectangle {
         }
     }
 
-    FileDialog {
+    HiddenPathDialog {
         id: wallpaperFileDialog
 
-        title: "Choose wallpaper target"
-        fileMode: FileDialog.SaveFile
-        nameFilters: ["Images (*.png *.jpg *.jpeg *.webp *.gif *.avif *.bmp)", "All files (*)"]
-
-        onAccepted: {
+        directoryMode: false
+        onPathAccepted: function(path) {
             if (pathRowForDialog)
-                pathRowForDialog.setPath(root.localPath(selectedFile))
+                pathRowForDialog.setPath(path)
         }
     }
 
-    FolderDialog {
+    HiddenPathDialog {
         id: wallpaperFolderDialog
 
-        title: "Choose wallpaper library"
-
-        onAccepted: {
+        directoryMode: true
+        onPathAccepted: function(path) {
             if (pathRowForDialog)
-                pathRowForDialog.setPath(root.localPath(selectedFolder))
+                pathRowForDialog.setPath(path)
         }
     }
 
     property var pathRowForDialog: null
 
     component SplitLine: Rectangle {
-        height: 2
+        height: 1
         color: Theme.splitLineColor
     }
 
@@ -252,11 +222,9 @@ Rectangle {
             onClicked: {
                 root.pathRowForDialog = row
                 if (row.directoryMode) {
-                    wallpaperFolderDialog.currentFolder = root.folderUrl(field.text)
-                    wallpaperFolderDialog.open()
+                    wallpaperFolderDialog.openForPath(field.text)
                 } else {
-                    wallpaperFileDialog.currentFolder = root.parentFolderUrl(field.text)
-                    wallpaperFileDialog.open()
+                    wallpaperFileDialog.openForPath(field.text)
                 }
             }
         }
@@ -362,10 +330,15 @@ Rectangle {
             anchors.top: parent.top
             width: Math.max(300, Math.min(500, parent.width * 0.58))
             height: 132
-            radius: 8
-            color: row.enabled ? Theme.inputBgColor : "#d6d0c8"
-            border.width: 2
-            border.color: commandField.activeFocus ? Theme.focusBorderColor : (row.enabled ? Theme.inputBorderColor : "#c7beb5")
+            radius: 6
+            color: !row.enabled ? Theme.componentBgColor
+                                : commandField.activeFocus ? Theme.cardBgColor
+                                                           : editorHover.hovered ? Theme.inputHoverBgColor
+                                                                                 : Theme.inputBgColor
+            border.width: 1
+            border.color: commandField.activeFocus ? Theme.focusBorderColor
+                                                   : row.enabled && editorHover.hovered ? Theme.inputHoverBorderColor
+                                                                                        : Theme.inputBorderColor
 
             Behavior on color {
                 ColorAnimation { duration: Theme.animationDuration }
@@ -373,6 +346,25 @@ Rectangle {
 
             Behavior on border.color {
                 ColorAnimation { duration: Theme.animationDuration }
+            }
+
+            Rectangle {
+                anchors.fill: parent
+                anchors.margins: -3
+                z: -1
+                radius: editorBox.radius + 3
+                color: "transparent"
+                border.width: 3
+                border.color: Theme.focusRingColor
+                opacity: commandField.activeFocus ? 1 : 0
+
+                Behavior on opacity { NumberAnimation { duration: Theme.animationDuration } }
+            }
+
+            HoverHandler {
+                id: editorHover
+                enabled: row.enabled
+                cursorShape: Qt.IBeamCursor
             }
 
             Flickable {
@@ -430,6 +422,7 @@ Rectangle {
             anchors.top: editorBox.bottom
             anchors.topMargin: 8
             text: "Save"
+            primary: true
             enabled: row.enabled
 
             onClicked: row.commit()
@@ -446,16 +439,31 @@ Rectangle {
         signal clicked
 
         property string text: ""
+        property bool primary: false
 
         width: 78
         height: 36
-        radius: 8
-        color: !button.enabled ? "#d6d0c8" : mouseArea.pressed ? Theme.buttonHoverColor : mouseArea.containsMouse ? Theme.buttonHoverColor : Theme.buttonColor
+        radius: 6
+        color: !button.enabled ? Theme.componentBgColor
+                               : button.primary
+                                   ? mouseArea.pressed ? Theme.buttonPressedColor
+                                                       : mouseArea.containsMouse ? Theme.buttonHoverColor
+                                                                                : Theme.buttonColor
+                                   : mouseArea.pressed ? Theme.controlPressedColor
+                                                       : mouseArea.containsMouse ? Theme.mutedButtonHoverColor
+                                                                                : Theme.mutedButtonColor
+        border.width: 1
+        border.color: button.primary && button.enabled ? color : Theme.inputBorderColor
+
+        Behavior on color { ColorAnimation { duration: Theme.animationDuration } }
+        Behavior on border.color { ColorAnimation { duration: Theme.animationDuration } }
 
         Text {
             anchors.centerIn: parent
             text: button.text
-            color: button.enabled ? Theme.buttonTextColor : Theme.subtleTextColor
+            color: !button.enabled ? Theme.subtleTextColor
+                                   : button.primary ? Theme.buttonTextColor
+                                                    : Theme.mutedButtonTextColor
             font.family: Theme.textFontFamily
             font.pixelSize: 13
             font.weight: Font.DemiBold
@@ -506,12 +514,18 @@ Rectangle {
             width: 170
             height: 36
             model: root.transitionTypes
+            hoverEnabled: true
 
             background: Rectangle {
-                radius: 8
-                color: transitionTypeBox.pressed ? Theme.accentSoftColor : Theme.inputBgColor
-                border.width: 2
-                border.color: transitionTypeBox.activeFocus ? Theme.focusBorderColor : Theme.inputBorderColor
+                id: transitionBackground
+                radius: 6
+                color: transitionTypeBox.pressed ? Theme.controlPressedColor
+                                                 : transitionTypeBox.hovered ? Theme.inputHoverBgColor
+                                                                             : Theme.inputBgColor
+                border.width: 1
+                border.color: transitionTypeBox.activeFocus ? Theme.focusBorderColor
+                                                            : transitionTypeBox.hovered ? Theme.inputHoverBorderColor
+                                                                                        : Theme.inputBorderColor
 
                 Behavior on color {
                     ColorAnimation { duration: Theme.animationDuration }
@@ -519,6 +533,19 @@ Rectangle {
 
                 Behavior on border.color {
                     ColorAnimation { duration: Theme.animationDuration }
+                }
+
+                Rectangle {
+                    anchors.fill: parent
+                    anchors.margins: -3
+                    z: -1
+                    radius: transitionBackground.radius + 3
+                    color: "transparent"
+                    border.width: 3
+                    border.color: Theme.focusRingColor
+                    opacity: transitionTypeBox.activeFocus ? 1 : 0
+
+                    Behavior on opacity { NumberAnimation { duration: Theme.animationDuration } }
                 }
             }
 
@@ -538,7 +565,7 @@ Rectangle {
                 x: transitionTypeBox.width - width - 12
                 y: (transitionTypeBox.height - height) / 2
                 text: "v"
-                color: Theme.selectedColor
+                color: Theme.secondaryTextColor
                 font.family: Theme.textFontFamily
                 font.pixelSize: 13
                 font.weight: Font.Bold
@@ -551,7 +578,7 @@ Rectangle {
                 padding: 4
 
                 background: Rectangle {
-                    radius: 8
+                    radius: 6
                     color: Theme.cardBgColor
                     border.width: 1
                     border.color: Theme.cardBorderColor
@@ -572,12 +599,12 @@ Rectangle {
 
                 background: Rectangle {
                     radius: 6
-                    color: highlighted ? Theme.accentSoftColor : "transparent"
+                    color: highlighted ? Theme.controlHoverColor : "transparent"
                 }
 
                 contentItem: Text {
                     text: modelData
-                    color: highlighted || transitionTypeBox.currentIndex === index ? Theme.selectedColor : Theme.textColor
+                    color: Theme.textColor
                     font.family: Theme.textFontFamily
                     font.pixelSize: 13
                     font.weight: transitionTypeBox.currentIndex === index ? Font.DemiBold : Font.Normal
@@ -614,35 +641,34 @@ Rectangle {
             id: track
 
             anchors.verticalCenter: parent.verticalCenter
-            width: 48
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: 40
             height: 24
             radius: 12
-            color: control.checked ? Theme.selectedColor : Qt.rgba(100 / 255, 116 / 255, 139 / 255, 0.377)
+            color: control.checked ? Theme.accentColor : Theme.componentBgColor
+            border.width: 1
+            border.color: control.checked ? Theme.accentColor : Theme.inputBorderColor
 
             Behavior on color {
-                ColorAnimation { duration: 300; easing.type: Easing.InOutQuad }
+                ColorAnimation { duration: 180; easing.type: Easing.InOutQuad }
             }
         }
 
         Rectangle {
             id: knob
 
-            width: 26
-            height: 26
-            radius: 13
-            x: control.checked ? 22 : 0
-            y: 0
-            color: "white"
-            border.width: 1
-            border.color: control.checked ? Theme.selectedColor : Qt.rgba(100 / 255, 116 / 255, 139 / 255, 0.527)
+            width: 18
+            height: 18
+            radius: 9
+            x: control.checked ? 22 : 6
+            y: 3
+            color: Theme.cardBgColor
+            border.width: 0
 
             Behavior on x {
-                NumberAnimation { duration: 300; easing.type: Easing.InOutQuad }
+                NumberAnimation { duration: 180; easing.type: Easing.InOutQuad }
             }
 
-            Behavior on border.color {
-                ColorAnimation { duration: 300; easing.type: Easing.InOutQuad }
-            }
         }
 
         MouseArea {

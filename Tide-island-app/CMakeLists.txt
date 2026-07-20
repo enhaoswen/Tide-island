@@ -68,6 +68,7 @@ qt_add_qml_module(tide-island-config-app
         ConfigStore.qml
         PagePanel.qml
         ConfigTextField.qml
+        HiddenPathDialog.qml
         General.qml
         CustomPage.qml
         Wallpaper.qml

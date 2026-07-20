@@ -24,8 +24,6 @@ ApplicationWindow {
             return shortcutPage
         case 5:
             return interactionPage
-        case 6:
-            return applicationLauncherPage
         default:
             return null
         }
@@ -237,29 +235,6 @@ ApplicationWindow {
             }
         }
 
-        Text{
-            id: applicationLauncherButton
-            anchors.horizontalCenter: parent.horizontalCenter
-            y: 485
-            color: currentPage === 6 ? Theme.selectedColor : Theme.textColor
-            text: applicationLauncherButtonText.width > mainSplitLine.x ? "A" : "Launcher"
-            font.family: Theme.titleFontFamily
-            font.pixelSize: 23
-
-            TextMetrics {
-                id: applicationLauncherButtonText
-                font: applicationLauncherButton.font
-                text: "Launcher"
-            }
-
-            Behavior on color {ColorAnimation{ duration:Theme.animationDuration}}
-
-            MouseArea{
-                anchors.fill:parent
-                onClicked: selectPage(6)
-            }
-        }
-
     }
 
 
@@ -301,13 +276,6 @@ ApplicationWindow {
 
         Interaction {
             id: interactionPage
-            anchors.fill: parent
-            visible: false
-            opacity: 0
-        }
-
-        ApplicationLauncherSettings {
-            id: applicationLauncherPage
             anchors.fill: parent
             visible: false
             opacity: 0
@@ -362,8 +330,12 @@ ApplicationWindow {
             anchors.right: parent.right
             anchors.rightMargin: 10
             anchors.verticalCenter: parent.verticalCenter
-            radius: 8
-            color: rewriteMouse.containsMouse ? Theme.buttonHoverColor : Theme.buttonColor
+            radius: 6
+            color: rewriteMouse.pressed ? Theme.buttonPressedColor
+                                        : rewriteMouse.containsMouse ? Theme.buttonHoverColor
+                                                                    : Theme.buttonColor
+
+            Behavior on color { ColorAnimation { duration: Theme.animationDuration } }
 
             Text {
                 anchors.centerIn: parent

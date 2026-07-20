@@ -58,6 +58,57 @@ FocusScope {
         return !!entry && root.sortFavoriteIds.indexOf(String(entry.id)) >= 0;
     }
 
+    function favoriteShortcutNumber(entry) {
+        if (!entry)
+            return 0;
+
+        const entryId = String(entry.id);
+        let shortcutNumber = 0;
+        for (let index = 0; index < root.filteredApplications.length; ++index) {
+            const candidate = root.filteredApplications[index];
+            if (!root.isFavorite(candidate))
+                continue;
+
+            ++shortcutNumber;
+            if (String(candidate.id) === entryId)
+                return shortcutNumber;
+        }
+        return 0;
+    }
+
+    function shortcutNumberForKeyEvent(event) {
+        const blockedModifiers = Qt.ControlModifier | Qt.AltModifier
+            | Qt.MetaModifier | Qt.ShiftModifier;
+        if (event.isAutoRepeat || (event.modifiers & blockedModifiers) !== 0)
+            return 0;
+        if (event.key < Qt.Key_1 || event.key > Qt.Key_9)
+            return 0;
+        return event.key - Qt.Key_0;
+    }
+
+    function launchFavoriteShortcut(event) {
+        if (root.query !== "")
+            return false;
+
+        const requestedNumber = root.shortcutNumberForKeyEvent(event);
+        if (requestedNumber === 0)
+            return false;
+
+        let shortcutNumber = 0;
+        for (let index = 0; index < root.filteredApplications.length; ++index) {
+            const entry = root.filteredApplications[index];
+            if (!root.isFavorite(entry))
+                continue;
+
+            ++shortcutNumber;
+            if (shortcutNumber === requestedNumber) {
+                root.launchApplication(entry);
+                return true;
+            }
+        }
+        return false;
+    }
+
     function applyFavorites(stored, adoptSortOrder) {
         const nextFavorites = [];
         const seen = ({});
@@ -164,7 +215,33 @@ FocusScope {
         if (!entry)
             return;
 
-        entry.execute();
+        const desktopCommand = [];
+        for (let index = 0; index < entry.command.length; ++index)
+            desktopCommand.push(String(entry.command[index]));
+
+        if (desktopCommand.length === 0) {
+            entry.execute();
+        } else {
+            const scopedCommand = [
+                "systemd-run",
+                "--user",
+                "--scope",
+                "--quiet",
+                "--collect",
+                "--slice=app.slice",
+                "--expand-environment=no"
+            ];
+            const workingDirectory = String(entry.workingDirectory || "");
+            if (workingDirectory !== "")
+                scopedCommand.push("--working-directory=" + workingDirectory);
+            scopedCommand.push("--");
+            for (let index = 0; index < desktopCommand.length; ++index)
+                scopedCommand.push(desktopCommand[index]);
+
+            // Keep launched applications outside tide-island.service so a
+            // service restart cannot kill their child process trees.
+            Quickshell.execDetached(scopedCommand);
+        }
         root.closeRequested();
     }
 
@@ -221,6 +298,8 @@ FocusScope {
     Keys.onPressed: event => {
         if (event.key === Qt.Key_Escape) {
             root.closeRequested();
+            event.accepted = true;
+        } else if (root.launchFavoriteShortcut(event)) {
             event.accepted = true;
         }
     }
@@ -285,6 +364,8 @@ FocusScope {
                     Keys.onPressed: event => {
                         if (event.key === Qt.Key_Escape) {
                             root.closeRequested();
+                            event.accepted = true;
+                        } else if (root.launchFavoriteShortcut(event)) {
                             event.accepted = true;
                         } else if (event.key === Qt.Key_Right && text === "") {
                             root.moveSelection(1);
@@ -365,6 +446,7 @@ FocusScope {
                 readonly property var entry: modelData
                 readonly property bool selected: index === root.selectedIndex
                 readonly property bool favorite: root.isFavorite(entry)
+                readonly property int favoriteNumber: root.favoriteShortcutNumber(entry)
 
                 width: appGrid.cellWidth
                 height: appGrid.cellHeight
@@ -405,6 +487,19 @@ FocusScope {
                             color: "#f5f5f7"
                             font.family: root.textFontFamily
                             font.pixelSize: 24
+                            font.weight: Font.DemiBold
+                        }
+
+                        Text {
+                            anchors.top: parent.top
+                            anchors.topMargin: -2
+                            anchors.left: parent.left
+                            anchors.leftMargin: -2
+                            visible: appDelegate.favoriteNumber > 0
+                            text: appDelegate.favoriteNumber
+                            color: "#a5a6ac"
+                            font.family: root.textFontFamily
+                            font.pixelSize: 12
                             font.weight: Font.DemiBold
                         }
                     }

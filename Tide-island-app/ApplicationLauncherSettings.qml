@@ -81,7 +81,7 @@ PagePanel {
                 Rectangle {
                     width: parent.width
                     height: 112
-                    radius: 10
+                    radius: 16
                     color: Theme.cardBgColor
                     border.width: 1
                     border.color: Theme.cardBorderColor
@@ -179,9 +179,9 @@ PagePanel {
                 Rectangle {
                     width: parent.width
                     height: root.favorites.length > 0 ? root.favorites.length * 62 + 16 : 88
-                    radius: 10
-                    color: "transparent"
-                    border.width: 2
+                    radius: 16
+                    color: Theme.cardBgColor
+                    border.width: 1
                     border.color: Theme.splitLineColor
 
                     Text {
@@ -297,11 +297,20 @@ PagePanel {
         signal triggered()
 
         height: 34
-        radius: 8
+        radius: 6
         opacity: actionEnabled ? 1 : 0.45
         color: muted
-            ? (buttonMouse.containsMouse && actionEnabled ? Theme.componentBgColor : Theme.mutedButtonColor)
-            : (buttonMouse.containsMouse && actionEnabled ? Theme.buttonHoverColor : Theme.buttonColor)
+            ? (buttonMouse.pressed && actionEnabled ? Theme.controlPressedColor
+                                                    : buttonMouse.containsMouse && actionEnabled ? Theme.mutedButtonHoverColor
+                                                                                               : Theme.mutedButtonColor)
+            : (buttonMouse.pressed && actionEnabled ? Theme.buttonPressedColor
+                                                    : buttonMouse.containsMouse && actionEnabled ? Theme.buttonHoverColor
+                                                                                               : Theme.buttonColor)
+        border.width: 1
+        border.color: muted ? Theme.inputBorderColor : color
+
+        Behavior on color { ColorAnimation { duration: Theme.animationDuration } }
+        Behavior on border.color { ColorAnimation { duration: Theme.animationDuration } }
 
         Text {
             anchors.centerIn: parent

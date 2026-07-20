@@ -629,9 +629,9 @@ PagePanel {
                 Rectangle {
                     width: parent.width
                     height: shortcutColumn.implicitHeight + 30
-                    radius: 10
-                    color: "transparent"
-                    border.width: 2
+                    radius: 16
+                    color: Theme.cardBgColor
+                    border.width: 1
                     border.color: Theme.splitLineColor
 
                     Column {
@@ -721,10 +721,30 @@ PagePanel {
             height: 34
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            radius: 8
-            color: "transparent"
-            border.width: 2
-            border.color: row.capturing ? Theme.focusBorderColor : Theme.inputBorderColor
+            radius: 6
+            color: row.capturing ? Theme.cardBgColor
+                                 : shortcutMouse.containsMouse ? Theme.controlHoverColor
+                                                               : "transparent"
+            border.width: 1
+            border.color: row.capturing ? Theme.focusBorderColor
+                                        : shortcutMouse.containsMouse ? Theme.inputHoverBorderColor
+                                                                     : Theme.inputBorderColor
+
+            Behavior on color { ColorAnimation { duration: Theme.animationDuration } }
+            Behavior on border.color { ColorAnimation { duration: Theme.animationDuration } }
+
+            Rectangle {
+                anchors.fill: parent
+                anchors.margins: -3
+                z: -1
+                radius: shortcutButton.radius + 3
+                color: "transparent"
+                border.width: 3
+                border.color: Theme.focusRingColor
+                opacity: row.capturing ? 1 : 0
+
+                Behavior on opacity { NumberAnimation { duration: Theme.animationDuration } }
+            }
 
             Text {
                 anchors.centerIn: parent
@@ -739,6 +759,7 @@ PagePanel {
             }
 
             MouseArea {
+                id: shortcutMouse
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
@@ -751,7 +772,7 @@ PagePanel {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.bottom: parent.bottom
-            height: 2
+            height: 1
             color: Theme.splitLineColor
             visible: row.showSeparator
         }
@@ -767,9 +788,9 @@ PagePanel {
         property bool copied: false
 
         height: boxColumn.implicitHeight + 30
-        radius: 10
-        color: "transparent"
-        border.width: 2
+        radius: 16
+        color: Theme.cardBgColor
+        border.width: 1
         border.color: Theme.splitLineColor
 
         Column {
@@ -805,10 +826,14 @@ PagePanel {
 
                     width: Math.max(74, copyBadgeText.implicitWidth + 24)
                     height: 34
-                    radius: 8
-                    color: box.copied ? Theme.selectedColor : Theme.mutedButtonColor
-                    border.width: 2
-                    border.color: box.copied ? Theme.selectedColor : Theme.inputBorderColor
+                    radius: 6
+                    color: box.copied ? Theme.selectedColor
+                                      : copyMouse.containsMouse ? Theme.mutedButtonHoverColor
+                                                                : Theme.mutedButtonColor
+                    border.width: 1
+                    border.color: box.copied ? Theme.selectedColor
+                                             : copyMouse.containsMouse ? Theme.inputHoverBorderColor
+                                                                       : Theme.inputBorderColor
 
                     Behavior on color {
                         ColorAnimation { duration: Theme.animationDuration }
@@ -857,9 +882,9 @@ PagePanel {
             Rectangle {
                 width: parent.width
                 height: codeText.implicitHeight + 24
-                radius: 8
+                radius: 6
                 color: Theme.inputBgColor
-                border.width: 2
+                border.width: 1
                 border.color: Theme.inputBorderColor
 
                 Text {
@@ -889,6 +914,7 @@ PagePanel {
         }
 
         MouseArea {
+            id: copyMouse
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor

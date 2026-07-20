@@ -76,9 +76,9 @@ PagePanel {
 
             Rectangle {
                 id: apperance
-                color: "transparent"
-                radius: 10
-                border.width: 2
+                color: Theme.cardBgColor
+                radius: 16
+                border.width: 1
                 border.color: Theme.splitLineColor
 
                 anchors.top: apperanceTitle.bottom
@@ -215,7 +215,7 @@ PagePanel {
     }
 
     component SplitLine: Rectangle {
-        height: 2
+        height: 1
         color: Theme.splitLineColor
     }
 
@@ -322,15 +322,20 @@ PagePanel {
 
                     width: 82
                     height: 36
-                    radius: 8
-                    color: selected ? Theme.selectedColor : (formatMouse.containsMouse ? Theme.accentSoftColor : Theme.inputBgColor)
-                    border.width: 2
-                    border.color: selected ? Theme.selectedColor : Theme.inputBorderColor
+                    radius: 7
+                    color: selected ? Theme.cardBgColor
+                                    : formatMouse.pressed ? Theme.controlPressedColor
+                                                          : Theme.componentBgColor
+                    border.width: 1
+                    border.color: Theme.inputBorderColor
+
+                    Behavior on color { ColorAnimation { duration: Theme.animationDuration } }
+                    Behavior on border.color { ColorAnimation { duration: Theme.animationDuration } }
 
                     Text {
                         anchors.centerIn: parent
                         text: modelData + " hour"
-                        color: formatButton.selected ? Theme.buttonTextColor : Theme.textColor
+                        color: formatButton.selected ? Theme.textColor : Theme.secondaryTextColor
                         font.family: Theme.textFontFamily
                         font.pixelSize: 14
                         font.weight: formatButton.selected ? Font.DemiBold : Font.Normal

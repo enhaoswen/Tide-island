@@ -1,6 +1,6 @@
 # Maintainer: whysooraj <whysooraj.official@gmail.com>
 pkgname=tide-island
-pkgver=1.0.26
+pkgver=1.0.27
 pkgrel=1
 _srcdir=Tide-island-$pkgver
 _builddir=build-$pkgver
@@ -18,7 +18,7 @@ depends=(
     'pipewire'
     'dbus'
     'libpulse'
-    'systemd-libs'
+    'systemd'
     'brightnessctl'
     'upower'
     'bluez'
