@@ -11,6 +11,7 @@
 #include "renderer.hpp"
 #include "environment.hpp"
 #include "log.hpp"
+#include "backend.hpp"
 
 #include "sokol_gfx.h"
 #include "sokol_log.h"
@@ -38,31 +39,35 @@ int main() {
     GraphicBackend::prepare_graphics_backend();
 
     // Island dimensions must be known before the Wayland layer surface exists.
-    Island::set_window_size(140, 40);
-    Island::set_island_size(140, 38);
-    Island::set_anchor_top(2);
-    Island::set_radius(19);
-    Island::set_zone(40);
+
+    Island::Island arg_island {
+        .color = {0,0,0,1},
+        .window_width = 140,
+        .window_height = 40,
+        .island_width = 140,
+        .island_height = 38,
+        .zone = 40,
+        .anchor_top = 2,
+        .radius = 19,
+        .is_running = true,
+        .state = Island::State::Clock
+    };
+    Island::init(arg_island);
 
     Log::check(Wayland::init());
-
     logger(Log::Debug, "Initialize Wayland successfully");
 
-    Log::check(Renderer::init());
+    Log::check(Backend::init());
+    logger(Log::Debug, "Initialize backend successfully");
 
+    Log::check(Renderer::init());
     logger(Log::Debug, "Initialize render successfully");
 
     GraphicBackend::inspect_graphics_backend_after_context();
 
-    Log::check(Renderer::frame());
+    Log::check(Backend::run());
 
-    Wayland::swap_buffer();
-
-    while (Island::state().is_running) {
-        Wayland::dispatch_events();
-    }
-
-    logger(Log::Info, "Quit because island.is_running is set as false");
+    logger(Log::Debug, "Quit because island.is_running is set as false");
 
     Wayland::shutdown();
     Renderer::shutdown();

@@ -8,6 +8,8 @@
 #include "island.hpp"
 #include "log.hpp"
 
+using namespace std;
+
 // ============================================================================
 // [Internal Details]
 // ============================================================================
@@ -24,6 +26,10 @@ Island::Island island{};
 
 const Island::Island& Island::state() {
     return island;
+}
+
+void Island::init(Island& arg_island){
+    island = arg_island;
 }
 
 void Island::set_island_size(float width, float height) {
@@ -65,4 +71,8 @@ void Island::set_radius(float radius) {
 
 void Island::set_zone(int zone) {
     island.zone = zone;
+}
+
+void Island::set_state(State state) {
+    island.state = state;
 }

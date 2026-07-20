@@ -3,6 +3,7 @@
 #include <array>
 #include <cstddef>
 #include <expected>
+#include <string_view>
 
 // ============================================================================
 // Tide Island renderer API
@@ -37,14 +38,15 @@ std::expected<void, const char*> draw_rectangle(
     std::array<float, 4> color);
 
 std::expected<void, const char*> draw_text(
-    ObjFrame obj_frame,
-    const char* text,
+    ObjFrame frame,
+    std::string_view text,
     std::size_t font_size,
     std::array<float, 4> color,
     tex_pos xpos = tex_pos::middle,
     tex_pos ypos = tex_pos::middle);
 
 std::expected<void, const char*> frame();
+
 void shutdown();
 
 } // namespace Renderer

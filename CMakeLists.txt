@@ -26,6 +26,8 @@ set(SRC
     source/renderer.cpp
     source/environment.cpp
     source/text_engine.cpp
+    source/backend.cpp
+    source/provider.cpp
 )
 
 add_executable(Tide-island ${SRC})

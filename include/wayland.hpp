@@ -14,7 +14,8 @@ namespace Wayland {
 std::expected<void, const char*> init();
 void request_resize(int width, int height);
 void swap_buffer();
-void dispatch_events();
+std::expected<int, const char*> get_fd();
+std::expected<void, const char*> dispatch_events();
 void shutdown();
 
 } // namespace Wayland

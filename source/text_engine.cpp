@@ -194,7 +194,8 @@ expected<const Glyph*, const char*> rasterize(uint32_t id) {
     if (FT_Load_Glyph(
             face.get(),
             static_cast<FT_UInt>(id),
-            FT_LOAD_DEFAULT | FT_LOAD_RENDER | FT_LOAD_COLOR)) {
+            FT_LOAD_DEFAULT | FT_LOAD_TARGET_LIGHT |
+                FT_LOAD_RENDER | FT_LOAD_COLOR)) {
         return unexpected("Failed to rasterize glyph");
     }
 
@@ -260,13 +261,13 @@ expected<void, const char*> DisplayWord::init() {
 }
 
 expected<vector<char>, const char*> DisplayWord::render_text(
-    const char* text,
+    string_view text,
     size_t font_size,
     size_t width,
     size_t height,
     float horizontal_alignment,
     float vertical_alignment) {
-    if (!text || !face || !hb_font || !hb_buffer) {
+    if (text.empty() || !face || !hb_font || !hb_buffer) {
         return unexpected("Text engine is not ready");
     }
     if (width == 0 || height == 0 ||
@@ -360,4 +361,8 @@ expected<vector<char>, const char*> DisplayWord::render_text(
         }
     }
     return output;
+}
+
+size_t DisplayWord::cache_size() {
+    return glyph_cache.size();
 }

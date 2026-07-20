@@ -5,6 +5,8 @@
 #include "island.hpp"
 #include "log.hpp"
 #include "text_engine.hpp"
+#include "provider.hpp"
+#include "wayland.hpp"
 
 #include "sokol_gfx.h"
 #include "sokol_log.h"
@@ -16,6 +18,7 @@
 #include <cstdint>
 #include <expected>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <utility>
 
@@ -104,7 +107,7 @@ array<float, 24> rectangle_vertices(
     array<float, 4> color) {
     return { frame.x, frame.y, color[0], color[1],
         color[2], color[3], frame.x + frame.width, frame.y,
-        color[0], color[1], color[2], color[3], 
+        color[0], color[1], color[2], color[3],
         frame.x, frame.y + frame.height, color[0],
         color[1], color[2], color[3], frame.x + frame.width,
         frame.y + frame.height, color[0], color[1], color[2], color[3],
@@ -178,6 +181,18 @@ expected<void, const char*> fail_init(const char* error) {
     return unexpected(error);
 }
 
+void draw_state_clock(){
+    if (island.state == Island::State::Clock){
+        Renderer::ObjFrame frame {
+            .x = 0,
+            .y = island.anchor_top,
+            .width = island.island_width,
+            .height = island.island_height
+        };
+        Log::check(Renderer::draw_text(frame,Provider::style_clock() , 18, {1,1,1,1}));
+    }
+}
+
 void evict_oldest_texture() {
     if (text_cache.size() < max_cached_textures) {
         return;
@@ -203,7 +218,7 @@ expected<const TextTexture*, const char*> texture_for(TextKey key) {
     }
 
     auto pixels = DisplayWord::render_text(
-        key.text.c_str(),
+        key.text,
         key.font_size,
         static_cast<size_t>(key.width),
         static_cast<size_t>(key.height),
@@ -309,8 +324,8 @@ expected<void, const char*> Renderer::init() {
     vertex_buffer = sg_make_buffer(&buffer_descriptor);
 
     sg_sampler_desc sampler_descriptor{};
-    sampler_descriptor.min_filter = SG_FILTER_LINEAR;
-    sampler_descriptor.mag_filter = SG_FILTER_LINEAR;
+    sampler_descriptor.min_filter = SG_FILTER_NEAREST;
+    sampler_descriptor.mag_filter = SG_FILTER_NEAREST;
     sampler_descriptor.wrap_u = SG_WRAP_CLAMP_TO_EDGE;
     sampler_descriptor.wrap_v = SG_WRAP_CLAMP_TO_EDGE;
     sampler_descriptor.label = "text_sampler";
@@ -351,23 +366,29 @@ expected<void, const char*> Renderer::draw_rectangle(
 
 expected<void, const char*> Renderer::draw_text(
     ObjFrame frame,
-    const char* text,
+    string_view text,
     size_t font_size,
     array<float, 4> color,
     tex_pos horizontal,
     tex_pos vertical) {
-    if (!text || font_size == 0 ||
+    if (font_size == 0 ||
         frame.width <= 0.0F || frame.height <= 0.0F) {
         return unexpected("Invalid text arguments");
     }
-    if (*text == '\0') {
+    if (text.empty()) {
         return {};
     }
 
     const int width = max(1, static_cast<int>(lround(frame.width)));
     const int height = max(1, static_cast<int>(lround(frame.height)));
+    const ObjFrame pixel_aligned_frame{
+        .x = round(frame.x),
+        .y = round(frame.y),
+        .width = static_cast<float>(width),
+        .height = static_cast<float>(height),
+    };
     auto texture = texture_for({
-        .text = text,
+        .text = string(text),
         .font_size = font_size,
         .width = width,
         .height = height,
@@ -378,7 +399,7 @@ expected<void, const char*> Renderer::draw_text(
         return unexpected(texture.error());
     }
 
-    const auto vertices = text_vertices(frame, color);
+    const auto vertices = text_vertices(pixel_aligned_frame, color);
     const int offset = sg_append_buffer(vertex_buffer, SG_RANGE(vertices));
     if (sg_query_buffer_overflow(vertex_buffer)) {
         return unexpected("Vertex buffer overflow");
@@ -422,26 +443,15 @@ expected<void, const char*> Renderer::frame() {
         return result;
     }
 
-    expected<void, const char*> text_result = draw_text(
-        {
-            .x = 0,
-            .y = 0,
-            .width = island.island_width,
-            .height = island.island_height,
-        },
-        "hello world",
-        24,
-        {1.0F, 1.0F, 1.0F, 1.0F},
-        tex_pos::middle,
-        tex_pos::middle);
-
-    if (!text_result) {
-        sg_end_pass();
-        return text_result;
+    if (island.state == Island::Clock){
+        draw_state_clock();
     }
 
     sg_end_pass();
     sg_commit();
+
+    Wayland::swap_buffer();
+
     return {};
 }
 

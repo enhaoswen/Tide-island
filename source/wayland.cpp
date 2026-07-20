@@ -23,6 +23,7 @@
 #include <expected>
 #include <string_view>
 
+
 using namespace std;
 
 // ============================================================================
@@ -107,6 +108,7 @@ constexpr zwlr_layer_surface_v1_listener layer_surface_listener = {
     .closed    = layer_surface_closed,
 };
 
+
 } // namespace
 
 // ============================================================================
@@ -151,7 +153,7 @@ expected<void, const char*> Wayland::init() {
     surface.reset(wl_compositor_create_surface(compositor.get()));
 
     if (!surface.get()){
-        return unexpected("Failed to sest surface");
+        return unexpected("Failed to create surface");
     }
 
     layer_surface.reset(zwlr_layer_shell_v1_get_layer_surface(
@@ -265,10 +267,18 @@ expected<void, const char*> Wayland::init() {
     return {};
 }
 
-void Wayland::dispatch_events() {
-    if (wl_display_dispatch(display.get()) == -1)
-        logger(Log::Error, "Failed to dispatch event");
+expected<void, const char*> Wayland::dispatch_events() {
+    if (!display) {
+        return unexpected("Wayland display is not initialized");
+    }
+
+    if (wl_display_dispatch(display.get()) == -1) {
+        return unexpected("Wayland dispatch failed");
+    }
+
+    return {};
 }
+
 
 void Wayland::swap_buffer() {
     eglSwapBuffers(egl_display, egl_surface);
@@ -281,6 +291,19 @@ void Wayland::request_resize(int width, int height) {
     }
     zwlr_layer_surface_v1_set_size(layer_surface.get(), width, height);
     Island::set_window_size(width, height);
+}
+
+expected<int, const char*> Wayland::get_fd() {
+    if (!display) {
+        return unexpected("Wayland display is not initialized");
+    }
+
+    int fd = wl_display_get_fd(display.get());
+    if (fd == -1) {
+        return unexpected("Failed to get Wayland file descriptor");
+    }
+
+    return fd;
 }
 
 void Wayland::shutdown() {

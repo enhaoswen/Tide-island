@@ -22,8 +22,7 @@ namespace Log {
 enum LogLevel : char {
     Error,
     Warning,
-    Debug,
-    Info
+    Debug
 };
 
 } // namespace Log
@@ -73,7 +72,7 @@ inline void logger(LogLevel level, std::format_string<Args...> fmt, Args&&... ar
 
 template <typename... Args>
 inline void frame_logger(LogLevel level, Args&&... args) {
-    if (!is_debug_mode && (level == LogLevel::Debug || level == LogLevel::Info)) return;
+    if (!is_debug_mode && (level == LogLevel::Debug)) return;
     if constexpr (sizeof...(Args) == 0) return;
 
     std::array<std::string_view, sizeof...(Args)> msgs{
