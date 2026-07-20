@@ -1,1 +1,9 @@
-# 1 issue 1 topic pls
+name: Issue
+description: Report a bug, request a feature, or ask a question.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## One issue = one topic
+
+        Please keep each issue focused on a single topic.
