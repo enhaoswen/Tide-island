@@ -35,6 +35,7 @@ optdepends=(
     'cava: for audio visualizer'
     'imagemagick: for wallpaper thumbnails'
     'awww: for applying wallpapers from the wallpaper picker'
+    'python-pywal: for generating colors from the selected wallpaper'
     'networkmanager: for wifi control'
     'iwd: for wifi control'
     'swaync: for the Focus do-not-disturb toggle'

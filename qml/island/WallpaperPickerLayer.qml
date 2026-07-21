@@ -111,8 +111,11 @@ FocusScope {
         + "if invert_y == 'true':\n"
         + "    cmd.append('--invert-y')\n"
         + "result=subprocess.run(cmd,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)\n"
-        + "if pywal_enabled == 'true' and result.returncode == 0:\n"
-        + "    subprocess.run(['wal','-i',applied],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)\n"
+        + "if result.returncode == 0 and pywal_enabled == 'true':\n"
+        + "    if not shutil.which('wal'):\n"
+        + "        print(\"Pywal is enabled, but the 'wal' command was not found in PATH.\",file=sys.stderr)\n"
+        + "        sys.exit(127)\n"
+        + "    result=subprocess.run(['wal','-n','-q','-i',source])\n"
         + "sys.exit(result.returncode)\n"
 
     readonly property var transitionTypes: ["none", "simple", "fade", "left", "right", "top", "bottom", "wipe", "wave", "grow", "center", "any", "outer", "random"]

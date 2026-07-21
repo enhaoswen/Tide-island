@@ -36,6 +36,12 @@ target_link_libraries(lyricsmpris PRIVATE
 
 enable_testing()
 
+find_program(PYTHON3_EXECUTABLE NAMES python3 REQUIRED)
+add_test(
+    NAME wallpaper_apply
+    COMMAND "${PYTHON3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/wallpaper_apply_tests.py"
+)
+
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/lyricsmpris_core_tests.cpp")
     add_executable(lyricsmpris_tests
         tests/lyricsmpris_core_tests.cpp

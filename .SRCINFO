@@ -29,6 +29,7 @@ pkgbase = tide-island
 	optdepends = cava: for audio visualizer
 	optdepends = imagemagick: for wallpaper thumbnails
 	optdepends = awww: for applying wallpapers from the wallpaper picker
+	optdepends = python-pywal: for generating colors from the selected wallpaper
 	optdepends = networkmanager: for wifi control
 	optdepends = iwd: for wifi control
 	optdepends = swaync: for the Focus do-not-disturb toggle

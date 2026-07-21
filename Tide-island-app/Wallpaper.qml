@@ -81,7 +81,7 @@ Rectangle {
 
         ToggleRow {
             title: "Pywal"
-            description: "Run wal -i after awww applies a wallpaper"
+            description: "Run wal -n -i after the wallpaper command succeeds"
             keyName: "wallpaperPywalEnabled"
             fallbackValue: false
             blocked: root.customCommandActive
