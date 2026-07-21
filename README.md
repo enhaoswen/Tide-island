@@ -176,12 +176,6 @@ Quickshell is used from `/usr/bin/quickshell` when available. Otherwise the
 installer builds the pinned, verified Quickshell version compatible with this
 release. Qt 6.6 or newer is required.
 
-Support is determined by the Qt version shipped by the distribution, not only
-its name. For example, Ubuntu 24.04 ships Qt 6.4 in its official repositories,
-so it needs a newer Qt source/repository before this installer can build the
-pinned Quickshell. The installer stops with a clear error instead of mixing
-incompatible Qt versions.
-
 This source installer targets conventional Linux systems with a writable
 `/usr`. Declarative or immutable systems such as NixOS and Fedora Silverblue
 should use a native package or a mutable development container instead.
