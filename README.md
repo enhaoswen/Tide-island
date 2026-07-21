@@ -95,7 +95,7 @@ It's built with Quickshell, QML, and C++/Qt 6. Most of the effort went into maki
 - Control Center
 - Timer
 - Lyrics displayer
-- Application launcher (`Super + /` by default)
+- Application launcher
 - Wallpaper switcher
 - Workspace overview
 - Custom page
@@ -263,31 +263,6 @@ Tide Island can be controlled remotely via `quickshell ipc call`:
 | `quickshell ipc call tide toggleApplicationLauncher` | Open or close the application launcher |
 
 <br>
-
-## Notification Centre
-
-The Notification Centre is a scrollable history panel that collects all incoming system notifications. It opens as a centred overlay above the island capsule, displaying each notification as a card with the app icon, summary, body, and timestamp.
-
-### Opening the Notification Centre
-
-- **IPC commands** — see [IPC Commands](#common-commands) above
-- **Keybind** — bind a key to call `quickshell ipc call tide toggleNotificationCenter` in your Hyprland config:
-  ```conf
-  bind = $mainMod, N, exec, quickshell ipc call tide toggleNotificationCenter
-  ```
-  Or in Lua:
-  ```lua
-  hl.keybind("$mainMod", "N", "quickshell ipc call tide toggleNotificationCenter")
-  ```
-
-### Behaviour
-
-- Notifications are automatically stored in the history when they arrive via the system notification daemon
-- The list is capped at 50 notifications — oldest entries are removed first
-- Each card shows the app name, summary text, body (if present), and relative timestamp
-- Use **Clear all** in the header to dismiss every notification at once
-- Tap the **✕** button or dismiss to close the panel
-- The panel height adjusts dynamically based on the notification list content
 
 ### Dismissing notifications
 
