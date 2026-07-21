@@ -17,8 +17,8 @@ enum State : char {
 
 struct Island {
     std::array<float, 4> color = {0, 0, 0, 1};
-    int window_width{};
-    int window_height{};
+    int surface_width{};
+    int surface_height{};
     float island_width{};
     float island_height{};
     int zone{-1};

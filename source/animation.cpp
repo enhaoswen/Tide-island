@@ -1,0 +1,5 @@
+#include "animation.hpp"
+
+namespace {
+
+}

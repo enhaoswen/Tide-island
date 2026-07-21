@@ -118,7 +118,7 @@ constexpr zwlr_layer_surface_v1_listener layer_surface_listener = {
 expected<void, const char*> Wayland::init() {
     Island::Island island_state = Island::state();
 
-    if (island_state.window_width == 0 || island_state.window_height == 0) {
+    if (island_state.surface_width == 0 || island_state.surface_height == 0) {
         return unexpected("Size of island is 0, call 'Island::set_window_size(int w, int h)'");
     }
 
@@ -172,7 +172,15 @@ expected<void, const char*> Wayland::init() {
         layer_surface.get(),
         ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP
     );
-    Wayland::request_resize(island_state.window_width, island_state.window_height);
+    zwlr_layer_surface_v1_set_size(
+        layer_surface.get(),
+        island_state.surface_width,
+        island_state.surface_height
+    );
+    Island::set_window_size(
+        island_state.surface_width,
+        island_state.surface_height
+    );
     zwlr_layer_surface_v1_set_exclusive_zone(layer_surface.get(), island_state.zone);
 
     zwlr_layer_surface_v1_add_listener(
@@ -189,8 +197,8 @@ expected<void, const char*> Wayland::init() {
     // 3. Setup EGL Window & Display
     egl_window.reset(wl_egl_window_create(
         surface.get(),
-        island_state.window_width,
-        island_state.window_height
+        island_state.surface_width,
+        island_state.surface_height
     ));
     if (!egl_window) {
         return unexpected("Failed to create wl_egl_window");
@@ -284,13 +292,25 @@ void Wayland::swap_buffer() {
     eglSwapBuffers(egl_display, egl_surface);
 }
 
-void Wayland::request_resize(int width, int height) {
+expected<void, const char*> Wayland::request_resize(int width, int height) {
     if (!layer_surface) {
-        logger(Log::Error, "request_resize called before layer_surface creation");
-        return;
+        return unexpected("request_resize called before layer_surface creation");
     }
+
+    if (width <= 0 || height <= 0){
+        return unexpected("Island size should not be neagative");
+    }
+
+    if (! egl_window.get()){
+        return unexpected("EGL_window is not initialized");
+    }
+
     zwlr_layer_surface_v1_set_size(layer_surface.get(), width, height);
     Island::set_window_size(width, height);
+    
+    wl_egl_window_resize(egl_window.get(), width, height, 0, 0);
+
+    return {};
 }
 
 expected<int, const char*> Wayland::get_fd() {

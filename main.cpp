@@ -12,14 +12,36 @@
 #include "environment.hpp"
 #include "log.hpp"
 #include "backend.hpp"
+#include "config.hpp"
+#include "json.hpp"
 
 #include "sokol_gfx.h"
 #include "sokol_log.h"
 #include "wayland.hpp"
 
-#include <print>
-
 using namespace std;
+using namespace nlohmann;
+
+Island::Island init_island(){
+    json config = Log::check(Config::read());
+
+    Island::Island island {
+        .color = {0,0,0,1},
+        .surface_width = config["surface_width"],
+        .surface_height = config["surface_height"],
+        .island_width = config["island_width"],
+        .island_height = config["island_height"],
+        .zone = config["zone"],
+        .anchor_top = config["anchor_top"],
+        .radius = config["radius"],
+
+        .privilege = 0,
+        .is_running = true,
+        .state = Island::State::Clock
+    };
+
+    return island;
+}
 
 // ============================================================================
 // [Application Lifecycle]
@@ -40,19 +62,10 @@ int main() {
 
     // Island dimensions must be known before the Wayland layer surface exists.
 
-    Island::Island arg_island {
-        .color = {0,0,0,1},
-        .window_width = 140,
-        .window_height = 40,
-        .island_width = 140,
-        .island_height = 38,
-        .zone = 40,
-        .anchor_top = 2,
-        .radius = 19,
-        .is_running = true,
-        .state = Island::State::Clock
-    };
-    Island::init(arg_island);
+    Log::check(Config::init());
+    
+    Island::Island island = init_island();
+    Island::init(island);
 
     Log::check(Wayland::init());
     logger(Log::Debug, "Initialize Wayland successfully");
@@ -69,6 +82,6 @@ int main() {
 
     logger(Log::Debug, "Quit because island.is_running is set as false");
 
-    Wayland::shutdown();
     Renderer::shutdown();
+    Wayland::shutdown();
 }

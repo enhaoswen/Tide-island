@@ -48,8 +48,8 @@ void Island::set_window_size(int width, int height) {
         return;
     }
 
-    island.window_width = width;
-    island.window_height = height;
+    island.surface_width = width;
+    island.surface_height = height;
 }
 
 void Island::set_anchor_top(float distance) {
