@@ -1,4 +1,5 @@
 import QtQuick
+import Qt5Compat.GraphicalEffects
 import IslandBackend
 
 Item {
@@ -7,6 +8,8 @@ Item {
     readonly property var userConfig: UserConfig
 
     property string lyricText: ""
+    property string currentArtUrl: ""
+    property var cavaLevels: []
     property string timeText: ""
     property var configSource: null
     readonly property var activeConfig: configSource || userConfig
@@ -20,6 +23,9 @@ Item {
     property real minimumWidth: 220
     property real maximumWidth: minimumWidth
     property real horizontalPadding: 14
+    property real coverSize: 24
+    property real coverRadius: 7
+    property real visualSpacing: 20
     property real hiddenLeftPadding: 18
     property real hiddenRightPadding: 16
     property string activeLyricText: lyricText
@@ -30,6 +36,10 @@ Item {
     readonly property real clampedProgress: Math.max(0, Math.min(1, transitionProgress))
     readonly property bool lyricMostlyVisible: clampedProgress > 0.92
     readonly property real textWidth: Math.max(0, width - horizontalPadding * 2)
+    readonly property real lyricTextWidth: Math.max(
+        0,
+        textWidth - coverSize - cavaBars.implicitWidth - visualSpacing * 2
+    )
     readonly property real centeredX: horizontalPadding
     readonly property real lyricHiddenLeftX: -textWidth - hiddenLeftPadding
     readonly property real timeHiddenRightX: width + hiddenRightPadding
@@ -40,7 +50,7 @@ Item {
     readonly property real timeX: centeredX + clampedProgress * dragDistance
     readonly property real lyricBaselineY: lyricBaselineGuide.y + lyricBaselineGuide.baselineOffset
     readonly property real timeBaselineY: timeBaselineGuide.y + timeBaselineGuide.baselineOffset
-    readonly property real visibleLyricWidth: Math.min(textWidth, Math.max(0, lyricMetrics.advanceWidth))
+    readonly property real visibleLyricWidth: Math.min(lyricTextWidth, Math.max(0, lyricMetrics.advanceWidth))
     readonly property real visibleTimeWidth: Math.min(textWidth, Math.max(0, timeMetrics.advanceWidth))
     readonly property real timeRecordingDotX: Math.max(
         4,
@@ -48,7 +58,14 @@ Item {
     )
     readonly property real preferredWidth: Math.max(
         minimumWidth,
-        Math.min(Math.max(minimumWidth, maximumWidth), lyricMetrics.advanceWidth + horizontalPadding * 2 + 28)
+        Math.min(
+            Math.max(minimumWidth, maximumWidth),
+            lyricMetrics.advanceWidth
+                + horizontalPadding * 2
+                + coverSize
+                + cavaBars.implicitWidth
+                + visualSpacing * 2
+        )
     )
 
     onLyricTextChanged: {
@@ -152,38 +169,104 @@ Item {
         }
     }
 
-    Text {
-        visible: previousLyricText !== ""
-        x: lyricX
-        y: lyricBaselineY - baselineOffset - 14 * lyricChangeProgress
-        width: textWidth
-        text: previousLyricText
-        color: "white"
-        opacity: clampedProgress * (1 - lyricChangeProgress)
-        font.pixelSize: textPixelSize
-        font.family: textFontFamily
-        font.weight: Font.DemiBold
-        font.letterSpacing: -0.15
-        horizontalAlignment: Text.AlignHCenter
-        elide: Text.ElideRight
-        wrapMode: Text.NoWrap
-    }
+    Item {
+        id: lyricContent
 
-    Text {
-        visible: activeLyricText !== ""
-        x: lyricX
-        y: lyricBaselineY - baselineOffset + (previousLyricText !== "" ? 12 * (1 - lyricChangeProgress) : 0)
-        width: textWidth
-        text: activeLyricText
-        color: "white"
-        opacity: clampedProgress * (previousLyricText !== "" ? lyricChangeProgress : 1)
-        font.pixelSize: textPixelSize
-        font.family: textFontFamily
-        font.weight: Font.DemiBold
-        font.letterSpacing: -0.15
-        horizontalAlignment: Text.AlignHCenter
-        elide: Text.ElideRight
-        wrapMode: Text.NoWrap
+        x: root.lyricX
+        width: root.textWidth
+        height: parent.height
+        opacity: root.clampedProgress
+
+        Rectangle {
+            id: coverFrame
+
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            width: root.coverSize
+            height: root.coverSize
+            radius: root.coverRadius
+            color: "#2c2c2e"
+            antialiasing: true
+
+            Rectangle {
+                id: coverMask
+
+                anchors.fill: parent
+                radius: root.coverRadius
+                antialiasing: true
+                visible: false
+                layer.enabled: true
+            }
+
+            Image {
+                anchors.fill: parent
+                source: root.currentArtUrl
+                fillMode: Image.PreserveAspectCrop
+                visible: source.toString() !== ""
+                sourceSize: Qt.size(root.coverSize * 2, root.coverSize * 2)
+                layer.enabled: true
+                layer.effect: OpacityMask {
+                    maskSource: coverMask
+                }
+            }
+        }
+
+        Item {
+            id: lyricViewport
+
+            anchors.left: coverFrame.right
+            anchors.leftMargin: root.visualSpacing
+            anchors.right: cavaBars.left
+            anchors.rightMargin: root.visualSpacing
+            height: parent.height
+            clip: true
+
+            Text {
+                visible: root.previousLyricText !== ""
+                y: root.lyricBaselineY - baselineOffset - 14 * root.lyricChangeProgress
+                width: parent.width
+                text: root.previousLyricText
+                color: "white"
+                opacity: 1 - root.lyricChangeProgress
+                font.pixelSize: root.textPixelSize
+                font.family: root.textFontFamily
+                font.weight: Font.DemiBold
+                font.letterSpacing: -0.15
+                horizontalAlignment: Text.AlignHCenter
+                elide: Text.ElideRight
+                wrapMode: Text.NoWrap
+            }
+
+            Text {
+                visible: root.activeLyricText !== ""
+                y: root.lyricBaselineY - baselineOffset
+                    + (root.previousLyricText !== "" ? 12 * (1 - root.lyricChangeProgress) : 0)
+                width: parent.width
+                text: root.activeLyricText
+                color: "white"
+                opacity: root.previousLyricText !== "" ? root.lyricChangeProgress : 1
+                font.pixelSize: root.textPixelSize
+                font.family: root.textFontFamily
+                font.weight: Font.DemiBold
+                font.letterSpacing: -0.15
+                horizontalAlignment: Text.AlignHCenter
+                elide: Text.ElideRight
+                wrapMode: Text.NoWrap
+            }
+        }
+
+        SwipeCavaBars {
+            id: cavaBars
+
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            levels: root.cavaLevels
+            barCount: 5
+            barWidth: 3
+            barSpacing: 3
+            minimumBarHeight: 4
+            barColor: "white"
+        }
     }
 
     Text {

@@ -891,6 +891,8 @@ PanelWindow {
             dateText: timeObj.currentDateLabel
             currentWorkspace: islandContainer.currentWs
             customSwipeActive: customSwipeLoader.active
+            lyricsCavaActive: islandContainer.lyricsSwipeVisible
+                && islandContainer.rightSwipeProgress > 0.001
 
             onTransientRequested: function(icon, progress, text) {
                 islandContainer.showTransientCapsule(icon, progress, text);
@@ -2098,6 +2100,8 @@ PanelWindow {
                 sourceComponent: Component {
                     SwipeLyricsLayer {
                         lyricText: islandContainer.lyricsDisplayText
+                        currentArtUrl: islandContainer.currentArtUrl
+                        cavaLevels: islandContainer.cavaLevels
                         timeText: timeObj.currentTime
                         textFontFamily: root.textFontFamily
                         timeFontFamily: root.timeFontFamily

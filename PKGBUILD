@@ -1,6 +1,6 @@
 # Maintainer: whysooraj <whysooraj.official@gmail.com>
 pkgname=tide-island
-pkgver=1.0.27
+pkgver=1.0.28
 pkgrel=1
 _srcdir=Tide-island-$pkgver
 _builddir=build-$pkgver
@@ -11,6 +11,7 @@ license=('GPL-3.0-only')
 depends=(
     'qt6-base'
     'qt6-declarative'
+    'qt6-5compat'
     'qt6-wayland'
     'qt6-connectivity'
     'qt6-svg'

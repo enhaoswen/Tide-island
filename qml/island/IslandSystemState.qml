@@ -16,6 +16,7 @@ Item {
     property string dateText: "Mon, Jan 01"
     property int currentWorkspace: 1
     property bool customSwipeActive: false
+    property bool lyricsCavaActive: false
 
     readonly property var configuredLeftSwipeIds: buildNormalizedSwipeItemIds(configuredLeftSwipeItems)
     readonly property bool usesSystemStatsModule: configuredLeftSwipeIds.indexOf("cpu") !== -1
@@ -66,6 +67,7 @@ Item {
     onUsesStorageModuleChanged: refreshMissingValues()
     onUsesCavaModuleChanged: updateCavaSubscription()
     onCustomSwipeActiveChanged: updateCavaSubscription()
+    onLyricsCavaActiveChanged: updateCavaSubscription()
     onBatteryCapacityChanged: syncCustomLeftItems()
     onIsChargingChanged: syncCustomLeftItems()
     onCurrentVolumeChanged: syncCustomLeftItems()
@@ -162,7 +164,7 @@ Item {
     }
 
     function updateCavaSubscription() {
-        const active = usesCavaModule && customSwipeActive;
+        const active = (usesCavaModule && customSwipeActive) || lyricsCavaActive;
         SystemServices.setCavaClientActive(systemServicesClientId, active);
         if (active)
             cavaLevels = SystemServices.cavaLevels;
