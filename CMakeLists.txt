@@ -30,6 +30,7 @@ set(SRC
     source/provider.cpp
     source/animation.cpp
     source/config.cpp
+    source/seat.cpp
 )
 
 add_executable(Tide-island ${SRC})

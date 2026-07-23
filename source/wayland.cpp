@@ -8,6 +8,7 @@
 #include "wayland.hpp"
 #include "island.hpp"
 #include "log.hpp"
+#include "seat.hpp"
 
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 #include <GLES3/gl3.h>
@@ -42,12 +43,12 @@ struct DeleteWayland {
 unique_ptr<wl_display, DeleteWayland<wl_display_disconnect>> display{nullptr};
 unique_ptr<wl_registry, DeleteWayland<wl_registry_destroy>> registry{nullptr};
 unique_ptr<wl_compositor, DeleteWayland<wl_compositor_destroy>> compositor{nullptr};
-unique_ptr<zwlr_layer_shell_v1, DeleteWayland<zwlr_layer_shell_v1_destroy>>
-    layer_shell{nullptr};
+unique_ptr<zwlr_layer_shell_v1, DeleteWayland<zwlr_layer_shell_v1_destroy>> layer_shell{nullptr};
 unique_ptr<wl_surface, DeleteWayland<wl_surface_destroy>> surface{nullptr};
-unique_ptr<zwlr_layer_surface_v1, DeleteWayland<zwlr_layer_surface_v1_destroy>>
-    layer_surface{nullptr};
+unique_ptr<zwlr_layer_surface_v1, DeleteWayland<zwlr_layer_surface_v1_destroy>> layer_surface{nullptr};
 unique_ptr<wl_egl_window, DeleteWayland<wl_egl_window_destroy>> egl_window{nullptr};
+unique_ptr<wl_seat, DeleteWayland<wl_seat_release>> seat{nullptr};
+unique_ptr<wl_pointer, DeleteWayland<wl_pointer_release>> pointer{nullptr};
 
 EGLDisplay egl_display{EGL_NO_DISPLAY};
 EGLConfig  egl_config{};
@@ -56,6 +57,53 @@ EGLSurface egl_surface{EGL_NO_SURFACE};
 
 // --- Wayland Registry Listeners ---
 
+void seat_capabilities(
+    void*,
+    wl_seat* current_seat,
+    uint32_t capabilities
+) {
+    const bool has_pointer =
+        capabilities & WL_SEAT_CAPABILITY_POINTER;
+
+    if (has_pointer && !pointer) {
+        pointer.reset(wl_seat_get_pointer(current_seat));
+
+        if (!pointer) {
+            Log::logger(
+                Log::Error,
+                "wl_seat_get_pointer failed"
+            );
+            return;
+        }
+
+        if (wl_pointer_add_listener(
+            pointer.get(),
+            &Seat::pointer_listener(),
+            nullptr
+        ) == -1) {
+            Log::logger(Log::Error, "Failed to add wl_pointer listener");
+        }
+
+    } else if (!has_pointer && pointer) {
+        pointer.reset();
+    }
+}
+
+void seat_name(
+    void*,
+    wl_seat*,
+    const char* name
+) {
+    Log::logger(Log::Debug, "Seat name:{}", name);
+}
+
+const wl_seat_listener seat_listener{
+    .capabilities = seat_capabilities,
+    .name = seat_name,
+};
+
+
+
 void registry_global(
     void*,
     wl_registry* registry,
@@ -63,15 +111,55 @@ void registry_global(
     const char* interface,
     uint32_t version
 ) {
-    if (string_view(interface) == wl_compositor_interface.name) {
+    const string_view interface_name{interface};
+
+    if (interface_name == wl_compositor_interface.name) {
         compositor.reset(static_cast<wl_compositor*>(
-            wl_registry_bind(registry, name, &wl_compositor_interface, min(version, 4u))
+            wl_registry_bind(
+                registry,
+                name,
+                &wl_compositor_interface,
+                min(version, 4u)
+            )
         ));
     }
-    else if (string_view(interface) == zwlr_layer_shell_v1_interface.name) {
+    else if (interface_name == zwlr_layer_shell_v1_interface.name) {
         layer_shell.reset(static_cast<zwlr_layer_shell_v1*>(
-            wl_registry_bind(registry, name, &zwlr_layer_shell_v1_interface, min(version, 4u))
+            wl_registry_bind(
+                registry,
+                name,
+                &zwlr_layer_shell_v1_interface,
+                min(version, 4u)
+            )
         ));
+    }
+
+    else if (interface_name == wl_seat_interface.name) {
+        if (seat) {
+            return;
+        }
+
+        seat.reset(static_cast<wl_seat*>(
+            wl_registry_bind(
+                registry,
+                name,
+                &wl_seat_interface,
+                min(version, 8u)
+            )
+        ));
+
+        if (!seat) {
+            Log::logger(Log::Error, "Failed to bind wl_seat");
+            return;
+        }
+
+        if (wl_seat_add_listener(
+            seat.get(),
+            &seat_listener,
+            nullptr
+        ) == -1) {
+            Log::logger(Log::Error, "Failed to add wl_seat listener");
+        }
     }
 }
 

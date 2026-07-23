@@ -1,4 +1,4 @@
-
+#pragma
 
 namespace animation {
 

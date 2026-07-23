@@ -14,6 +14,7 @@
 #include "backend.hpp"
 #include "config.hpp"
 #include "json.hpp"
+#include "seat.hpp"
 
 #include "sokol_gfx.h"
 #include "sokol_log.h"
@@ -66,6 +67,8 @@ int main() {
     
     Island::Island island = init_island();
     Island::init(island);
+
+    Seat::init();
 
     Log::check(Wayland::init());
     logger(Log::Debug, "Initialize Wayland successfully");
