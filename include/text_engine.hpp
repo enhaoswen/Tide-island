@@ -2,7 +2,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <expected>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -35,14 +34,14 @@ struct TextBitmap {
     std::size_t height{};
 };
 
-std::expected<void, const char*> init();
+void init();
 void shutdown();
 
-std::expected<FontId, const char*> load_font(std::string_view path);
-std::expected<void, const char*> unload_font(FontId font);
+FontId load_font(std::string_view path);
+void unload_font(FontId font);
 FontId default_font();
 
-std::expected<std::vector<char>, const char*> render_text(
+std::vector<char> render_text(
     FontId font,
     std::string_view text,
     std::size_t font_size,
@@ -52,7 +51,7 @@ std::expected<std::vector<char>, const char*> render_text(
     float vertical_alignment,
     GlyphCachePolicy cache_policy = GlyphCachePolicy::Ascii);
 
-std::expected<TextBitmap, const char*> render_text_tight(
+TextBitmap render_text_tight(
     FontId font,
     std::string_view text,
     std::size_t font_size,

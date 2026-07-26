@@ -16,7 +16,6 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
-#include <expected>
 #include <limits>
 #include <source_location>
 #include <string>
@@ -27,7 +26,7 @@ using namespace std;
 
 namespace {
 
-const Island::Island& island = Island::state();
+const Island::Island* island = Island::state();
 sg_shader rectangle_shader;
 sg_shader text_shader;
 sg_pipeline rectangle_pipeline;
@@ -60,8 +59,8 @@ constexpr size_t text_resource_warning_threshold = 30;
 
 sg_swapchain swapchain() {
     sg_swapchain result{};
-    result.width = island.surface_width;
-    result.height = island.surface_height;
+    result.width = island->surface_width;
+    result.height = island->surface_height;
     result.sample_count = 1;
     result.color_format = SG_PIXELFORMAT_RGBA8;
     result.depth_format = SG_PIXELFORMAT_NONE;
@@ -71,8 +70,8 @@ sg_swapchain swapchain() {
 
 project_uniform_t projection() {
     project_uniform_t result{};
-    result.proj[0] = 2.0F / island.surface_width;
-    result.proj[5] = -2.0F / island.surface_height;
+    result.proj[0] = 2.0F / island->surface_width;
+    result.proj[5] = -2.0F / island->surface_height;
     result.proj[10] = 1.0F;
     result.proj[12] = -1.0F;
     result.proj[13] = 1.0F;
@@ -198,26 +197,26 @@ void destroy_resources() {
     rectangle_shader = {};
 }
 
-expected<void, const char*> fail_init(const char* error) {
+[[noreturn]] void fail_init(const char* error) {
     destroy_resources();
     DisplayWord::shutdown();
     sg_shutdown();
-    return unexpected(error);
+    Log::fatal(error);
 }
 
 void draw_state_clock() {
-    if (island.state == Island::State::Clock) {
+    if (island->state == Island::State::Clock) {
         Renderer::ObjFrame frame{
             .x = 0,
-            .y = island.anchor_top,
-            .width = island.island_width,
-            .height = island.island_height};
-        Log::check(Renderer::draw_text(
+            .y = island->anchor_top,
+            .width = island->island_width,
+            .height = island->island_height};
+        Renderer::draw_text(
             frame,
             Provider::style_clock(),
             DisplayWord::default_font(),
             18,
-            {1, 1, 1, 1}));
+            {1, 1, 1, 1});
     }
 }
 
@@ -225,7 +224,7 @@ float alignment(Renderer::tex_pos position) {
     return static_cast<float>(position) * 0.5F;
 }
 
-expected<TextTexture, const char*> make_text_texture(
+TextTexture make_text_texture(
     const char* pixels,
     size_t byte_count,
     size_t width,
@@ -234,7 +233,7 @@ expected<TextTexture, const char*> make_text_texture(
     if (pixels == nullptr || width == 0 || height == 0 ||
         width > static_cast<size_t>(numeric_limits<int>::max()) ||
         height > static_cast<size_t>(numeric_limits<int>::max())) {
-        return unexpected("Invalid text bitmap");
+        Log::fatal("Invalid text bitmap");
     }
 
     sg_image_desc image_descriptor{};
@@ -251,7 +250,7 @@ expected<TextTexture, const char*> make_text_texture(
         if (image.id != SG_INVALID_ID) {
             sg_destroy_image(image);
         }
-        return unexpected("Failed to create text texture");
+        Log::fatal("Failed to create text texture");
     }
 
     sg_view_desc view_descriptor{};
@@ -263,7 +262,7 @@ expected<TextTexture, const char*> make_text_texture(
             sg_destroy_view(view);
         }
         sg_destroy_image(image);
-        return unexpected("Failed to create text texture view");
+        Log::fatal("Failed to create text texture view");
     }
 
     return TextTexture{
@@ -274,14 +273,14 @@ expected<TextTexture, const char*> make_text_texture(
     };
 }
 
-expected<void, const char*> draw_text_texture(
+void draw_text_texture(
     const TextTexture& texture,
     Renderer::ObjFrame frame,
     array<float, 4> color) {
     const auto vertices = text_vertices(frame, color);
     const int offset = sg_append_buffer(vertex_buffer, SG_RANGE(vertices));
     if (sg_query_buffer_overflow(vertex_buffer)) {
-        return unexpected("Vertex buffer overflow");
+        Log::fatal("Vertex buffer overflow");
     }
 
     sg_bindings bindings{};
@@ -294,24 +293,23 @@ expected<void, const char*> draw_text_texture(
     auto project = projection();
     sg_apply_uniforms(UB_project_uniform, SG_RANGE(project));
     sg_draw(0, 4, 1);
-    return {};
 }
 
-expected<TextResourceSlot*, const char*> text_resource_slot(Renderer::TextId id) {
+TextResourceSlot* text_resource_slot(Renderer::TextId id) {
     if (id.generation == 0 || id.index >= text_resource_slots.size()) {
-        return unexpected("Invalid text resource ID");
+        Log::fatal("Invalid text resource ID");
     }
 
     TextResourceSlot& slot = text_resource_slots[id.index];
     if (!slot.occupied || slot.generation != id.generation) {
-        return unexpected("Stale text resource ID");
+        Log::fatal("Stale text resource ID");
     }
     return &slot;
 }
 
 } // namespace
 
-expected<void, const char*> Renderer::init() {
+void Renderer::init() {
     sg_desc descriptor{};
     descriptor.logger.func = slog_func;
     descriptor.environment.defaults.color_format = SG_PIXELFORMAT_RGBA8;
@@ -319,19 +317,17 @@ expected<void, const char*> Renderer::init() {
     descriptor.environment.defaults.sample_count = 1;
     sg_setup(&descriptor);
     if (!sg_isvalid()) {
-        return unexpected("Failed to initialize Sokol");
+        Log::fatal("Failed to initialize Sokol");
     }
 
-    if (auto result = DisplayWord::init(); !result) {
-        return fail_init(result.error());
-    }
+    DisplayWord::init();
 
     rectangle_shader =
         sg_make_shader(rectangle_shader_desc(sg_query_backend()));
     text_shader = sg_make_shader(text_shader_desc(sg_query_backend()));
     if (sg_query_shader_state(rectangle_shader) != SG_RESOURCESTATE_VALID ||
         sg_query_shader_state(text_shader) != SG_RESOURCESTATE_VALID) {
-        return fail_init("Failed to create shaders");
+        fail_init("Failed to create shaders");
     }
 
     sg_pipeline_desc rectangle_descriptor{};
@@ -357,7 +353,7 @@ expected<void, const char*> Renderer::init() {
     text_pipeline = sg_make_pipeline(&text_descriptor);
     if (sg_query_pipeline_state(rectangle_pipeline) != SG_RESOURCESTATE_VALID ||
         sg_query_pipeline_state(text_pipeline) != SG_RESOURCESTATE_VALID) {
-        return fail_init("Failed to create pipelines");
+        fail_init("Failed to create pipelines");
     }
 
     sg_buffer_desc buffer_descriptor{};
@@ -375,27 +371,28 @@ expected<void, const char*> Renderer::init() {
     text_sampler = sg_make_sampler(&sampler_descriptor);
     if (sg_query_buffer_state(vertex_buffer) != SG_RESOURCESTATE_VALID ||
         sg_query_sampler_state(text_sampler) != SG_RESOURCESTATE_VALID) {
-        return fail_init("Failed to create renderer resources");
+        fail_init("Failed to create renderer resources");
     }
-    return {};
 }
 
-expected<void, const char*> Renderer::draw_rectangle(
+void Renderer::draw_rectangle(
     ObjFrame frame,
     float radius,
+    bool enable_offset,
     array<float, 4> color) {
-    if (frame.width <= 0.0F || frame.height <= 0.0F) {
-        return unexpected("Invalid rectangle size");
-    }
 
     if (radius <= 0){
-        return unexpected("Radius should not be neagative");
+        Log::logger(Log::Warning,"Radius should not be neagative");
+    }
+
+    if (enable_offset){
+    frame.x += island->x_offset;
     }
 
     const auto vertices = rectangle_vertices(frame, color);
     const int offset = sg_append_buffer(vertex_buffer, SG_RANGE(vertices));
     if (sg_query_buffer_overflow(vertex_buffer)) {
-        return unexpected("Vertex buffer overflow");
+        Log::fatal("Vertex bufer overflow");
     }
 
     sg_bindings bindings{};
@@ -408,10 +405,9 @@ expected<void, const char*> Renderer::draw_rectangle(
     sg_apply_uniforms(UB_project_uniform, SG_RANGE(project));
     sg_apply_uniforms(UB_radius_uniform, SG_RANGE(radius_data));
     sg_draw(0, 4, 1);
-    return {};
 }
 
-expected<void, const char*> Renderer::draw_text(
+void Renderer::draw_text(
     ObjFrame frame,
     string_view text,
     DisplayWord::FontId font,
@@ -422,22 +418,22 @@ expected<void, const char*> Renderer::draw_text(
     DisplayWord::GlyphCachePolicy cache_policy) {
     if (font_size == 0 ||
         frame.width <= 0.0F || frame.height <= 0.0F) {
-        return unexpected("Invalid text arguments");
+        Log::fatal("Invalid text arguments");
     }
     if (text.empty()) {
-        return {};
+        return;
     }
 
     const int width = max(1, static_cast<int>(lround(frame.width)));
     const int height = max(1, static_cast<int>(lround(frame.height)));
     const ObjFrame pixel_aligned_frame{
-        .x = round(frame.x),
+        .x = round(frame.x) + island->x_offset,
         .y = round(frame.y),
         .width = static_cast<float>(width),
         .height = static_cast<float>(height),
     };
 
-    auto pixels = DisplayWord::render_text(
+    vector<char> pixels = DisplayWord::render_text(
         font,
         text,
         font_size,
@@ -446,52 +442,37 @@ expected<void, const char*> Renderer::draw_text(
         alignment(horizontal),
         alignment(vertical),
         cache_policy);
-    if (!pixels) {
-        return unexpected(pixels.error());
-    }
-
-    auto texture = make_text_texture(
-        pixels->data(),
-        pixels->size(),
+    TextTexture texture = make_text_texture(
+        pixels.data(),
+        pixels.size(),
         static_cast<size_t>(width),
         static_cast<size_t>(height),
         "transient_text_texture");
-    if (!texture) {
-        return unexpected(texture.error());
-    }
-
-    transient_textures.push_back(*texture);
-    return draw_text_texture(transient_textures.back(), pixel_aligned_frame, color);
+    transient_textures.push_back(texture);
+    draw_text_texture(transient_textures.back(), pixel_aligned_frame, color);
 }
 
-expected<Renderer::TextId, const char*> Renderer::create_text_resource(
+Renderer::TextId Renderer::create_text_resource(
     string_view text,
     DisplayWord::FontId font,
     size_t font_size,
     DisplayWord::GlyphCachePolicy cache_policy,
     source_location location) {
     if (text.empty() || font_size == 0) {
-        return unexpected("Invalid text resource arguments");
+        Log::fatal("Invalid text resource arguments");
     }
 
-    auto bitmap = DisplayWord::render_text_tight(
+    DisplayWord::TextBitmap bitmap = DisplayWord::render_text_tight(
         font,
         text,
         font_size,
         cache_policy);
-    if (!bitmap) {
-        return unexpected(bitmap.error());
-    }
-
-    auto texture = make_text_texture(
-        bitmap->pixels.data(),
-        bitmap->pixels.size(),
-        bitmap->width,
-        bitmap->height,
+    TextTexture texture = make_text_texture(
+        bitmap.pixels.data(),
+        bitmap.pixels.size(),
+        bitmap.width,
+        bitmap.height,
         "retained_text_texture");
-    if (!texture) {
-        return unexpected(texture.error());
-    }
 
     uint32_t index{};
     if (!free_text_resource_slots.empty()) {
@@ -500,15 +481,15 @@ expected<Renderer::TextId, const char*> Renderer::create_text_resource(
     }
     else {
         if (text_resource_slots.size() >= numeric_limits<uint32_t>::max()) {
-            destroy_text_texture(*texture);
-            return unexpected("Too many text resources");
+            destroy_text_texture(texture);
+            Log::fatal("Too many text resources");
         }
         index = static_cast<uint32_t>(text_resource_slots.size());
         text_resource_slots.emplace_back();
     }
 
     TextResourceSlot& slot = text_resource_slots[index];
-    slot.texture = *texture;
+    slot.texture = texture;
     slot.occupied = true;
 #if !defined(NDEBUG)
     constexpr size_t debug_text_limit = 80;
@@ -539,36 +520,29 @@ expected<Renderer::TextId, const char*> Renderer::create_text_resource(
     return TextId{index, slot.generation};
 }
 
-expected<Renderer::TextResourceInfo, const char*>
-Renderer::text_resource_info(TextId text) {
-    auto slot = text_resource_slot(text);
-    if (!slot) {
-        return unexpected(slot.error());
-    }
+Renderer::TextResourceInfo Renderer::text_resource_info(TextId text) {
+    TextResourceSlot* slot = text_resource_slot(text);
     return TextResourceInfo{
-        .width = static_cast<float>((*slot)->texture.width),
-        .height = static_cast<float>((*slot)->texture.height),
+        .width = static_cast<float>(slot->texture.width),
+        .height = static_cast<float>(slot->texture.height),
     };
 }
 
-expected<void, const char*> Renderer::draw_text_resource(
+void Renderer::draw_text_resource(
     TextId text,
     float x,
     float y,
     array<float, 4> color) {
     if (!isfinite(x) || !isfinite(y)) {
-        return unexpected("Invalid text resource position");
+        Log::fatal("Invalid text resource position");
     }
 
-    auto slot = text_resource_slot(text);
-    if (!slot) {
-        return unexpected(slot.error());
-    }
-    const TextTexture& texture = (*slot)->texture;
-    return draw_text_texture(
+    TextResourceSlot* slot = text_resource_slot(text);
+    const TextTexture& texture = slot->texture;
+    draw_text_texture(
         texture,
         {
-            .x = x,
+            .x = x + island->x_offset,
             .y = y,
             .width = static_cast<float>(texture.width),
             .height = static_cast<float>(texture.height),
@@ -576,13 +550,8 @@ expected<void, const char*> Renderer::draw_text_resource(
         color);
 }
 
-expected<void, const char*> Renderer::destroy_text_resource(TextId text) {
-    auto slot_result = text_resource_slot(text);
-    if (!slot_result) {
-        return unexpected(slot_result.error());
-    }
-
-    TextResourceSlot& slot = **slot_result;
+void Renderer::destroy_text_resource(TextId text) {
+    TextResourceSlot& slot = *text_resource_slot(text);
     destroy_text_texture(slot.texture);
     slot.texture = {};
     slot.occupied = false;
@@ -599,12 +568,11 @@ expected<void, const char*> Renderer::destroy_text_resource(TextId text) {
 #endif
     --active_text_resources;
     free_text_resource_slots.push_back(text.index);
-    return {};
 }
 
-expected<void, const char*> Renderer::frame() {
-    if (island.surface_width <= 0 || island.surface_height <= 0) {
-        return unexpected("Invalid window size");
+void Renderer::frame() {
+    if (island->surface_width <= 0 || island->surface_height <= 0) {
+        Log::fatal("Invalid window size");
     }
 
     destroy_transient_textures();
@@ -615,21 +583,18 @@ expected<void, const char*> Renderer::frame() {
     pass.swapchain = swapchain();
     sg_begin_pass(&pass);
 
-    expected<void, const char*> result = draw_rectangle(
+    draw_rectangle(
         {
             .x = 0.0F,
-            .y = island.anchor_top,
-            .width = island.island_width,
-            .height = island.island_height,
+            .y = island->anchor_top,
+            .width = island->island_width,
+            .height = island->island_height,
         },
-        island.radius,
-        island.color);
-    if (!result) {
-        sg_end_pass();
-        return result;
-    }
+        island->radius,
+        false,
+        island->color);
 
-    if (island.state == Island::Clock) {
+    if (island->state == Island::Clock) {
         draw_state_clock();
     }
 
@@ -637,8 +602,6 @@ expected<void, const char*> Renderer::frame() {
     sg_commit();
 
     Wayland::swap_buffer();
-
-    return {};
 }
 
 void Renderer::shutdown() {

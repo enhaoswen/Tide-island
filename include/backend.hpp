@@ -1,6 +1,5 @@
 #pragma once
 #include <chrono>
-#include <expected>
 
 namespace Backend {
 
@@ -9,14 +8,14 @@ struct Timer {
     void (*callback)();
 };
 
-std::expected<void, const char*> init();
-std::expected<void, const char*> push(
-    std::chrono::milliseconds duration,
+void init();
+void push(
+    std::chrono::microseconds duration,
     void (*callback)()
 );
-std::expected<Timer, const char*> top();
-std::expected<void, const char*> run();
+Timer top();
+void run();
 void pop();
-std::expected<void, const char*> handle_timerfd();
+void handle_timerfd();
 
 }

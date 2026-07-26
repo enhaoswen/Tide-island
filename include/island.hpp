@@ -24,12 +24,15 @@ struct Island {
     int zone{-1};
     float anchor_top{};
     float radius{};
+
+    float x_offset{};
     float privilege{};
     bool is_running{true};
+    bool in_animation{};
     State state{State::Clock};
 };
 
-const Island& state();
+const Island* state();
 void init(Island& arg_island);
 void set_anchor_top(float distance);
 void set_island_size(float width, float height);

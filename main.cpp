@@ -24,7 +24,7 @@ using namespace std;
 using namespace nlohmann;
 
 Island::Island init_island(){
-    json config = Log::check(Config::read());
+    json config = Config::read();
 
     Island::Island island {
         .color = {0,0,0,1},
@@ -36,8 +36,10 @@ Island::Island init_island(){
         .anchor_top = config["anchor_top"],
         .radius = config["radius"],
 
+        .x_offset = 50,
         .privilege = 0,
         .is_running = true,
+        .in_animation = false,
         .state = Island::State::Clock
     };
 
@@ -55,7 +57,8 @@ int main() {
 
     frame_logger(Log::Warning,
         "This build was compiled in debug mode.",
-        "Performance may be reduced and additional debug output may appear.");
+        "Performance may be reduced and additional debug output may appear."
+    );
 
 #endif
 
@@ -63,25 +66,25 @@ int main() {
 
     // Island dimensions must be known before the Wayland layer surface exists.
 
-    Log::check(Config::init());
+    Config::init();
     
     Island::Island island = init_island();
     Island::init(island);
 
     Seat::init();
 
-    Log::check(Wayland::init());
+    Wayland::init();
     logger(Log::Debug, "Initialize Wayland successfully");
 
-    Log::check(Backend::init());
+    Backend::init();
     logger(Log::Debug, "Initialize backend successfully");
 
-    Log::check(Renderer::init());
+    Renderer::init();
     logger(Log::Debug, "Initialize render successfully");
 
     GraphicBackend::inspect_graphics_backend_after_context();
 
-    Log::check(Backend::run());
+    Backend::run();
 
     logger(Log::Debug, "Quit because island.is_running is set as false");
 

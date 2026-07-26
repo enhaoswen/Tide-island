@@ -21,7 +21,6 @@
 #include <algorithm>
 #include <array>
 #include <memory>
-#include <expected>
 #include <string_view>
 
 
@@ -81,7 +80,7 @@ void seat_capabilities(
             &Seat::pointer_listener(),
             nullptr
         ) == -1) {
-            Log::logger(Log::Error, "Failed to add wl_pointer listener");
+            Log::fatal("Failed to add wl_pointer listener");
         }
 
     } else if (!has_pointer && pointer) {
@@ -149,8 +148,7 @@ void registry_global(
         ));
 
         if (!seat) {
-            Log::logger(Log::Error, "Failed to bind wl_seat");
-            return;
+            Log::fatal("Failed to bind wl_seat");
         }
 
         if (wl_seat_add_listener(
@@ -158,7 +156,7 @@ void registry_global(
             &seat_listener,
             nullptr
         ) == -1) {
-            Log::logger(Log::Error, "Failed to add wl_seat listener");
+            Log::fatal("Failed to add wl_seat listener");
         }
     }
 }
@@ -203,45 +201,52 @@ constexpr zwlr_layer_surface_v1_listener layer_surface_listener = {
 // [Public API Implementation]
 // ============================================================================
 
-expected<void, const char*> Wayland::init() {
-    Island::Island island_state = Island::state();
+void Wayland::init() {
+    const Island::Island* island_state = Island::state();
 
-    if (island_state.surface_width == 0 || island_state.surface_height == 0) {
-        return unexpected("Size of island is 0, call 'Island::set_window_size(int w, int h)'");
+    if (island_state->surface_width == 0 || island_state->surface_height == 0) {
+        Log::fatal("Size of island is 0, call 'Island::set_window_size(int w, int h)'");
     }
 
     // 1. Establish Wayland Connection & Registry
     display.reset(wl_display_connect(nullptr));
     if (!display) {
-        return unexpected("Failed to connect Wayland");
+        Log::fatal("Failed to connect Wayland");
     }
 
     registry.reset(wl_display_get_registry(display.get()));
     
     if (!registry.get()){
-        return unexpected("Failed to get registry");
+        Log::fatal("Failed to get registry");
     }
 
-    wl_registry_add_listener(registry.get(), &registry_listener, nullptr);
-    wl_display_roundtrip(display.get());
+    if (wl_registry_add_listener(
+            registry.get(),
+            &registry_listener,
+            nullptr) == -1) {
+        Log::fatal("Failed to add Wayland registry listener");
+    }
+    if (wl_display_roundtrip(display.get()) == -1) {
+        Log::fatal("Wayland roundtrip failed");
+    }
 
     if (wl_display_roundtrip(display.get()) == -1) {
-        return unexpected("roundtrip failed");
+        Log::fatal("Wayland roundtrip failed");
     }
 
     if (!compositor) {
-        return unexpected("No compositor found");
+        Log::fatal("No compositor found");
     }
 
     if (!layer_shell) {
-        return unexpected("No layer shell found");
+        Log::fatal("No layer shell found");
     }
 
     // 2. Setup Wayland Surface & Layer Shell
     surface.reset(wl_compositor_create_surface(compositor.get()));
 
     if (!surface.get()){
-        return unexpected("Failed to create surface");
+        Log::fatal("Failed to create surface");
     }
 
     layer_surface.reset(zwlr_layer_shell_v1_get_layer_surface(
@@ -253,7 +258,7 @@ expected<void, const char*> Wayland::init() {
     ));
 
     if (!layer_surface) {
-        return unexpected("Failed to create layer surface");
+        Log::fatal("Failed to create layer surface");
     }
 
     zwlr_layer_surface_v1_set_anchor(
@@ -262,50 +267,51 @@ expected<void, const char*> Wayland::init() {
     );
     zwlr_layer_surface_v1_set_size(
         layer_surface.get(),
-        island_state.surface_width,
-        island_state.surface_height
+        island_state->surface_width,
+        island_state->surface_height
     );
     Island::set_window_size(
-        island_state.surface_width,
-        island_state.surface_height
+        island_state->surface_width,
+        island_state->surface_height
     );
-    zwlr_layer_surface_v1_set_exclusive_zone(layer_surface.get(), island_state.zone);
+    zwlr_layer_surface_v1_set_exclusive_zone(layer_surface.get(), island_state->zone);
 
-    zwlr_layer_surface_v1_add_listener(
-        layer_surface.get(),
-        &layer_surface_listener,
-        nullptr
-    );
+    if (zwlr_layer_surface_v1_add_listener(
+            layer_surface.get(),
+            &layer_surface_listener,
+            nullptr) == -1) {
+        Log::fatal("Failed to add layer surface listener");
+    }
     wl_surface_commit(surface.get());
 
     if (wl_display_roundtrip(display.get()) == -1) {
-        return unexpected("Wayland roundtrip failed");
+        Log::fatal("Wayland roundtrip failed");
     }
 
     // 3. Setup EGL Window & Display
     egl_window.reset(wl_egl_window_create(
         surface.get(),
-        island_state.surface_width,
-        island_state.surface_height
+        island_state->surface_width,
+        island_state->surface_height
     ));
     if (!egl_window) {
-        return unexpected("Failed to create wl_egl_window");
+        Log::fatal("Failed to create wl_egl_window");
     }
 
     egl_display = eglGetDisplay((EGLNativeDisplayType)display.get());
     if (egl_display == EGL_NO_DISPLAY) {
-        return unexpected("eglGetDisplay failed");
+        Log::fatal("eglGetDisplay failed");
     }
 
     EGLint major{};
     EGLint minor{};
     if (!eglInitialize(egl_display, &major, &minor)) {
-        return unexpected("eglInitialize failed");
+        Log::fatal("eglInitialize failed");
     }
     logger(Log::Debug, "Using EGL {}.{}", major, minor);
 
     if (!eglBindAPI(EGL_OPENGL_ES_API)) {
-        return unexpected("eglBindAPI failed");
+        Log::fatal("eglBindAPI failed");
     }
     
     // 4. Configure EGL Surface & Context
@@ -322,7 +328,7 @@ expected<void, const char*> Wayland::init() {
     EGLint count{};
     if (!eglChooseConfig(egl_display, attribs.data(), &egl_config, 1, &count)
         || count == 0) {
-        return unexpected("eglChooseConfig failed");
+        Log::fatal("eglChooseConfig failed");
     }
 
     constexpr array<EGLint, 3> ctx_attribs = {
@@ -337,7 +343,7 @@ expected<void, const char*> Wayland::init() {
         ctx_attribs.data()
     );
     if (egl_context == EGL_NO_CONTEXT) {
-        return unexpected("eglCreateContext failed");
+        Log::fatal("eglCreateContext failed");
     }
 
     egl_surface = eglCreateWindowSurface(
@@ -348,7 +354,7 @@ expected<void, const char*> Wayland::init() {
     );
 
     if (egl_surface == EGL_NO_SURFACE) {
-        return unexpected("eglCreateWindowSurface failed");
+        Log::fatal("eglCreateWindowSurface failed");
     }
 
     if (!eglMakeCurrent(
@@ -357,40 +363,38 @@ expected<void, const char*> Wayland::init() {
         egl_surface,
         egl_context
     )) {
-        return unexpected("eglMakeCurrent failed");
+        Log::fatal("eglMakeCurrent failed");
     }
-
-    return {};
 }
 
-expected<void, const char*> Wayland::dispatch_events() {
+void Wayland::dispatch_events() {
     if (!display) {
-        return unexpected("Wayland display is not initialized");
+        Log::fatal("Wayland display is not initialized");
     }
 
     if (wl_display_dispatch(display.get()) == -1) {
-        return unexpected("Wayland dispatch failed");
+        Log::fatal("Wayland dispatch failed");
     }
-
-    return {};
 }
 
 
 void Wayland::swap_buffer() {
-    eglSwapBuffers(egl_display, egl_surface);
+    if (!eglSwapBuffers(egl_display, egl_surface)) {
+        Log::fatal("eglSwapBuffers failed");
+    }
 }
 
-expected<void, const char*> Wayland::request_resize(int width, int height) {
+void Wayland::request_resize(int width, int height) {
     if (!layer_surface) {
-        return unexpected("request_resize called before layer_surface creation");
+        Log::fatal("request_resize called before layer_surface creation");
     }
 
     if (width <= 0 || height <= 0){
-        return unexpected("Island size should not be neagative");
+        Log::fatal("Island size should not be neagative");
     }
 
     if (! egl_window.get()){
-        return unexpected("EGL_window is not initialized");
+        Log::fatal("EGL_window is not initialized");
     }
 
     zwlr_layer_surface_v1_set_size(layer_surface.get(), width, height);
@@ -398,17 +402,16 @@ expected<void, const char*> Wayland::request_resize(int width, int height) {
     
     wl_egl_window_resize(egl_window.get(), width, height, 0, 0);
 
-    return {};
 }
 
-expected<int, const char*> Wayland::get_fd() {
+int Wayland::get_fd() {
     if (!display) {
-        return unexpected("Wayland display is not initialized");
+        Log::fatal("Wayland display is not initialized");
     }
 
     int fd = wl_display_get_fd(display.get());
     if (fd == -1) {
-        return unexpected("Failed to get Wayland file descriptor");
+        Log::fatal("Failed to get Wayland file descriptor");
     }
 
     return fd;

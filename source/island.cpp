@@ -24,8 +24,8 @@ Island::Island island{};
 // [Public API Implementation]
 // ============================================================================
 
-const Island::Island& Island::state() {
-    return island;
+const Island::Island* Island::state() {
+    return &island;
 }
 
 void Island::init(Island& arg_island){
@@ -34,8 +34,7 @@ void Island::init(Island& arg_island){
 
 void Island::set_island_size(float width, float height) {
     if (width <= 0 || height <= 0) {
-        logger(Log::Error, "Island size should not be less than or equal to 0");
-        return;
+        Log::fatal("Island size should not be less than or equal to 0");
     }
 
     island.island_width = width;
@@ -44,8 +43,7 @@ void Island::set_island_size(float width, float height) {
 
 void Island::set_window_size(int width, int height) {
     if (width <= 0 || height <= 0) {
-        logger(Log::Error, "Window size should not be less than or equal to 0");
-        return;
+        Log::fatal("Window size should not be less than or equal to 0");
     }
 
     island.surface_width = width;
@@ -61,9 +59,8 @@ void Island::set_is_running(bool state) {
 }
 
 void Island::set_radius(float radius) {
-    if (radius < 0) {
-        logger(Log::Error, "Radius have to be positive");
-        return;
+    if (radius <= 0) {
+        Log::fatal("Radius has to be positive");
     }
 
     island.radius = radius;

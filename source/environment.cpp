@@ -10,7 +10,6 @@
 
 #include <array>
 #include <cstdlib>
-#include <expected>
 #include <filesystem>
 #include <format>
 #include <mutex>
@@ -103,10 +102,9 @@ constexpr array software_renderer_names = {
 
 // --- GL Introspection ---
 
-[[nodiscard]] expected<string_view, string_view>
-query_gl_string(GLenum name) noexcept {
+[[nodiscard]] string_view query_gl_string(GLenum name) {
     const auto* p = reinterpret_cast<const char*>(::glGetString(name));
-    if (!p) return unexpected{"<unavailable>"};
+    if (!p) Log::fatal("Could not query the current graphics renderer");
     return string_view{p};
 }
 
@@ -139,8 +137,12 @@ void log_once(Log::LogLevel level, initializer_list<string_view> lines) {
 }
 
 void set_softpipe_for_next_context() {
-    ::setenv("GALLIUM_DRIVER", "softpipe", 1);
-    ::unsetenv("LIBGL_ALWAYS_SOFTWARE");
+    if (::setenv("GALLIUM_DRIVER", "softpipe", 1) == -1) {
+        Log::fatal("Failed to select softpipe");
+    }
+    if (::unsetenv("LIBGL_ALWAYS_SOFTWARE") == -1) {
+        Log::fatal("Failed to clear LIBGL_ALWAYS_SOFTWARE");
+    }
 }
 
 } // namespace
@@ -167,21 +169,10 @@ void prepare_graphics_backend() {
     });
 }
 
-GraphicBackendDecision inspect_graphics_backend_after_context() {
-    const auto renderer_result = query_gl_string(GL_RENDERER);
-    const auto vendor_result   = query_gl_string(GL_VENDOR);
-    const auto version_result  = query_gl_string(GL_VERSION);
-
-    if (!renderer_result) {
-        log_once(Log::Warning, {
-            "We could not query the current graphics renderer.",
-            "",
-            "The graphics backend check is incomplete."
-        });
-        return GraphicBackendDecision::KeepCurrentContext;
-    }
-
-    const string_view renderer = *renderer_result;
+void inspect_graphics_backend_after_context() {
+    const string_view renderer = query_gl_string(GL_RENDERER);
+    const string_view vendor   = query_gl_string(GL_VENDOR);
+    const string_view version  = query_gl_string(GL_VERSION);
 
     const RendererKind kind = classify_renderer(renderer);
 
@@ -218,17 +209,17 @@ GraphicBackendDecision inspect_graphics_backend_after_context() {
                 "",
                 "Tide-island will respect this configuration.",
                 "",
-                format("Vendor: {}",  vendor_result.value_or("unknown")),
-                format("Version: {}", version_result.value_or("unknown")),
+                format("Vendor: {}",  vendor),
+                format("Version: {}", version),
             });
             break;
         }
-        return GraphicBackendDecision::KeepCurrentContext;
+        return;
     }
 
     if (kind == RendererKind::Hardware) {
         Log::logger(Log::Debug, "Using GPU renderer: {}", renderer);
-        return GraphicBackendDecision::KeepCurrentContext;
+        return;
     }
 
     switch (kind) {
@@ -249,8 +240,7 @@ GraphicBackendDecision inspect_graphics_backend_after_context() {
             "- running inside a container or remote session",
             "- software rendering was forced by the environment"
         });
-        set_softpipe_for_next_context();
-        return GraphicBackendDecision::RecreateContextWithSoftpipe;
+        return;
 
     case RendererKind::Softpipe:
         log_once(Log::Warning, {
@@ -262,7 +252,7 @@ GraphicBackendDecision inspect_graphics_backend_after_context() {
             "If you want Tide-island to use GPU rendering, please make sure the GPU driver "
             "is installed and that the application can access /dev/dri/renderD*."
         });
-        return GraphicBackendDecision::KeepCurrentContext;
+        return;
 
     default:
         log_once(Log::Warning, {
@@ -271,7 +261,7 @@ GraphicBackendDecision inspect_graphics_backend_after_context() {
             "Please check whether the GPU driver is installed and whether "
             "the application can access /dev/dri/renderD*."
         });
-        return GraphicBackendDecision::KeepCurrentContext;
+        return;
     }
 }
 

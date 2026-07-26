@@ -1,7 +1,5 @@
 #pragma once
 
-#include <expected>
-
 // ============================================================================
 // Tide Island Wayland API
 // ============================================================================
@@ -11,11 +9,11 @@
 //
 namespace Wayland {
 
-std::expected<void, const char*> init();
-std::expected<void, const char*> request_resize(int width, int height);
+void init();
+void request_resize(int width, int height);
 void swap_buffer();
-std::expected<int, const char*> get_fd();
-std::expected<void, const char*> dispatch_events();
+int get_fd();
+void dispatch_events();
 void shutdown();
 
 } // namespace Wayland

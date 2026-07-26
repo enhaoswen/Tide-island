@@ -2,12 +2,12 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdlib>
 #include <format>
 #include <print>
 #include <string>
 #include <string_view>
 #include <utility>
-#include <expected>
 
 // ============================================================================
 // Tide Island logging helpers
@@ -65,6 +65,11 @@ inline void logger(LogLevel level, std::string_view msg) {
     }
 }
 
+[[noreturn]] inline void fatal(std::string_view msg) {
+    logger(LogLevel::Error, msg);
+    std::exit(EXIT_FAILURE);
+}
+
 template<typename... Args>
 inline void logger(LogLevel level, std::format_string<Args...> fmt, Args&&... args) {
     logger(level, std::format(fmt, std::forward<Args>(args)...));
@@ -111,15 +116,6 @@ inline void frame_logger(LogLevel level, Args&&... args) {
     out_msg += "┘\n";
 
     print("{}", out_msg);
-}
-
-template <typename return_type>
-return_type check(std::expected<return_type, const char*> result) {
-    if (!result.has_value()) {
-        logger(Log::Error, result.error());
-        std::terminate();
-    }
-    return result.value();
 }
 
 } // namespace Log

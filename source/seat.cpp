@@ -214,14 +214,14 @@ void Seat::click(int x, int y, bool left){
 }
 
 void Seat::init(){
-    Island::Island island = Island::state();
+    const Island::Island* island = Island::state();
     Renderer::ObjFrame frame{
         .x = 0,
-        .y = island.anchor_top,
-        .width = island.island_width,
-        .height = island.island_height
+        .y = island->anchor_top,
+        .width = island->island_width,
+        .height = island->island_height
     };
 
-    add_mouse_area(frame, true, island.radius, tmp_island_callback);
+    add_mouse_area(frame, true, island->radius, tmp_island_callback);
 
 }

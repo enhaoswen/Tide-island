@@ -8,7 +8,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <expected>
 #include <ft2build.h>
 #include FT_FREETYPE_H
 #include <harfbuzz/hb-ft.h>
@@ -20,6 +19,8 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+
+#include "log.hpp"
 
 using namespace std;
 
@@ -112,39 +113,38 @@ uint32_t next_generation(uint32_t generation) {
     return generation;
 }
 
-expected<FontResource*, const char*> font_for(DisplayWord::FontId id) {
+FontResource* font_for(DisplayWord::FontId id) {
     if (id.generation == 0 || id.index >= font_slots.size()) {
-        return unexpected("Invalid font ID");
+        Log::fatal("Invalid font ID");
     }
 
     FontSlot& slot = font_slots[id.index];
     if (!slot.occupied || slot.generation != id.generation) {
-        return unexpected("Stale font ID");
+        Log::fatal("Stale font ID");
     }
     return &slot.resource;
 }
 
-expected<void, const char*> set_font_size(FontResource& font, size_t size) {
+void set_font_size(FontResource& font, size_t size) {
     if (size == 0 || size > numeric_limits<FT_UInt>::max()) {
-        return unexpected("Invalid font size");
+        Log::fatal("Invalid font size");
     }
     if (size == font.current_size) {
-        return {};
+        return;
     }
     if (FT_Set_Pixel_Sizes(font.face.get(), 0, static_cast<FT_UInt>(size)) != 0) {
-        return unexpected("Failed to set font size");
+        Log::fatal("Failed to set font size");
     }
 
     hb_ft_font_changed(font.hb_font.get());
     font.current_size = size;
-    return {};
 }
 
-expected<vector<ShapedGlyph>, const char*> shape(
+vector<ShapedGlyph> shape(
     FontResource& font,
     string_view text) {
     if (text.size() > static_cast<size_t>(numeric_limits<int>::max())) {
-        return unexpected("Text is too long");
+        Log::fatal("Text is too long");
     }
 
     hb_buffer_clear_contents(hb_buffer.get());
@@ -186,10 +186,10 @@ const unsigned char* bitmap_row(const FT_Bitmap& bitmap, unsigned int row) {
         static_cast<ptrdiff_t>(bitmap.rows - row - 1U) * -bitmap.pitch;
 }
 
-expected<vector<char>, const char*> copy_bitmap(const FT_Bitmap& bitmap) {
+vector<char> copy_bitmap(const FT_Bitmap& bitmap) {
     if (bitmap.rows != 0 &&
         bitmap.width > numeric_limits<size_t>::max() / bitmap.rows) {
-        return unexpected("Glyph bitmap is too large");
+        Log::fatal("Glyph bitmap is too large");
     }
 
     vector<char> pixels(static_cast<size_t>(bitmap.width) * bitmap.rows);
@@ -230,37 +230,34 @@ expected<vector<char>, const char*> copy_bitmap(const FT_Bitmap& bitmap) {
             break;
 
         default:
-            return unexpected("Unsupported glyph bitmap format");
+            Log::fatal("Unsupported glyph bitmap format");
         }
     }
     return pixels;
 }
 
-expected<Glyph, const char*> make_glyph(FontResource& font, uint32_t id) {
+Glyph make_glyph(FontResource& font, uint32_t id) {
     if (FT_Load_Glyph(
             font.face.get(),
             static_cast<FT_UInt>(id),
             FT_LOAD_DEFAULT | FT_LOAD_TARGET_LIGHT |
                 FT_LOAD_RENDER | FT_LOAD_COLOR) != 0) {
-        return unexpected("Failed to rasterize glyph");
+        Log::fatal("Failed to rasterize glyph");
     }
 
     const FT_Bitmap& bitmap = font.face->glyph->bitmap;
     auto pixels = copy_bitmap(bitmap);
-    if (!pixels) {
-        return unexpected(pixels.error());
-    }
 
     return Glyph{
         .width = static_cast<int>(bitmap.width),
         .height = static_cast<int>(bitmap.rows),
         .left = font.face->glyph->bitmap_left,
         .top = font.face->glyph->bitmap_top,
-        .pixels = move(*pixels),
+        .pixels = move(pixels),
     };
 }
 
-expected<const Glyph*, const char*> rasterize(
+const Glyph* rasterize(
     FontResource& font,
     uint32_t id,
     bool cache,
@@ -276,16 +273,13 @@ expected<const Glyph*, const char*> rasterize(
     }
 
     auto glyph = make_glyph(font, id);
-    if (!glyph) {
-        return unexpected(glyph.error());
-    }
 
     if (cache) {
-        auto inserted = font.glyph_cache.emplace(key, move(*glyph));
+        auto inserted = font.glyph_cache.emplace(key, move(glyph));
         return &inserted.first->second;
     }
 
-    temporary_glyphs.push_back(move(*glyph));
+    temporary_glyphs.push_back(move(glyph));
     return &temporary_glyphs.back();
 }
 
@@ -303,40 +297,29 @@ bool should_cache(
     return static_cast<unsigned char>(text[cluster]) < 0x80U;
 }
 
-expected<TextLayout, const char*> layout_text(
+TextLayout layout_text(
     FontResource& font,
     string_view text,
     size_t font_size,
     DisplayWord::GlyphCachePolicy cache_policy) {
-    auto size_result = set_font_size(font, font_size);
-    if (!size_result) {
-        return unexpected(size_result.error());
-    }
-
+    set_font_size(font, font_size);
     auto shaped_result = shape(font, text);
-    if (!shaped_result) {
-        return unexpected(shaped_result.error());
-    }
 
     TextLayout result;
-    result.temporary_glyphs.reserve(shaped_result->size());
-    result.positioned.reserve(shaped_result->size());
+    result.temporary_glyphs.reserve(shaped_result.size());
+    result.positioned.reserve(shaped_result.size());
     result.min_y = font.face->size->metrics.descender / 64.0F;
     result.max_y = font.face->size->metrics.ascender / 64.0F;
 
     float pen_x{};
     float pen_y{};
-    for (const ShapedGlyph& shaped_glyph : *shaped_result) {
-        auto glyph_result = rasterize(
+    for (const ShapedGlyph& shaped_glyph : shaped_result) {
+        const Glyph* glyph = rasterize(
             font,
             shaped_glyph.id,
             should_cache(cache_policy, text, shaped_glyph.cluster),
             result.temporary_glyphs);
-        if (!glyph_result) {
-            return unexpected(glyph_result.error());
-        }
 
-        const Glyph* glyph = *glyph_result;
         const float left =
             pen_x + shaped_glyph.offset_x + glyph->left;
         const float top =
@@ -404,12 +387,12 @@ bool valid_texture_size(size_t width, size_t height) {
 
 } // namespace
 
-expected<void, const char*> DisplayWord::init() {
+void DisplayWord::init() {
     shutdown();
 
     FT_Library raw_library{};
     if (FT_Init_FreeType(&raw_library) != 0) {
-        return unexpected("Failed to initialize FreeType");
+        Log::fatal("Failed to initialize FreeType");
     }
     library.reset(raw_library);
 
@@ -419,17 +402,11 @@ expected<void, const char*> DisplayWord::init() {
             hb_buffer_destroy(raw_buffer);
         }
         shutdown();
-        return unexpected("Failed to create HarfBuzz buffer");
+        Log::fatal("Failed to create HarfBuzz buffer");
     }
     hb_buffer.reset(raw_buffer);
 
-    auto font = load_font(default_font_path);
-    if (!font) {
-        shutdown();
-        return unexpected(font.error());
-    }
-    default_font_id = *font;
-    return {};
+    default_font_id = load_font(default_font_path);
 }
 
 void DisplayWord::shutdown() {
@@ -440,23 +417,23 @@ void DisplayWord::shutdown() {
     library.reset();
 }
 
-expected<DisplayWord::FontId, const char*> DisplayWord::load_font(
+DisplayWord::FontId DisplayWord::load_font(
     string_view path) {
     if (!library || path.empty()) {
-        return unexpected("Text engine is not ready");
+        Log::fatal("Text engine is not ready");
     }
 
     const string owned_path(path);
     FT_Face raw_face{};
     if (FT_New_Face(library.get(), owned_path.c_str(), 0, &raw_face) != 0) {
-        return unexpected("Failed to load font");
+        Log::fatal("Failed to load font");
     }
 
     FontResource resource;
     resource.face.reset(raw_face);
     hb_font_t* raw_font = hb_ft_font_create_referenced(raw_face);
     if (raw_font == nullptr) {
-        return unexpected("Failed to create HarfBuzz font");
+        Log::fatal("Failed to create HarfBuzz font");
     }
     resource.hb_font.reset(raw_font);
 
@@ -467,7 +444,7 @@ expected<DisplayWord::FontId, const char*> DisplayWord::load_font(
     }
     else {
         if (font_slots.size() >= numeric_limits<uint32_t>::max()) {
-            return unexpected("Too many loaded fonts");
+            Log::fatal("Too many loaded fonts");
         }
         index = static_cast<uint32_t>(font_slots.size());
         font_slots.emplace_back();
@@ -479,29 +456,28 @@ expected<DisplayWord::FontId, const char*> DisplayWord::load_font(
     return FontId{index, slot.generation};
 }
 
-expected<void, const char*> DisplayWord::unload_font(FontId font) {
+void DisplayWord::unload_font(FontId font) {
     if (font == default_font_id) {
-        return unexpected("The default font cannot be unloaded");
+        Log::fatal("The default font cannot be unloaded");
     }
 
-    auto resource = font_for(font);
-    if (!resource) {
-        return unexpected(resource.error());
-    }
+    font_for(font);
 
     FontSlot& slot = font_slots[font.index];
     slot.resource = {};
     slot.occupied = false;
     slot.generation = next_generation(slot.generation);
     free_font_slots.push_back(font.index);
-    return {};
 }
 
 DisplayWord::FontId DisplayWord::default_font() {
+    if (default_font_id.generation == 0) {
+        Log::fatal("Text engine is not ready");
+    }
     return default_font_id;
 }
 
-expected<vector<char>, const char*> DisplayWord::render_text(
+vector<char> DisplayWord::render_text(
     FontId font_id,
     string_view text,
     size_t font_size,
@@ -511,65 +487,52 @@ expected<vector<char>, const char*> DisplayWord::render_text(
     float vertical_alignment,
     GlyphCachePolicy cache_policy) {
     if (text.empty() || !library || !hb_buffer) {
-        return unexpected("Text engine is not ready");
+        Log::fatal("Text engine is not ready");
     }
     if (!valid_texture_size(width, height)) {
-        return unexpected("Invalid text texture size");
+        Log::fatal("Invalid text texture size");
     }
 
-    auto font_result = font_for(font_id);
-    if (!font_result) {
-        return unexpected(font_result.error());
-    }
-    auto layout = layout_text(**font_result, text, font_size, cache_policy);
-    if (!layout) {
-        return unexpected(layout.error());
-    }
+    FontResource* font = font_for(font_id);
+    auto layout = layout_text(*font, text, font_size, cache_policy);
 
     vector<char> output(width * height);
     horizontal_alignment = clamp(horizontal_alignment, 0.0F, 1.0F);
     vertical_alignment = clamp(vertical_alignment, 0.0F, 1.0F);
-    const float content_width = layout->max_x - layout->min_x;
-    const float content_height = layout->max_y - layout->min_y;
+    const float content_width = layout.max_x - layout.min_x;
+    const float content_height = layout.max_y - layout.min_y;
     const float origin_x =
         (static_cast<float>(width) - content_width) * horizontal_alignment -
-        layout->min_x;
+        layout.min_x;
     const float top_reference =
         (static_cast<float>(height) - content_height) * vertical_alignment +
-        layout->max_y;
-    blit_layout(*layout, output, width, height, origin_x, top_reference);
+        layout.max_y;
+    blit_layout(layout, output, width, height, origin_x, top_reference);
     return output;
 }
 
-expected<DisplayWord::TextBitmap, const char*>
-DisplayWord::render_text_tight(
+DisplayWord::TextBitmap DisplayWord::render_text_tight(
     FontId font_id,
     string_view text,
     size_t font_size,
     GlyphCachePolicy cache_policy) {
     if (text.empty() || !library || !hb_buffer) {
-        return unexpected("Text engine is not ready");
+        Log::fatal("Text engine is not ready");
     }
 
-    auto font_result = font_for(font_id);
-    if (!font_result) {
-        return unexpected(font_result.error());
-    }
-    auto layout = layout_text(**font_result, text, font_size, cache_policy);
-    if (!layout) {
-        return unexpected(layout.error());
-    }
+    FontResource* font = font_for(font_id);
+    auto layout = layout_text(*font, text, font_size, cache_policy);
 
-    const double left = floor(static_cast<double>(layout->min_x));
-    const double right = ceil(static_cast<double>(layout->max_x));
-    const double bottom = floor(static_cast<double>(layout->min_y));
-    const double top = ceil(static_cast<double>(layout->max_y));
+    const double left = floor(static_cast<double>(layout.min_x));
+    const double right = ceil(static_cast<double>(layout.max_x));
+    const double bottom = floor(static_cast<double>(layout.min_y));
+    const double top = ceil(static_cast<double>(layout.max_y));
     const double width_value = max(1.0, right - left);
     const double height_value = max(1.0, top - bottom);
     if (!isfinite(width_value) || !isfinite(height_value) ||
         width_value > static_cast<double>(numeric_limits<int>::max()) ||
         height_value > static_cast<double>(numeric_limits<int>::max())) {
-        return unexpected("Text bounds are too large");
+        Log::fatal("Text bounds are too large");
     }
 
     TextBitmap result{
@@ -578,11 +541,11 @@ DisplayWord::render_text_tight(
         .height = static_cast<size_t>(height_value),
     };
     if (!valid_texture_size(result.width, result.height)) {
-        return unexpected("Invalid text texture size");
+        Log::fatal("Invalid text texture size");
     }
     result.pixels.resize(result.width * result.height);
     blit_layout(
-        *layout,
+        layout,
         result.pixels,
         result.width,
         result.height,
@@ -602,9 +565,5 @@ size_t DisplayWord::cache_size() {
 }
 
 size_t DisplayWord::cache_size(FontId font) {
-    auto resource = font_for(font);
-    if (!resource) {
-        return 0;
-    }
-    return (*resource)->glyph_cache.size();
+    return font_for(font)->glyph_cache.size();
 }

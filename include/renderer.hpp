@@ -3,7 +3,6 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <expected>
 #include <source_location>
 #include <string_view>
 
@@ -46,14 +45,15 @@ struct TextResourceInfo {
     float height{};
 };
 
-std::expected<void, const char*> init();
+void init();
 
-std::expected<void, const char*> draw_rectangle(
+void draw_rectangle(
     ObjFrame obj_frame,
     float radius,
+    bool enable_offset,
     std::array<float, 4> color);
 
-std::expected<void, const char*> draw_text(
+void draw_text(
     ObjFrame frame,
     std::string_view text,
     DisplayWord::FontId font,
@@ -64,7 +64,7 @@ std::expected<void, const char*> draw_text(
     DisplayWord::GlyphCachePolicy cache_policy =
         DisplayWord::GlyphCachePolicy::Ascii);
 
-std::expected<TextId, const char*> create_text_resource(
+TextId create_text_resource(
     std::string_view text,
     DisplayWord::FontId font,
     std::size_t font_size,
@@ -72,17 +72,17 @@ std::expected<TextId, const char*> create_text_resource(
         DisplayWord::GlyphCachePolicy::Ascii,
     std::source_location location = std::source_location::current());
 
-std::expected<TextResourceInfo, const char*> text_resource_info(TextId text);
+TextResourceInfo text_resource_info(TextId text);
 
-std::expected<void, const char*> draw_text_resource(
+void draw_text_resource(
     TextId text,
     float x,
     float y,
     std::array<float, 4> color);
 
-std::expected<void, const char*> destroy_text_resource(TextId text);
+void destroy_text_resource(TextId text);
 
-std::expected<void, const char*> frame();
+void frame();
 
 void shutdown();
 
