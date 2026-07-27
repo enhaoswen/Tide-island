@@ -12,6 +12,7 @@
 #include "sokol_log.h"
 #include "basic.glsl.h"
 
+#include <GLES3/gl3.h>
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -21,6 +22,10 @@
 #include <string>
 #include <string_view>
 #include <vector>
+
+#if defined(__GLIBC__)
+#include <malloc.h>
+#endif
 
 using namespace std;
 
@@ -373,6 +378,14 @@ void Renderer::init() {
         sg_query_sampler_state(text_sampler) != SG_RESOURCESTATE_VALID) {
         fail_init("Failed to create renderer resources");
     }
+
+    // Sokol's GLES backend compiles GLSL when shaders are created. All
+    // startup shaders are linked now, so Mesa's compiler workspace is no
+    // longer needed unless another shader is created later.
+    glReleaseShaderCompiler();
+#if defined(__GLIBC__)
+    static_cast<void>(malloc_trim(0));
+#endif
 }
 
 void Renderer::draw_rectangle(

@@ -1,7 +1,9 @@
 #include "log.hpp"
 #include "seat.hpp"
 #include "island.hpp"
+#include "animation.hpp"
 #include "renderer.hpp"
+#include "backend.hpp"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 
 #include <cstdint>
@@ -21,7 +23,9 @@ struct MouseArea {
 };
 
 void tmp_island_callback(){
-    Log::logger(Log::Debug, "Clicked");
+    Log::logger(Log::Debug,"Clicked");
+    Animation::start_animation(Island::set_x_offset, 200ms, 0, 50);
+    Backend::request_redraw();
 }
 
 bool inside_area(Renderer::ObjFrame frame, float radius, float x, float y){

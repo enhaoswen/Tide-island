@@ -1,4 +1,5 @@
 #include "backend.hpp"
+#include "animation.hpp"
 #include "wayland.hpp"
 #include "log.hpp"
 #include "renderer.hpp"
@@ -52,31 +53,42 @@ void set_timer_at(steady_clock::time_point deadline) {
 priority_queue<Backend::Timer, vector<Backend::Timer>, LaterDeadline> timer_queue;
 
 void handle_err(pollfd* fds) {
+    short error_events = POLLNVAL | POLLHUP | POLLERR;
+
+    bool has_error =
+        ((fds[0].revents | fds[1].revents) & error_events) != 0;
+
+    if (!has_error) {
+        return;
+    }
+
+    Wayland::cancel_poll();
+
     const short wayland_events = fds[0].revents;
 
-    if (wayland_events & POLLNVAL) {
+    if ((wayland_events & POLLNVAL) != 0) {
         Log::fatal("Wayland fd is invalid");
     }
 
-    if (wayland_events & POLLHUP) {
+    if ((wayland_events & POLLHUP) != 0) {
         Log::fatal("Wayland compositor disconnected");
     }
 
-    if (wayland_events & POLLERR) {
+    if ((wayland_events & POLLERR) != 0) {
         Log::fatal("Wayland fd reported an I/O error");
     }
 
-    const short timer_events = fds[1].revents;
+    short timer_events = fds[1].revents;
 
-    if (timer_events & POLLNVAL) {
+    if ((timer_events & POLLNVAL) != 0) {
         Log::fatal("timerfd is invalid");
     }
 
-    if (timer_events & POLLHUP) {
+    if ((timer_events & POLLHUP) != 0) {
         Log::fatal("timerfd was closed");
     }
 
-    if (timer_events & POLLERR) {
+    if ((timer_events & POLLERR) != 0) {
         Log::fatal("timerfd reported an I/O error");
     }
 }
@@ -164,9 +176,21 @@ void Backend::run() {
     };
 
     while (island->is_running) {
-        const int ready_count = poll(fds, 2, -1);
+        bool wayland_wants_write = Wayland::prepare_poll();
+        fds[0].events = static_cast<short>(
+            POLLIN | (wayland_wants_write ? POLLOUT : 0)
+        );
+
+        if (!island->is_running) {
+            Wayland::cancel_poll();
+            break;
+        }
+
+        int ready_count = poll(fds, 2, -1);
 
         if (ready_count == -1) {
+            Wayland::cancel_poll();
+
             if (errno == EINTR) {
                 continue;
             }
@@ -175,14 +199,28 @@ void Backend::run() {
 
         handle_err(fds);
 
-        if (fds[0].revents & POLLIN) {
-            Wayland::dispatch_events();
+        Wayland::finish_poll(
+            (fds[0].revents & POLLIN) != 0,
+            (fds[0].revents & POLLOUT) != 0
+        );
+
+        if (Wayland::take_frame_ready()) {
+            request_redraw();
         }
 
         if (fds[1].revents & POLLIN) {
             Backend::handle_timerfd();
         }
     }
+}
+
+void Backend::request_redraw(){
+    Animation::update();
+    if (!Animation::no_more_animation()){
+        Wayland::request_frame();
+    }
+
+    Renderer::frame();
 }
 
 void Backend::handle_timerfd() {

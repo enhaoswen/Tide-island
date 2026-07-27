@@ -41,5 +41,5 @@ void set_is_running(bool state);
 void set_radius(float radius);
 void set_zone(int zone);
 void set_state(State state);
-
+void set_x_offset(float offset);
 } // namespace Island

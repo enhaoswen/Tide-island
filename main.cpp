@@ -36,7 +36,7 @@ Island::Island init_island(){
         .anchor_top = config["anchor_top"],
         .radius = config["radius"],
 
-        .x_offset = 50,
+        .x_offset = 0,
         .privilege = 0,
         .is_running = true,
         .in_animation = false,

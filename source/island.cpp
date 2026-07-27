@@ -73,3 +73,7 @@ void Island::set_zone(int zone) {
 void Island::set_state(State state) {
     island.state = state;
 }
+
+void Island::set_x_offset(float offset){
+    island.x_offset = offset;
+}

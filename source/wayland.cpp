@@ -20,6 +20,7 @@
 #include <wayland-egl.h>
 #include <algorithm>
 #include <array>
+#include <cerrno>
 #include <memory>
 #include <string_view>
 
@@ -53,8 +54,39 @@ EGLDisplay egl_display{EGL_NO_DISPLAY};
 EGLConfig  egl_config{};
 EGLContext egl_context{EGL_NO_CONTEXT};
 EGLSurface egl_surface{EGL_NO_SURFACE};
+bool display_read_prepared{};
+
+bool frame_ready{};
+
+void dispatch_pending_events() {
+    if (wl_display_dispatch_pending(display.get()) == -1) {
+        Log::fatal("Failed to dispatch pending Wayland events");
+    }
+}
+
+bool flush_display() {
+    if (wl_display_flush(display.get()) != -1) {
+        return false;
+    }
+
+    if (errno == EAGAIN) {
+        return true;
+    }
+
+    Log::fatal("Failed to flush Wayland requests");
+}
 
 // --- Wayland Registry Listeners ---
+
+void frame_done(
+    void*,
+    wl_callback* callback,
+    uint32_t
+) {
+    wl_callback_destroy(callback);
+    callback = nullptr;
+    frame_ready = true;
+}
 
 void seat_capabilities(
     void*,
@@ -171,6 +203,10 @@ constexpr wl_registry_listener registry_listener = {
 };
 
 // --- Layer Surface Listeners ---
+
+wl_callback_listener frame_listener{
+    .done = frame_done,
+};
 
 void layer_surface_configure(
     void*,
@@ -367,14 +403,54 @@ void Wayland::init() {
     }
 }
 
-void Wayland::dispatch_events() {
+bool Wayland::prepare_poll() {
     if (!display) {
         Log::fatal("Wayland display is not initialized");
     }
 
-    if (wl_display_dispatch(display.get()) == -1) {
-        Log::fatal("Wayland dispatch failed");
+    if (display_read_prepared) {
+        Log::fatal("Wayland display is already prepared for reading");
     }
+
+    while (wl_display_prepare_read(display.get()) == -1) {
+        dispatch_pending_events();
+    }
+
+    display_read_prepared = true;
+    return flush_display();
+}
+
+void Wayland::finish_poll(bool readable, bool writable) {
+    if (!display_read_prepared) {
+        Log::fatal("Wayland display was not prepared before finishing poll");
+    }
+
+    if (readable) {
+        const int result = wl_display_read_events(display.get());
+        display_read_prepared = false;
+
+        if (result == -1) {
+            Log::fatal("Failed to read Wayland events");
+        }
+    } else {
+        wl_display_cancel_read(display.get());
+        display_read_prepared = false;
+    }
+
+    if (writable) {
+        flush_display();
+    }
+
+    dispatch_pending_events();
+}
+
+void Wayland::cancel_poll() {
+    if (!display_read_prepared) {
+        return;
+    }
+
+    wl_display_cancel_read(display.get());
+    display_read_prepared = false;
 }
 
 
@@ -420,6 +496,8 @@ int Wayland::get_fd() {
 void Wayland::shutdown() {
     if (!display) return;
 
+    cancel_poll();
+
     // 1. Terminate EGL Environment
     if (egl_display != EGL_NO_DISPLAY) {
         eglMakeCurrent(
@@ -443,4 +521,17 @@ void Wayland::shutdown() {
         egl_display = EGL_NO_DISPLAY;
         egl_config  = nullptr;
     }
+}
+
+void Wayland::request_frame() {
+    wl_callback* callback = wl_surface_frame(surface.get());
+
+    if (!callback ||
+        wl_callback_add_listener(callback, &frame_listener, nullptr) == -1) {
+        Log::fatal("Failed to request Wayland frame callback");
+    }
+}
+
+bool Wayland::take_frame_ready() {
+    return exchange(frame_ready, false);
 }

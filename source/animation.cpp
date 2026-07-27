@@ -3,7 +3,7 @@
 #include "log.hpp"
 
 #include <chrono>
-#include <unordered_map>
+#include <vector>
 
 using namespace std;
 using namespace std::chrono;
@@ -11,69 +11,53 @@ using namespace std::chrono;
 namespace {
 
 struct AnimationArg{
-    steady_clock::time_point now;
+    void (*setter)(float);
     float from;
     float to;
     milliseconds duration;
+    steady_clock::time_point now;
 };
 
-const Island::Island* island{};
-
-unordered_map<int, AnimationArg> animation_lib;
-
-int get_new_index(){
-    int index{0};
-
-    while (animation_lib.contains(index)){
-        ++index;
-    }
-
-    return index;
-}
+vector<AnimationArg> animation_lib{};
 
 }
 
 void Animation::init(){
-    island = Island::state();
 
 }
 
-int Animation::add_animation(milliseconds duration, float from, float to){
-    int index = get_new_index();
+bool Animation::no_more_animation(){
+    return animation_lib.empty();
+}
+
+void Animation::start_animation(void (*setter)(float), milliseconds duration, float from, float to){
 
     AnimationArg animation_arg{
-        .now = steady_clock::now(),
+        .setter = setter,
         .from = from,
         .to = to,
         .duration = duration,
+        .now = steady_clock::now(),
     };
 
-    animation_lib[index] = animation_arg;
-
-    return index;
+    animation_lib.push_back(animation_arg);
 }
 
-float Animation::get_val(int index) {
-    auto it = animation_lib.find(index);
+void Animation::update(){
+    for (size_t i = 0; i < animation_lib.size(); ++i){
+        AnimationArg& animation_arg = animation_lib[i];
+        auto now = steady_clock::now();
 
-    if (it == animation_lib.end()) {
-        Log::fatal("Empty animation index");
+        if (now >= animation_arg.now + animation_arg.duration){
+            animation_arg.setter(animation_arg.to);
+            animation_lib.erase(animation_lib.begin() + i);
+            return;
+        }
+
+        float progress = duration<float>(now - animation_arg.now).count() /
+        duration<float>(animation_arg.duration).count();
+
+        animation_arg.setter(animation_arg.from + progress * (animation_arg.to - animation_arg.from));
+
     }
-
-    const AnimationArg& animation = it->second;
-    auto now = steady_clock::now();
-
-    if (now >= animation.now + animation.duration) {
-        animation_lib.erase(index);
-        return animation.to;
-    }
-
-    float progress = duration<float>(now - animation.now).count() /
-        duration<float>(animation.duration).count();
-
-    return animation.from + progress * (animation.to - animation.from);
-}
-
-bool Animation::animation_over(int index){
-    return animation_lib.contains(index);
 }

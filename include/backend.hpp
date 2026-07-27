@@ -13,6 +13,7 @@ void push(
     std::chrono::microseconds duration,
     void (*callback)()
 );
+void request_redraw();
 Timer top();
 void run();
 void pop();
