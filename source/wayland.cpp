@@ -119,6 +119,7 @@ void pointer_button(
     uint32_t button,
     uint32_t state
 ) { 
+    if (report_click == nullptr) Log::fatal("Func report_click is not initilized");
     if (state == WL_POINTER_BUTTON_STATE_PRESSED){
         if (button == BTN_LEFT && report_click) {
             report_click(pointer_x, pointer_y, true);
