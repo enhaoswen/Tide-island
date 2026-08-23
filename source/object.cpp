@@ -14,9 +14,6 @@ using namespace std::chrono;
 
 namespace {
 
-class Rectangle;
-class Text;
-
 class Rectangle {
 private:
     Frame frame{};
@@ -155,10 +152,13 @@ public:
 
 };
 
-class Text {};
+class Text {
+public:
+    bool click(float x, float y, bool left){
+        return false;
+    }
+};
 
-vector<unique_ptr<Rectangle>> rectangles{};
-vector<unique_ptr<Text>> texts{};
 vector<variant<unique_ptr<Rectangle>, unique_ptr<Text>>> objects{};
 
 } // namespace
@@ -168,10 +168,10 @@ void Object::add_rectangle(RectDesc desc) {
 }
 
 void Object::click(float x, float y, bool left) {
-    for (auto& rectangle : rectangles) {
-        if (rectangle->click(x, y, left)) {
-            break;
-        }
+    for (auto& object : objects) {
+        visit([x,y,left](auto& ptr) {
+            ptr->click(x,y,left);
+        }, object);
     }
 }
 
@@ -187,8 +187,6 @@ void Object::draw() {
 }
 
 void Object::clear() {
-    rectangles.clear();
-    texts.clear();
     objects.clear();
 }
 

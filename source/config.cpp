@@ -15,7 +15,7 @@ json template_config{
     {"island_width", 140},
     {"island_height", 38},
     {"anchor_top", 2},
-    {"zone", -1},
+    {"zone", 40},
     {"radius", 19},
 };
 
@@ -50,18 +50,23 @@ json fix_config(json arg_config){
 }
 
 void Config::init() {
-    
     config_path = get_config_path();
 
-    if (!exists(config_path)){
+    if (!exists(config_path)) {
         create_directories(config_path.parent_path());
+
+        config = template_config;
+        write(config);
+        return;
     }
 
-    if (exists(config_path) && file_size(config_path) != 0){
-        config = read();
+    if (file_size(config_path) == 0) {
+        config = template_config;
+        write(config);
+        return;
     }
 
-    config = fix_config(config);
+    config = fix_config(read());
 }
 
 void Config::write(json& arg_config){

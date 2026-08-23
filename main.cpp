@@ -19,11 +19,11 @@ int main() {
     API::init();
 
     RectDesc rect_desc{
-        .frame = { 0, 0, 20, 20 },
+        .frame = { 0, 0, 140, 38},
 
-        .radius = 20,
+        .radius = 19,
 
-        .color = { 0.0F, 0.5F, 1.0F, 1.0F },
+        .color = { 0.0F, 0.0F, 0.0F, 1.0F },
 
         .click_callback_left = []() {
             Log::logger(Log::Debug, "Left click callback triggered");
@@ -35,7 +35,6 @@ int main() {
 
     API::draw_rectangle(rect_desc);
 
-    while (true) {
-    }
+    API::run();
     return 0;
 }

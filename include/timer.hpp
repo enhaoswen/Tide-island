@@ -9,6 +9,7 @@ void push(
     std::chrono::microseconds duration,
     void (*callback)()
 );
-void handle_timerfd();
-
+void handle_events();
+int get_timer_fd();
+void wait();
 }

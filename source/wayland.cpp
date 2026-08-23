@@ -19,9 +19,7 @@
 #include <wayland-egl.h>
 #include <sys/timerfd.h>
 #include <algorithm>
-#include <cerrno>
 #include <cstring>
-
 #include <array>
 #include <poll.h>
 #include <memory>
@@ -65,7 +63,6 @@ float pointer_y{};
 bool pointer_inside{};
 
 int wayland_fd{-1};
-int timer_fd{-1};
 
 void (*report_click)(float x, float y, bool left){};
 
@@ -140,16 +137,28 @@ void pointer_axis(
 ) {
 }
 
+void pointer_frame(void*, wl_pointer*) {
+}
+
+void pointer_axis_source(void*, wl_pointer*, uint32_t) {
+}
+
+void pointer_axis_stop(void*, wl_pointer*, uint32_t, uint32_t) {
+}
+
+void pointer_axis_discrete(void*, wl_pointer*, uint32_t, int32_t) {
+}
+
 const wl_pointer_listener pointer_listener{
     .enter = pointer_enter,
     .leave = pointer_leave,
     .motion = pointer_motion,
     .button = pointer_button,
     .axis = pointer_axis,
-    .frame = nullptr,
-    .axis_source = nullptr,
-    .axis_stop = nullptr,
-    .axis_discrete = nullptr,
+    .frame = pointer_frame,
+    .axis_source = pointer_axis_source,
+    .axis_stop = pointer_axis_stop,
+    .axis_discrete = pointer_axis_discrete,
     .axis_value120 = nullptr,
     .axis_relative_direction = nullptr,
 };
@@ -461,10 +470,6 @@ void Wayland::init() {
     }
 
     wayland_fd = wl_display_get_fd(display.get());
-    timer_fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
-    if (timer_fd == -1) {
-        Log::fatal("Failed to create timerfd");
-    }
 }
 
 void Wayland::swap_buffer() {
@@ -523,91 +528,23 @@ void Wayland::apply_config(
 
     wl_surface_commit(surface.get());
 
-    logger(Log::Debug, "Island size: {}*{}", width, height);
+    logger(Log::Debug, "Applyed config: {}*{}", width, height);
 }
 
 void Wayland::set_report_click(void (*callback)(float x, float y, bool left)) {
     report_click = callback;
 }
 
-bool Wayland::handle_events() {
-    bool has_other_events{false};
-    bool need_pollout{false};
-
-    while (wl_display_prepare_read(display.get()) == -1) {
-    if (wl_display_dispatch_pending(display.get()) == -1) {
-        int error = wl_display_get_error(display.get());
-
-        if (error == EPROTO) {
-            const wl_interface* interface{};
-            uint32_t object_id{};
-
-            uint32_t protocol_code =
-                wl_display_get_protocol_error(
-                    display.get(),
-                    &interface,
-                    &object_id
-                );
-
-            Log::fatal(
-                "Wayland protocol error: interface={}, object_id={}, code={}",
-                interface ? interface->name : "unknown",
-                object_id,
-                protocol_code
-            );
-        }
-
-        Log::fatal(
-            "Wayland error: {}",
-            strerror(error)
-        );
-    }
-}
-
-    if (wl_display_flush(display.get()) == -1) {
-        if (errno == EAGAIN) {
-            need_pollout = true;
-        } else {
-            wl_display_cancel_read(display.get());
-
-            Log::fatal(
-                "wl_display_flush failed: {}",
-                strerror(errno)
-            );
-        }
-    }
-
-    pollfd fds[2]{
-        {
-            .fd = wayland_fd,
-            .events = static_cast<short>(
-                POLLIN | (need_pollout ? POLLOUT : 0)
-            ),
-            .revents = 0,
-        },
-        {
-            .fd = timer_fd,
-            .events = POLLIN,
-            .revents = 0,
-        },
-    };
-
-    int result{};
-
-    do {
-        result = poll(fds, 2, -1);
-    } while (result == -1 && errno == EINTR);
-
-    if (result == -1) {
+void Wayland::handle_events(short revents) {
+    if (revents & (POLLERR | POLLHUP | POLLNVAL)) {
         wl_display_cancel_read(display.get());
-
         Log::fatal(
-            "poll failed: {}",
-            strerror(errno)
+            "Wayland fd poll error: {}",
+            revents
         );
     }
 
-    if (fds[0].revents & POLLIN) {
+    if (revents & POLLIN) {
         if (wl_display_read_events(display.get()) == -1) {
             Log::fatal(
                 "wl_display_read_events failed: {}",
@@ -618,14 +555,7 @@ bool Wayland::handle_events() {
         wl_display_cancel_read(display.get());
     }
 
-    if (fds[0].revents & (POLLERR | POLLHUP | POLLNVAL)) {
-        Log::fatal(
-            "Wayland fd poll error: revents={}",
-            fds[0].revents
-        );
-    }
-
-    if (fds[0].revents & POLLOUT) {
+    if (revents & POLLOUT) {
         if (wl_display_flush(display.get()) == -1 &&
             errno != EAGAIN) {
             Log::fatal(
@@ -636,14 +566,39 @@ bool Wayland::handle_events() {
     }
 
     if (wl_display_dispatch_pending(display.get()) == -1) {
-        Log::fatal("Wayland dispatch pending failed");
+        Log::fatal("wl_display_dispatch_pending failed");
+    }
+}
+
+short Wayland::prepare_events() {
+    while (wl_display_prepare_read(display.get()) == -1) {
+        if (wl_display_dispatch_pending(display.get()) == -1) {
+            Log::fatal("wl_display_dispatch_pending failed");
+        }
+    }
+    short events = POLLIN;
+
+    if (wl_display_flush(display.get()) == -1) {
+        if (errno == EAGAIN) {
+            events |= POLLOUT;
+        } else {
+            wl_display_cancel_read(display.get());
+            Log::fatal(
+                "wl_display_flush failed: {}",
+                strerror(errno)
+            );
+        }
     }
 
-    if (fds[1].revents & POLLIN) {
-        has_other_events = true;
-    }
+    return events;
+}
 
-    return has_other_events;
+int Wayland::get_wayland_fd() {
+    return wayland_fd;
+}
+
+void Wayland::cancel_events() {
+    wl_display_cancel_read(display.get());
 }
 
 void Wayland::shutdown() {

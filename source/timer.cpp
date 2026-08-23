@@ -1,8 +1,10 @@
 #include "timer.hpp"
+#include "wayland.hpp"
 #include "log.hpp"
 #include "struct.hpp"
 
 #include <chrono>
+#include <cstring>
 #include <queue>
 #include <poll.h>
 #include <sys/timerfd.h>
@@ -14,6 +16,7 @@ using namespace std::chrono;
 namespace {
 
 int timer_fd{-1};
+int wayland_fd{-1};
 
 struct LaterDeadline {
     bool operator()(
@@ -48,10 +51,10 @@ void set_timer_at(steady_clock::time_point deadline) {
 }
 
 Event top() {
-    if (!timer_queue.empty()) {
-        return timer_queue.top();
+    if (timer_queue.empty()) {
+        Log::fatal("Timer queue is empty");
     }
-    Log::fatal("Timer queue is empty");
+        return timer_queue.top();
 }
 
 void pop() {
@@ -96,9 +99,19 @@ void Timer::init() {
     if (timer_fd == -1) {
         Log::fatal("timerfd_create failed");
     }
+
+    wayland_fd = Wayland::get_wayland_fd();
+
+    if (wayland_fd == -1) {
+        Log::fatal("Failed to get Wayland file descriptor");
+    }
 }
 
-void Timer::handle_timerfd() {
+int Timer::get_timer_fd() {
+    return timer_fd;
+}
+
+void Timer::handle_events() {
 
     uint64_t expiration_count{};
 
@@ -120,5 +133,46 @@ void Timer::handle_timerfd() {
 
     if (!timer_queue.empty()) {
         set_timer_at(timer_queue.top().deadline);
+    }
+}
+
+void Timer::wait() {
+    short wayland_events = Wayland::prepare_events();
+
+    pollfd fds[] = {
+        {
+            .fd = wayland_fd,
+            .events = wayland_events,
+            .revents = 0,
+        },
+        {
+            .fd = timer_fd,
+            .events = POLLIN,
+            .revents = 0,
+        },
+    };
+
+    int result{};
+
+    do {
+        result = poll(fds, 2, -1);
+    } while (result == -1 && errno == EINTR);
+
+    if (result == -1) {
+        Wayland::cancel_events();
+        Log::fatal("poll failed: {}", strerror(errno));
+    }
+
+    Wayland::handle_events(fds[0].revents);
+
+    if (fds[1].revents & (POLLERR | POLLHUP | POLLNVAL)) {
+        Log::fatal(
+            "Timer fd poll error: {}",
+            fds[1].revents
+        );
+    }
+
+    if (fds[1].revents & POLLIN) {
+        handle_events();
     }
 }

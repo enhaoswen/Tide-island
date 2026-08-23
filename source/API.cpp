@@ -2,6 +2,7 @@
 #include "wayland.hpp"
 #include "renderer.hpp"
 #include "object.hpp"
+#include "timer.hpp"
 #include "island.hpp"
 #include "log.hpp"
 
@@ -20,6 +21,9 @@ void API::init() {
 
     Renderer::init();
     Log::logger(Log::Debug, "Renderer initialized successfully");
+
+    Timer::init();
+    Log::logger(Log::Debug, "Timer initialized successfully");
 
     Wayland::set_report_click(Object::click);
 
@@ -40,5 +44,11 @@ void API::draw_rectangle(RectDesc rect_desc){
 }
 
 void API::run(){
+    while (config->is_running) {
+        Renderer::begin_frame();
+        Object::draw();
+        Renderer::end_frame();
 
+        Timer::wait();
+    }
 }
