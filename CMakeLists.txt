@@ -28,6 +28,7 @@ set(SRC
     source/config.cpp
     source/timer.cpp
     source/object.cpp
+    source/text.cpp
 )
 
 add_executable(Tide-island ${SRC})
@@ -41,7 +42,6 @@ target_include_directories(Tide-island PRIVATE
     ${WAYLAND_EGL_INCLUDE_DIRS}
     ${OPENGL_INCLUDE_DIR}
     ${HARFBUZZ_INCLUDE_DIRS}
-    ${FREETYPE_INCLUDE_DIRS}
 )
 
 target_link_libraries(Tide-island PRIVATE 

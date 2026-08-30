@@ -15,6 +15,14 @@ struct RectDesc {
     void (*click_callback_right) () = nullptr;
 };
 
+struct ImageDesc {
+    Frame frame{};
+    float radius{};
+    void (*click_callback_left) () = nullptr;
+    void (*click_callback_right) () = nullptr;
+
+};
+
 struct Event {
     std::chrono::steady_clock::time_point deadline;
     void (*callback)();
@@ -49,4 +57,9 @@ struct Animation {
     float from;
     float to;
     AnimationTarget target;
+};
+
+struct Font {
+    std::string path;
+    size_t size;
 };

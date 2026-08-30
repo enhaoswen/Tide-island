@@ -4,17 +4,12 @@
 using namespace std;
 
 int main() {
-
     println("");
 
-#if defined(_DEBUG) || !defined(NDEBUG)
-
-    frame_logger(Log::Warning,
+    frame_logger(Log::Debug,
         "This build was compiled in debug mode.",
         "Performance may be reduced and additional debug output may appear."
     );
-
-#endif
 
     API::init();
 
