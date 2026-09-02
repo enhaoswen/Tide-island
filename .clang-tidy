@@ -11,7 +11,11 @@ Checks: '
   -modernize-use-trailing-return-type,
   -modernize-use-designated-initializers,
   -readability-magic-numbers,
-  -bugprone-easily-swappable-parameters
+  -bugprone-easily-swappable-parameters,
+  -readability-isolate-declaration,
+  -readability-identifier-length,
+  -readability-math-missing-parentheses,
+  -readability-implicit-bool-conversion,
 '
 
 WarningsAsErrors: ''

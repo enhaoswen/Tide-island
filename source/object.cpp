@@ -38,13 +38,13 @@ public:
         }
 
         float nearest_x = clamp(
-            static_cast<float>(x),
+            x,
             frame.x + radius,
             frame.x + frame.width - radius
         );
 
         float nearest_y = clamp(
-            static_cast<float>(y),
+            y,
             frame.y + radius,
             frame.y + frame.height - radius
         );
@@ -101,60 +101,61 @@ public:
     void update() override {
         auto now = steady_clock::now();
 
-        for (size_t i = 0; i < animations.size();) {
-            float* tmp_target{};
-            Animation& animation = animations[i];
-
+        auto end_pos = remove_if(
+        animations.begin(),
+        animations.end(),
+        [this, now](Animation& animation) -> bool {
+            float* target{};
             switch (animation.target) {
                 case AnimationTarget::Width:
-                    tmp_target = &frame.width;
+                    target = &frame.width;
                     break;
                 case AnimationTarget::Height:
-                    tmp_target = &frame.height;
+                    target = &frame.height;
                     break;
                 case AnimationTarget::X:
-                    tmp_target = &frame.x;
+                    target = &frame.x;
                     break;
                 case AnimationTarget::Y:
-                    tmp_target = &frame.y;
+                    target = &frame.y;
                     break;
                 case AnimationTarget::Radius:
-                    tmp_target = &radius;
+                    target = &radius;
                     break;
                 case AnimationTarget::ColorR:
-                    tmp_target = &color[0];
+                    target = &color[0];
                     break;
                 case AnimationTarget::ColorG:
-                    tmp_target = &color[1];
+                    target = &color[1];
                     break;
                 case AnimationTarget::ColorB:
-                    tmp_target = &color[2];
+                    target = &color[2];
                     break;
                 case AnimationTarget::ColorA:
-                    tmp_target = &color[3];
+                    target = &color[3];
                     break;
                 default:
                     Log::fatal("Unknown animation target");
+                    return false;
             }
 
-            auto end_pos = remove_if(
-                animations.begin(), 
-                animations.end(), 
-                [tmp_target, now, &i](Animation& animation) -> bool {
+            if (animation.duration.count() <= 0 ||
+                now >= animation.start_time + animation.duration) {
+                *target = animation.to;
+                return true;
+            }
 
-                    if (now >= animation.start_time + animation.duration) {
-                        *tmp_target = animation.to;
-                        return true;
-                    }
+            if (now < animation.start_time) {
+                return false;
+            }
 
-                    float progress = static_cast<float>((now - animation.start_time).count()) / animation.duration.count();
-                    *tmp_target = animation.from + (animation.to - animation.from) * progress;
-                    ++i;
-                    return false;
-            });
+            float progress = static_cast<float>((now - animation.start_time).count())
+                            / static_cast<float>(animation.duration.count());
+            *target = animation.from + (animation.to - animation.from) * progress;
+            return false;
+        });
 
-            animations.resize(end_pos - animations.begin());
-        }
+        animations.erase(end_pos, animations.end());
     }
 
     void draw() override {
@@ -183,48 +184,49 @@ public:
     void update() override {
         auto now = steady_clock::now();
 
-        for (size_t i = 0; i < animations.size();) {
-            float* tmp_target{};
-            Animation& animation = animations[i];
-
+        auto end_pos = remove_if(
+        animations.begin(),
+        animations.end(),
+        [this, now](Animation& animation) -> bool {
+            float* target{};
             switch (animation.target) {
                 case AnimationTarget::Width:
-                    tmp_target = &frame.width;
+                    target = &frame.width;
                     break;
                 case AnimationTarget::Height:
-                    tmp_target = &frame.height;
+                    target = &frame.height;
                     break;
                 case AnimationTarget::X:
-                    tmp_target = &frame.x;
+                    target = &frame.x;
                     break;
                 case AnimationTarget::Y:
-                    tmp_target = &frame.y;
+                    target = &frame.y;
                     break;
                 case AnimationTarget::Radius:
-                    tmp_target = &radius;
+                    target = &radius;
                     break;
                 default:
                     Log::fatal("Unknown animation target");
+                    return false;
             }
 
-            auto end_pos = remove_if(
-                animations.begin(), 
-                animations.end(), 
-                [tmp_target, now, &i](Animation& animation) -> bool {
+            if (animation.duration.count() <= 0 ||
+                now >= animation.start_time + animation.duration) {
+                *target = animation.to;
+                return true;
+            }
 
-                    if (now >= animation.start_time + animation.duration) {
-                        *tmp_target = animation.to;
-                        return true;
-                    }
+            if (now < animation.start_time) {
+                return false;
+            }
 
-                    float progress = static_cast<float>((now - animation.start_time).count()) / animation.duration.count();
-                    *tmp_target = animation.from + (animation.to - animation.from) * progress;
-                    ++i;
-                    return false;
-            });
+            float progress = static_cast<float>((now - animation.start_time).count())
+                            / static_cast<float>(animation.duration.count());
+            *target = animation.from + (animation.to - animation.from) * progress;
+            return false;
+        });
 
-            animations.resize(end_pos - animations.begin());
-        }
+        animations.erase(end_pos, animations.end());
     }
 
     void draw() override {
@@ -248,7 +250,9 @@ void Object::add_image(ImageDesc &desc) {
 
 void Object::click(float x, float y, bool left) {
     for (auto& object : objects) {
-        if (object->click(x, y, left)) return;
+        if (object->click(x, y, left)) {
+            return;
+        }
     }
 }
 

@@ -36,7 +36,9 @@ namespace {
 template <auto delete_func>
 struct DeleteWayland {
     void operator()(auto* ptr) const noexcept {
-        if (ptr) delete_func(ptr);
+        if (ptr) {
+            delete_func(ptr);
+        }
     }
 };
 
@@ -319,7 +321,7 @@ void Wayland::init() {
 
     registry.reset(wl_display_get_registry(display.get()));
     
-    if (!registry.get()){
+    if (!registry){
         Log::fatal("Failed to get registry");
     }
 
@@ -348,7 +350,7 @@ void Wayland::init() {
     // 2. Setup Wayland Surface & Layer Shell
     surface.reset(wl_compositor_create_surface(compositor.get()));
 
-    if (!surface.get()){
+    if (!surface){
         Log::fatal("Failed to create surface");
     }
 
@@ -490,7 +492,7 @@ void Wayland::request_resize(
         Log::fatal("Island size should not be neagative");
     }
 
-    if (!egl_window.get()){
+    if (!egl_window){
         Log::fatal("EGL_window is not initialized");
     }
 
@@ -602,7 +604,9 @@ void Wayland::cancel_events() {
 }
 
 void Wayland::shutdown() {
-    if (!display) return;
+    if (!display) {
+        return;
+    }
 
     // 1. Terminate EGL Environment
     if (egl_display != EGL_NO_DISPLAY) {

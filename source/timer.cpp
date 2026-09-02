@@ -50,13 +50,6 @@ void set_timer_at(steady_clock::time_point deadline) {
     }
 }
 
-Event top() {
-    if (timer_queue.empty()) {
-        Log::fatal("Timer queue is empty");
-    }
-        return timer_queue.top();
-}
-
 void pop() {
     if (timer_queue.empty()) {
         Log::fatal("Timer queue is empty");

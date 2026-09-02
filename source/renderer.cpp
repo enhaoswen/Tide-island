@@ -245,8 +245,6 @@ void Renderer::draw_image(
     float radius,
     string path) {
 
-    // prepare resources
-
     int width, height, channels;
 
     unsigned char* pixels = stbi_load(path.c_str(), &width, &height, &channels, 4);
@@ -277,7 +275,7 @@ void Renderer::draw_image(
     };
     sg_image image = sg_make_image(image_desc);
 
-    if (!sg_query_image_state(image)) {
+    if (sg_query_image_state(image) != SG_RESOURCESTATE_VALID) {
         Log::fatal("Failed to create image");
     }
 
@@ -289,7 +287,7 @@ void Renderer::draw_image(
     };
     sg_sampler image_sampler = sg_make_sampler(sampler_desc);
 
-    if (!sg_query_sampler_state(image_sampler)) {
+    if (sg_query_sampler_state(image_sampler) != SG_RESOURCESTATE_VALID) {
         Log::fatal("Failed to create sampler");
     }
 
@@ -311,7 +309,7 @@ void Renderer::draw_image(
 
     sg_view tex_view = sg_make_view(tex_view_desc);
 
-    if (!sg_query_view_state(tex_view)) {
+    if (sg_query_view_state(tex_view) != SG_RESOURCESTATE_VALID) {
         Log::fatal("Failed to create texture view");
     }
 
