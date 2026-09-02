@@ -20,7 +20,7 @@ in vec4 frag_color;
 in vec2 Position;
 out vec4 out_color;
 
-layout(binding = 1) uniform radius_uniform {
+layout(binding = 0) uniform radius_uniform {
     vec2 center;
     vec2 half_size;
     float radius;
@@ -37,3 +37,36 @@ void main() {
 @end
 
 @program rectangle rect_vs rect_fs
+
+@vs img_vs
+in vec2 position;
+in vec2 coord;
+
+out vec2 uv;
+
+layout(binding = 0) uniform vs_params {
+    mat4 proj;
+};
+
+void main() {
+    uv = coord;
+    gl_Position = proj * vec4(position,0.0,1.0);
+}
+@end
+
+@fs img_fs
+precision mediump float;
+
+in vec2 uv;
+
+layout(binding = 0) uniform texture2D tex;
+layout(binding = 0) uniform sampler smp;
+
+out vec4 frag_color;
+
+void main() {
+    frag_color = texture(sampler2D(tex,smp), uv);
+}
+@end
+
+@program image img_vs img_fs

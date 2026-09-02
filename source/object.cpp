@@ -67,7 +67,7 @@ public:
 
     virtual ~Item() = default;
 
-};
+}; // Item
 
 class Rectangle : public Item {
 private:
@@ -161,14 +161,17 @@ public:
         Renderer::draw_rectangle(frame, radius, color);
     }
 
-};
+}; // Rectangle
 
-class Image : Item {
+class Image : public Item {
+private:
+    string path;
 
 public:
     Image(ImageDesc desc) {
         frame = desc.frame;
         radius = desc.radius;
+        path = desc.path;
         click_callback_left = desc.click_callback_left;
         click_callback_right = desc.click_callback_right;
     }
@@ -221,17 +224,21 @@ public:
     }
 
     void draw() override {
-
+        Renderer::draw_image(frame, radius, path);
     }
 
-};
+}; // Image
 
 vector<unique_ptr<Item>> objects;
 
 } // namespace
 
-void Object::add_rectangle(RectDesc desc) {
+void Object::add_rectangle(RectDesc& desc) {
     objects.emplace_back(make_unique<Rectangle>(desc));
+}
+
+void Object::add_image(ImageDesc &desc) {
+    objects.emplace_back(make_unique<Image>(desc));
 }
 
 void Object::click(float x, float y, bool left) {

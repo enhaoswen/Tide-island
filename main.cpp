@@ -1,5 +1,6 @@
 #include "API.hpp"
 #include "log.hpp"
+#include "struct.hpp"
 
 using namespace std;
 
@@ -28,7 +29,14 @@ int main() {
         },
     };
 
+    ImageDesc img_desc {
+        .frame = {70, 0, 100, 30},
+        .radius = 0,
+        .path = "/home/swen/Downloads/images.jpeg"
+    };
+
     API::draw_rectangle(rect_desc);
+    API::draw_image(img_desc);
 
     API::run();
     return 0;

@@ -39,16 +39,24 @@ void API::resize(uint32_t width, uint32_t height) {
     Wayland::request_resize(width, height);
 }
 
-void API::draw_rectangle(RectDesc rect_desc){
+void API::draw_rectangle(RectDesc& rect_desc){
     Object::add_rectangle(rect_desc);
+}
+
+void API::draw_image(ImageDesc& desc) {
+    Object::add_image(desc);
 }
 
 void API::run(){
     while (config->is_running) {
+
+        Log::logger(Log::Debug, "Start a new frame");
+
         Renderer::begin_frame();
         Object::draw();
         Renderer::end_frame();
 
         Timer::wait();
     }
+
 }

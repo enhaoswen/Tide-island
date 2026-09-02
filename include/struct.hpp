@@ -18,6 +18,7 @@ struct RectDesc {
 struct ImageDesc {
     Frame frame{};
     float radius{};
+    std::string path;
     void (*click_callback_left) () = nullptr;
     void (*click_callback_right) () = nullptr;
 
