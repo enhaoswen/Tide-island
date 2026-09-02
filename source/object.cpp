@@ -166,14 +166,18 @@ public:
 class Image : public Item {
 private:
     string path;
+    Align horizontal_align;
+    Align vertical_align;
 
 public:
-    Image(ImageDesc desc) {
+    Image(ImageDesc &desc) {
         frame = desc.frame;
         radius = desc.radius;
         path = desc.path;
         click_callback_left = desc.click_callback_left;
         click_callback_right = desc.click_callback_right;
+        horizontal_align = desc.horizontal_align;
+        vertical_align = desc.vertical_align;
     }
 
     void update() override {
@@ -224,7 +228,8 @@ public:
     }
 
     void draw() override {
-        Renderer::draw_image(frame, radius, path);
+
+        Renderer::draw_image(frame, horizontal_align, vertical_align, radius, path);
     }
 
 }; // Image

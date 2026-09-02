@@ -32,7 +32,9 @@ int main() {
     ImageDesc img_desc {
         .frame = {70, 0, 100, 30},
         .radius = 0,
-        .path = "/home/swen/Downloads/images.jpeg"
+        .path = "/home/swen/Downloads/images.jpeg",
+        .horizontal_align = Align::Center,
+        .vertical_align = Align::Center
     };
 
     API::draw_rectangle(rect_desc);

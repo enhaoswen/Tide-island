@@ -7,6 +7,13 @@ struct Frame {
     float x, y, width, height;
 };
 
+enum struct Align : char{
+    Left,
+    Center,
+    Right
+};
+
+
 struct RectDesc {
     Frame frame{};
     float radius{};
@@ -15,13 +22,15 @@ struct RectDesc {
     void (*click_callback_right) () = nullptr;
 };
 
+
 struct ImageDesc {
     Frame frame{};
     float radius{};
     std::string path;
     void (*click_callback_left) () = nullptr;
     void (*click_callback_right) () = nullptr;
-
+    Align horizontal_align;
+    Align vertical_align;
 };
 
 struct Event {

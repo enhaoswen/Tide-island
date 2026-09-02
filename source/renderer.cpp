@@ -97,6 +97,44 @@ sg_swapchain swapchain() {
     return result;
 }
 
+Frame calcuate_image_frame(
+    Frame frame,
+    Align horizontal_align,
+    Align vertical_align,
+    int image_width,
+    int image_height) {
+
+    Frame result{};
+
+    float scale_x = frame.width / static_cast<float>(image_width);
+    float scale_y = frame.height / static_cast<float>(image_height);
+    float scale = min(scale_x, scale_y);
+
+    float scaled_width = image_width * scale;
+    float scaled_height = image_height * scale;
+
+    if (horizontal_align == Align::Left) {
+        result.x = frame.x;
+    } else if (horizontal_align == Align::Center) {
+        result.x = frame.x + (frame.width - scaled_width) / 2.0f;
+    } else if (horizontal_align == Align::Right) {
+        result.x = frame.x + frame.width - scaled_width;
+    }
+
+    if (vertical_align == Align::Left) {
+        result.y = frame.y;
+    } else if (vertical_align == Align::Center) {
+        result.y = frame.y + (frame.height - scaled_height) / 2.0f;
+    } else if (vertical_align == Align::Right) {
+        result.y = frame.y + frame.height - scaled_height;
+    }
+
+    result.width = scaled_width;
+    result.height = scaled_height;
+
+    return result;
+}
+
 } // namespace
 
 void Renderer::init() {
@@ -202,8 +240,12 @@ void Renderer::draw_rectangle(
 
 void Renderer::draw_image(
     Frame frame,
+    Align horizontal_align,
+    Align vertical_align,
     float radius,
     string path) {
+
+    // prepare resources
 
     int width, height, channels;
 
@@ -251,7 +293,13 @@ void Renderer::draw_image(
         Log::fatal("Failed to create sampler");
     }
 
-    array<float,16> vertices = image_vertices(frame);
+    array<float,16> vertices = image_vertices(
+        calcuate_image_frame(
+            frame, 
+            horizontal_align, 
+            vertical_align, 
+            width, 
+            height));
 
     int offset = sg_append_buffer(image_vertex_buffer, SG_RANGE(vertices));
 
