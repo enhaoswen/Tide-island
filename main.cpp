@@ -30,7 +30,7 @@ int main() {
     };
 
     ImageDesc img_desc {
-        .frame = {70, 0, 100, 30},
+        .frame = {0, 0, 140, 38},
         .radius = 0,
         .path = "/home/swen/Downloads/images.jpeg",
         .horizontal_align = Align::Center,

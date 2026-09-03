@@ -33,6 +33,8 @@ void API::init() {
        config->zone,
        config->anchor_top
     );
+
+    Log::logger(Log::Debug, "Initialization completed successfully");
 }
 
 void API::resize(uint32_t width, uint32_t height) {

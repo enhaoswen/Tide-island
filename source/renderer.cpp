@@ -10,11 +10,10 @@
 #include "log.hpp"
 
 #include <GLES3/gl3.h>
+#include <algorithm>
 
 #if defined(__GLIBC__)
 #include <malloc.h>
-
-#include <algorithm>
 #endif
 
 using namespace std;
@@ -52,10 +51,10 @@ array<float, 16> image_vertices(Frame frame) {
     };
 }
 
-project_uniform_t projection() {
+rect_proj_uniform_t projection() {
     auto surface_size = Wayland::get_surface_size();
 
-    project_uniform_t result{};
+    rect_proj_uniform_t result{};
     result.proj[0] = 2.0F / static_cast<float>(surface_size[0]);
     result.proj[5] = -2.0F / static_cast<float>(surface_size[1]);
     result.proj[10] = 1.0F;
@@ -65,12 +64,22 @@ project_uniform_t projection() {
     return result;
 }
 
-radius_uniform_t radius_uniform(Frame frame, float radius) {
-    radius_uniform_t result{};
+rect_radius_uniform_t radius_uniform(Frame frame, float radius) {
+    rect_radius_uniform_t result{};
     result.center[0] = frame.x + frame.width / 2.0F;
     result.center[1] = frame.y + frame.height / 2.0F;
     result.half_size[0] = frame.width / 2.0F;
     result.half_size[1] = frame.height / 2.0F;
+    result.radius = radius;
+    return result;
+}
+
+img_radius_uniform_t img_radius_uniform(Frame frame, float radius) {
+    img_radius_uniform_t result{};
+    result.center[0] = frame.x + frame.width / 2.0f;
+    result.center[1] = frame.y + frame.height / 2.0f;
+    result.half_size[0] = frame.width / 2.0f;
+    result.half_size[1] = frame.height / 2.0f;
     result.radius = radius;
     return result;
 }
@@ -233,8 +242,8 @@ void Renderer::draw_rectangle(
     sg_apply_bindings(&bindings);
     auto project = projection();
     auto radius_data = radius_uniform(frame, radius);
-    sg_apply_uniforms(UB_project_uniform, SG_RANGE(project));
-    sg_apply_uniforms(UB_radius_uniform, SG_RANGE(radius_data));
+    sg_apply_uniforms(UB_rect_proj_uniform, SG_RANGE(project));
+    sg_apply_uniforms(UB_rect_radius_uniform, SG_RANGE(radius_data));
     sg_draw(0, 4, 1);
 }
 
@@ -319,10 +328,18 @@ void Renderer::draw_image(
     bindings.views[VIEW_tex] = tex_view;
 
     sg_apply_pipeline(image_pipeline);
+
+    if (sg_query_pipeline_state(image_pipeline) != SG_RESOURCESTATE_VALID) {
+        Log::fatal("Image pipeline is invalid (shader compile error?)");
+    }
+
     sg_apply_bindings(&bindings);
 
     auto project = projection();
-    sg_apply_uniforms(UB_vs_params, SG_RANGE(project));
+    sg_apply_uniforms(UB_img_proj, SG_RANGE(project));
+
+    img_radius_uniform_t radius_data = img_radius_uniform(frame, radius);
+    sg_apply_uniforms(UB_img_radius_uniform, SG_RANGE(radius_data));
 
     sg_draw(0, 4, 1);
 
