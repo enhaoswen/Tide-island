@@ -23,15 +23,15 @@ jobs:
             experimental: false
             install: >-
               dnf install -y gcc-c++ cmake ninja-build pkgconf-pkg-config git
-              tar dbus-daemon qt6-qtbase-devel qt6-qtdeclarative-devel
-              qt6-qt5compat systemd-devel
+              tar dbus-daemon python3 nodejs qt6-qtbase-devel qt6-qtdeclarative-devel
+              qt6-qtwebsockets-devel qt6-qt5compat systemd-devel
           - name: Debian 13
             image: debian:trixie
             experimental: false
             install: >-
               apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y
-              build-essential cmake ninja-build pkg-config git tar dbus
-              qt6-base-dev qt6-declarative-dev libudev-dev
+              build-essential cmake ninja-build pkg-config git tar dbus python3 nodejs
+              qt6-base-dev qt6-declarative-dev qt6-websockets-dev libudev-dev
               qml6-module-qt5compat-graphicaleffects
           - name: openSUSE Tumbleweed
             image: opensuse/tumbleweed
@@ -39,8 +39,8 @@ jobs:
             install: >-
               zypper --non-interactive --gpg-auto-import-keys refresh &&
               zypper --non-interactive install --no-recommends gcc-c++ cmake
-              ninja pkg-config git tar gzip dbus-1 qt6-base-devel
-              qt6-declarative-devel qt6-qt5compat-imports systemd-devel
+              ninja pkg-config git tar gzip dbus-1 python3 nodejs qt6-base-devel
+              qt6-declarative-devel qt6-websockets-devel qt6-qt5compat-imports systemd-devel
     container:
       image: ${{ matrix.image }}
 
@@ -78,6 +78,10 @@ jobs:
           DESTDIR="$stage" cmake --install build-release-ci
           test -x "$stage/usr/bin/tide-island"
           test -x "$stage/usr/bin/tide-island-config-app"
+          test -x "$stage/usr/bin/tide-island-spotify-setup"
+          test -f "$stage/usr/share/tide-island/spicetify/tide-island.js"
+          test -f "$stage/usr/share/tide-island/qml/island/FavoriteHeart.qml"
+          test -f "$stage/usr/share/tide-island/qml/island/assets/heart-filled.svg"
           test -f "$stage/usr/share/tide-island/shell.qml"
           test -f "$stage/usr/$libdir/libIslandBackend.so"
           test -f "$stage/usr/$libdir/qt6/qml/IslandBackend/libIslandBackendplugin.so"
@@ -131,13 +135,21 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
+          notes_file=".github/release-notes/${GITHUB_REF_NAME#v}.md"
+          notes_args=(--generate-notes)
+          if [[ -f "$notes_file" ]]; then
+            notes_args=(--notes-file "$notes_file")
+          fi
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             gh release upload "$GITHUB_REF_NAME" \
               tide-island-source.tar.xz SHA256SUMS --clobber
+            if [[ -f "$notes_file" ]]; then
+              gh release edit "$GITHUB_REF_NAME" --notes-file "$notes_file"
+            fi
           else
             gh release create "$GITHUB_REF_NAME" \
               tide-island-source.tar.xz SHA256SUMS \
               --verify-tag \
-              --generate-notes \
+              "${notes_args[@]}" \
               --title "Tide Island ${GITHUB_REF_NAME#v}"
           fi

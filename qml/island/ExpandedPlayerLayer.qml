@@ -3,6 +3,7 @@ import IslandBackend
 import Quickshell.Services.Mpris
 import Quickshell.Widgets
 import "../controlcenter"
+import "../common/SpotifyTrack.js" as SpotifyTrack
 
 Item {
     id: root
@@ -27,6 +28,14 @@ Item {
     property string timeTotal: "0:00"
     property real trackProgress: 0
     property var activePlayer: null
+    property var spotifyFavorites: null
+    readonly property bool spotifyPlayer: SpotifyTrack.isSpotifyPlayer(activePlayer)
+    readonly property string spotifyTrackUri: SpotifyTrack.currentUri(activePlayer)
+    readonly property bool favoriteAvailable: spotifyFavorites && spotifyPlayer
+        && spotifyTrackUri !== "" && spotifyFavorites.connected
+        && spotifyFavorites.stateKnown && spotifyFavorites.trackUri === spotifyTrackUri
+    readonly property bool favoriteLiked: favoriteAvailable && spotifyFavorites.liked
+    readonly property bool favoriteBusy: spotifyFavorites && spotifyFavorites.busy
     property string iconFontFamily: userConfig.iconFontFamily
     property string textFontFamily: userConfig.textFontFamily
     property int timerSelectedHours: 0
@@ -267,14 +276,17 @@ Item {
                 Column {
                     anchors.fill: parent
                     anchors.margins: 20
-                    spacing: 14
+                    spacing: 10
 
                     Item {
                         width: parent.width
                         height: 60
 
                         Row {
+                            id: trackHeader
                             anchors.left: parent.left
+                            anchors.right: trackVisualizer.left
+                            anchors.rightMargin: 16
                             anchors.verticalCenter: parent.verticalCenter
                             spacing: 16
 
@@ -296,6 +308,7 @@ Item {
                             }
 
                             Column {
+                                width: Math.max(0, trackHeader.width - 60 - trackHeader.spacing)
                                 anchors.verticalCenter: parent.verticalCenter
                                 spacing: 4
 
@@ -306,7 +319,7 @@ Item {
                                     font.family: textFontFamily
                                     font.weight: Font.DemiBold
                                     font.letterSpacing: -0.15
-                                    width: 180
+                                    width: parent.width
                                     elide: Text.ElideRight
                                 }
 
@@ -316,28 +329,29 @@ Item {
                                     font.pixelSize: userConfig.bodyFontSize - 2
                                     font.family: textFontFamily
                                     font.weight: Font.Medium
-                                    width: 200
+                                    width: parent.width
                                     elide: Text.ElideRight
                                 }
                             }
                         }
 
                         Item {
+                            id: trackVisualizer
                             anchors.right: parent.right
                             anchors.verticalCenter: parent.verticalCenter
-                            width: 44
+                            width: 32
                             height: 22
 
                             Row {
                                 anchors.centerIn: parent
                                 height: parent.height
-                                spacing: 4
+                                spacing: 3
 
                                 Repeater {
                                     model: 5
 
                                     delegate: Rectangle {
-                                        width: 4
+                                        width: 3
                                         height: isPlaying
                                             ? 6 + (parent.height - 6) * visualizerLevel(index)
                                             : 6 + (parent.height - 6) * pausedVisualizerLevel(index)
@@ -414,12 +428,53 @@ Item {
                     }
 
                     Item {
+                        id: playbackControls
                         width: parent.width
                         height: 36
 
+                        // Reference layout: transport buttons shifted slightly left,
+                        // with the heart occupying the fourth evenly spaced position.
+                        Item {
+                            x: parent.width * 0.9175 - width / 2
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 32
+                            height: 32
+                            visible: root.spotifyPlayer
+                            opacity: root.favoriteAvailable && !root.favoriteBusy ? 1 : 0.45
+                            scale: favoriteArea.pressed && root.favoriteAvailable && !root.favoriteBusy ? 0.9 : 1
+
+                            Behavior on scale { NumberAnimation { duration: 100 } }
+
+                            FavoriteHeart {
+                                anchors.centerIn: parent
+                                width: 24
+                                height: 24
+                                active: root.favoriteLiked
+                                animateChanges: root.favoriteAvailable
+                                stateKey: root.spotifyTrackUri
+                            }
+
+                            MouseArea {
+                                id: favoriteArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                preventStealing: true
+                                cursorShape: root.favoriteAvailable && !root.favoriteBusy ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                onPressed: mouse => {
+                                    root.controlPressed();
+                                    mouse.accepted = true;
+                                }
+                                onClicked: {
+                                    if (root.favoriteAvailable && !root.favoriteBusy)
+                                        root.spotifyFavorites.setFavorite(root.spotifyTrackUri, !root.favoriteLiked);
+                                }
+                            }
+                        }
+
                         Row {
-                            anchors.centerIn: parent
-                            spacing: 50
+                            x: parent.width * 0.4675 - width / 2
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: Math.max(12, parent.width * 0.225 - 28)
 
                             Item {
                                 width: 28
@@ -443,14 +498,13 @@ Item {
                                         ctx.lineJoin = "round";
                                         ctx.lineWidth = 2;
                                         ctx.beginPath();
-                                        ctx.rect(3, 5, 3, 18);
-                                        ctx.moveTo(14, 5);
-                                        ctx.lineTo(6, 14);
-                                        ctx.lineTo(14, 23);
+                                        ctx.moveTo(13, 5);
+                                        ctx.lineTo(1, 14);
+                                        ctx.lineTo(13, 23);
                                         ctx.closePath();
-                                        ctx.moveTo(23, 5);
-                                        ctx.lineTo(15, 14);
-                                        ctx.lineTo(23, 23);
+                                        ctx.moveTo(26, 5);
+                                        ctx.lineTo(14, 14);
+                                        ctx.lineTo(26, 23);
                                         ctx.closePath();
                                         ctx.fill();
                                         ctx.stroke();
@@ -484,8 +538,8 @@ Item {
                                     spacing: 6
                                     visible: activePlayer && activePlayer.playbackState === MprisPlaybackState.Playing
 
-                                    Rectangle { width: 6; height: 20; radius: 2; color: playArea.pressed ? "#888" : "white" }
-                                    Rectangle { width: 6; height: 20; radius: 2; color: playArea.pressed ? "#888" : "white" }
+                                    Rectangle { width: 6; height: 24; radius: 1; color: playArea.pressed ? "#888" : "white" }
+                                    Rectangle { width: 6; height: 24; radius: 1; color: playArea.pressed ? "#888" : "white" }
                                 }
 
                                 Canvas {
@@ -546,15 +600,14 @@ Item {
                                         ctx.lineJoin = "round";
                                         ctx.lineWidth = 2;
                                         ctx.beginPath();
-                                        ctx.moveTo(5, 5);
-                                        ctx.lineTo(13, 14);
-                                        ctx.lineTo(5, 23);
+                                        ctx.moveTo(2, 5);
+                                        ctx.lineTo(14, 14);
+                                        ctx.lineTo(2, 23);
                                         ctx.closePath();
-                                        ctx.moveTo(14, 5);
-                                        ctx.lineTo(22, 14);
-                                        ctx.lineTo(14, 23);
+                                        ctx.moveTo(15, 5);
+                                        ctx.lineTo(27, 14);
+                                        ctx.lineTo(15, 23);
                                         ctx.closePath();
-                                        ctx.rect(22, 5, 3, 18);
                                         ctx.fill();
                                         ctx.stroke();
                                     }

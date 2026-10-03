@@ -249,6 +249,43 @@ tide-island-config-app
 - **日历**：快速月历视图，提供周数与相对日期显示。可在控制中心点击日期、使用 `Super + K` 快捷键打开，支持鼠标滚轮与方向键切换月份、`Home` 键返回今天、`Esc` 快速关闭。
 
 
+## Spotify 收藏
+
+音乐播放器支持把当前歌曲加入／移出 Spotify 的「已喜欢歌曲」，并同步客户端中的收藏状态。
+使用本机 Spotify 桌面客户端和 [Spicetify](https://spicetify.app/docs/getting-started)，无需 Spotify 开发者应用、API Key、浏览器自动化或集中服务器，也没有开发者应用的用户白名单限制。
+收藏使用当前登录账号的普通曲库权限，无需为此购买 Premium。
+
+安装／更新 Tide Island 后，先打开 Spotify 并登录，再安装 Spicetify，然后以桌面用户身份运行：
+
+```bash
+tide-island-spotify-setup
+```
+
+这个命令安装配套扩展，自动选择首次备份、应用已有备份或迁移旧版备份，过程中 Spotify 可能重启。
+在源码目录也可以运行 `python3 scripts/spotify-setup.py`。安装脚本只添加 Tide Island 扩展，保留已有主题和其他扩展。
+
+展开灵动岛播放器，右侧心形按钮显示当前歌曲的收藏状态；实心表示已收藏。
+扩展未连接、歌曲状态未知或正在更新时，按钮不可操作。切歌时旧请求不会修改新歌的显示状态。
+
+本机桥接仅监听 `127.0.0.1`，默认端口 `8976`。配置在 `$XDG_CONFIG_HOME/tide-island/spotify-bridge.json`（默认 `~/.config/tide-island/spotify-bridge.json`），其中的令牌只用于本机连接认证，扩展不会向 Tide Island 发送 Spotify 密码、Cookie 或访问令牌。
+
+```bash
+# 如果默认端口被占用
+tide-island-spotify-setup --port 9898
+
+# 仅生成配置和扩展，稍后手动应用
+tide-island-spotify-setup --no-apply
+
+# 移除配套扩展和本机桥接配置
+tide-island-spotify-setup --remove
+
+# 检查连接、歌曲和收藏状态（不输出账号凭据）
+quickshell ipc call tide spotifyFavoritesStatus
+```
+
+Spotify 更新后如收藏失效，先更新 Spicetify，再重新运行安装命令。此功能依赖兼容的桌面客户端与 Spicetify，目前仅支持 Spotify 在线歌曲；本地文件、播客和其他 MPRIS 播放器不显示收藏按钮。
+新增构建／运行依赖为 Qt WebSockets；Arch 包和源码安装脚本已包含此依赖。
+
 ## 常用命令
 
 #### 修改配置后重启：

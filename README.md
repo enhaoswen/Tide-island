@@ -259,6 +259,42 @@ tide-island-config-app
 - **Calendar**: Quick month view with week numbers and relative date indicators. Click the date in the Control Center, press `Super + K`, or use the scroll wheel / arrow keys to browse months. Press `Home` to return to today, and `Esc` to close.
 
 
+## Spotify favorites
+
+The expanded music player can add or remove the current Spotify track from Liked Songs and reflect changes made in the Spotify client.
+It uses your local Spotify desktop client and [Spicetify](https://spicetify.app/docs/getting-started), without a Spotify developer application, API key, browser automation, or hosted server. There is no developer-application user allowlist, and saving tracks uses your signed-in account's normal library permissions without requiring Premium for this feature.
+
+After installing/updating Tide Island, open Spotify and sign in, install Spicetify, and run this as your desktop user:
+
+```bash
+tide-island-spotify-setup
+```
+
+This installs the companion extension, automatically creating, reusing, or migrating the stock backup as needed. Spotify may restart.
+From the source checkout, use `python3 scripts/spotify-setup.py`. Existing themes and other extensions are preserved.
+
+Open the expanded player and use the heart on the right. A filled heart means the song is saved.
+The button is unavailable while disconnected, while its state is unknown, or while an update is pending. Requests are bound to track URIs so a late reply cannot change the next song's displayed state.
+
+The bridge listens only on `127.0.0.1`, using port `8976` by default. Its configuration is stored in `$XDG_CONFIG_HOME/tide-island/spotify-bridge.json` (normally `~/.config/tide-island/spotify-bridge.json`). The token authenticates the local bridge only; no Spotify password, cookie, or access token is sent to Tide Island.
+
+```bash
+# Choose another port if the default is occupied
+tide-island-spotify-setup --port 9898
+
+# Prepare the files without applying them yet
+tide-island-spotify-setup --no-apply
+
+# Remove the companion extension and bridge configuration
+tide-island-spotify-setup --remove
+
+# Inspect connection, track, and favorite state without account credentials
+quickshell ipc call tide spotifyFavoritesStatus
+```
+
+If a Spotify update breaks favorites, update Spicetify and rerun setup. A compatible desktop client and Spicetify installation are required. Favorites currently support Spotify catalog tracks; local files, podcasts, and other MPRIS players do not show the heart.
+Qt WebSockets is a new build/runtime dependency, included in the Arch package and source installer dependency lists.
+
 ## Common Commands
 
 #### Restart after editing the configuration:

@@ -230,6 +230,18 @@ Scope {
     IpcHandler {
         target: "tide"
 
+        function spotifyFavoritesStatus(): string {
+            return JSON.stringify({
+                configured: SpotifyBridge.configured,
+                connected: SpotifyBridge.connected,
+                stateKnown: SpotifyBridge.stateKnown,
+                trackUri: SpotifyBridge.trackUri,
+                liked: SpotifyBridge.liked,
+                busy: SpotifyBridge.busy,
+                error: SpotifyBridge.error
+            });
+        }
+
         function showClock() {
             shellRoot.forFocusedWindow((window) => window.showClockWindow());
         }

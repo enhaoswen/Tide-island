@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(TideIsland VERSION 1.0.40 LANGUAGES CXX)
+project(TideIsland VERSION 1.0.41 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -10,7 +10,7 @@ set(CMAKE_AUTOUIC ON)
 
 option(TIDE_ISLAND_WITH_NIRI "Build niri compositor integration" ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Network DBus Test Concurrent)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Network WebSockets DBus Test Concurrent)
 find_library(UDEV_LIB NAMES udev REQUIRED)
 
 add_executable(lyricsmpris
@@ -57,6 +57,31 @@ target_link_libraries(application_search_tests PRIVATE
 )
 
 add_test(NAME application_search COMMAND application_search_tests)
+
+add_executable(spotify_bridge_tests
+    tests/spotify_bridge_tests.cpp
+    backend/SpotifyBridge.h
+    backend/SpotifyBridge.cpp
+)
+target_include_directories(spotify_bridge_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/backend)
+target_link_libraries(spotify_bridge_tests PRIVATE Qt6::Core Qt6::Qml Qt6::Network Qt6::WebSockets Qt6::Test)
+target_compile_definitions(spotify_bridge_tests PRIVATE
+    SPOTIFY_TRACK_SOURCE="${CMAKE_CURRENT_SOURCE_DIR}/qml/common/SpotifyTrack.js"
+)
+add_test(NAME spotify_bridge COMMAND spotify_bridge_tests)
+add_test(NAME spotify_setup COMMAND "${PYTHON3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/spotify_setup_tests.py")
+find_program(NODE_EXECUTABLE NAMES node)
+if(NODE_EXECUTABLE)
+    add_test(NAME spotify_extension COMMAND "${NODE_EXECUTABLE}" --test "${CMAKE_CURRENT_SOURCE_DIR}/tests/spotify_extension_tests.cjs")
+    execute_process(COMMAND "${NODE_EXECUTABLE}" -e "process.stdout.write(typeof WebSocket)"
+        OUTPUT_VARIABLE NODE_WEBSOCKET_TYPE)
+    if(NODE_WEBSOCKET_TYPE STREQUAL "function")
+        target_compile_definitions(spotify_bridge_tests PRIVATE
+            SPOTIFY_NODE_EXECUTABLE="${NODE_EXECUTABLE}"
+            SPOTIFY_INTEGRATION_DRIVER="${CMAKE_CURRENT_SOURCE_DIR}/tests/spotify_extension_integration.cjs"
+        )
+    endif()
+endif()
 
 add_executable(bluetooth_formatting_tests
     tests/bluetooth_formatting_tests.cpp
@@ -199,6 +224,8 @@ qt_add_qml_module(IslandBackend
     SOURCES
         backend/SysBackend.h
         backend/SysBackend.cpp
+        backend/SpotifyBridge.h
+        backend/SpotifyBridge.cpp
         backend/SystemServices.h
         backend/SystemServices.cpp
         backend/CompositorBackend.h
@@ -237,6 +264,7 @@ target_link_libraries(IslandBackend PRIVATE
     Qt6::Gui
     Qt6::Qml
     Qt6::Network
+    Qt6::WebSockets
     Qt6::DBus
     Qt6::Concurrent
     ${UDEV_LIB}
@@ -289,6 +317,13 @@ install(TARGETS lyricsmpris
 )
 install(PROGRAMS scripts/cliphist-helper.sh
     DESTINATION ${CMAKE_INSTALL_DATADIR}/tide-island/scripts
+)
+install(PROGRAMS scripts/spotify-setup.py
+    DESTINATION ${CMAKE_INSTALL_BINDIR}
+    RENAME tide-island-spotify-setup
+)
+install(FILES integrations/spicetify/tide-island.js
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/tide-island/spicetify
 )
 
 # Install desktop entry

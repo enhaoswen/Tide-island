@@ -1,6 +1,6 @@
 # Maintainer: whysooraj <whysooraj.official@gmail.com>
 pkgname=tide-island
-pkgver=1.0.40
+pkgver=1.0.41
 pkgrel=1
 _srcdir=Tide-island-$pkgver
 _builddir=build-$pkgver
@@ -11,6 +11,7 @@ license=('GPL-3.0-only')
 depends=(
     'qt6-base'
     'qt6-declarative'
+    'qt6-websockets'
     'qt6-5compat'
     'qt6-wayland'
     'qt6-connectivity'
@@ -29,9 +30,12 @@ depends=(
     'cliphist'
     'wl-clipboard'
 )
-makedepends=('cmake')
+makedepends=('cmake' 'python')
 options=('!debug' '!strip')
 optdepends=(
+    'spotify: for Spotify Liked Songs integration'
+    'spicetify-cli: for Spotify favorites without a developer API application'
+    'python: for tide-island-spotify-setup'
     'hyprland: for Hyprland compositor integration'
     'niri: for niri compositor integration'
     'hyprsunset: for Night Light on Hyprland'

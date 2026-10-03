@@ -2666,6 +2666,7 @@ PanelWindow {
                         timeTotal: islandContainer.timeTotal
                         trackProgress: islandContainer.trackProgress
                         activePlayer: islandContainer.activePlayer
+                        spotifyFavorites: mediaController.spotifyFavorites
                         iconFontFamily: root.iconFontFamily
                         textFontFamily: root.textFontFamily
                         timerSelectedHours: islandContainer.timerSelectedHours

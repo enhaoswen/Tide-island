@@ -16,6 +16,8 @@ Item {
     property string lastActivePlayerDbusName: ""
     property var playersList: Mpris.players.values !== undefined ? Mpris.players.values : Mpris.players
     property var activePlayer: resolveActivePlayer()
+    // Start one bridge per QML engine; all screens share the same account state.
+    readonly property var spotifyFavorites: SpotifyBridge
 
     readonly property string lyricsLookupTitle: activePlayer ? (activePlayer.trackTitle || activePlayer.title || "") : ""
     readonly property string lyricsLookupArtist: {

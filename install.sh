@@ -223,6 +223,7 @@ apt_install_dependencies() {
     git build-essential cmake ninja-build pkg-config
     qt6-base-dev qt6-base-private-dev
     qt6-declarative-dev qt6-declarative-private-dev
+    qt6-websockets-dev
     qml6-module-qt5compat-graphicaleffects
     qt6-wayland qt6-wayland-dev qt6-wayland-private-dev
     qt6-shadertools-dev libqt6svg6 libqt6svg6-dev
@@ -260,6 +261,7 @@ dnf_install_dependencies() {
     git gcc-c++ cmake ninja-build pkgconf-pkg-config
     qt6-qtbase-devel qt6-qtbase-private-devel
     qt6-qtdeclarative-devel qt6-qtwayland-devel
+    qt6-qtwebsockets-devel
     qt6-qt5compat
     qt6-qtshadertools-devel qt6-qtsvg-devel
     systemd-devel libdrm-devel wayland-devel wayland-protocols-devel
@@ -293,6 +295,7 @@ zypper_install_dependencies() {
   local packages=(
     git gcc-c++ cmake ninja pkg-config
     qt6-base-devel qt6-declarative-devel qt6-wayland-devel
+    qt6-websockets-devel
     qt6-qt5compat-imports
     qt6-shadertools-devel qt6-svg-devel
     systemd-devel libdrm-devel wayland-devel wayland-protocols-devel
