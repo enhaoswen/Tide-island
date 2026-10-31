@@ -8,7 +8,6 @@
   <img alt="Stars" src="https://img.shields.io/github/stars/enhaoswen/Tide-island?style=for-the-badge&logo=github">
   <img alt="AUR" src="https://img.shields.io/aur/version/tide-island?style=for-the-badge&logo=archlinux&logoColor=white">
   <img alt="Quickshell" src="https://img.shields.io/badge/Quickshell-0.3%2B-5e81ac?style=for-the-badge">
-  <img alt="Qt 6" src="https://img.shields.io/badge/Qt-6-41cd52?style=for-the-badge&logo=qt&logoColor=white">
   <img alt="Hyprland" src="https://img.shields.io/badge/Hyprland-supported-58e1ff?style=for-the-badge">
   <img alt="niri" src="https://img.shields.io/badge/niri-supported-f5c2e7?style=for-the-badge">
 </p>
