@@ -80,6 +80,8 @@ Item {
     property int pendingWorkspaceFocusId: -1
     property var windowToplevels: []
     property var windowMoveHints: ({})
+    // "<address>@<workspace>" -> true while that workspace cell's tile has a live preview.
+    property var livePreviews: ({})
     property string _toplevelSig: ""
     readonly property var toplevelValues: ToplevelManager.toplevels && ToplevelManager.toplevels.values ? ToplevelManager.toplevels.values : []
 
@@ -158,7 +160,7 @@ Item {
         const ux = mx+res[0], uy = my+res[1]
         const uw = Math.max(1, tWidth(sm)-res[0]-res[2]), uh = Math.max(1, tHeight(sm)-res[1]-res[3])
         const sx = Math.max(0.0001, wt.scale*wt.widthRatio), sy = Math.max(0.0001, wt.scale*wt.heightRatio)
-        const to = targetWs>0 ? workspaceOffset(targetWs) : { x:wt.workspaceOffsetX, y:wt.workspaceOffsetY }
+        const to = workspaceOffset(targetWs)
         const lx = (wt.x-to.x)/sx, ly = (wt.y-to.y)/sy
         const ww = wt.windowData&&wt.windowData.size ? wt.windowData.size[0] : 0
         const wh = wt.windowData&&wt.windowData.size ? wt.windowData.size[1] : 0
@@ -217,6 +219,13 @@ Item {
         nh[k] = h
         windowMoveHints = nh
     }
+    function clearWindowMoveHint(addr) {
+        const k = String(addr||"").toLowerCase()
+        if (!windowMoveHints || !windowMoveHints[k]) return
+        const nh = {}
+        for (const ek in windowMoveHints) if (ek !== k) nh[ek] = windowMoveHints[ek]
+        windowMoveHints = nh
+    }
     function clearMatchedWindowMoveHints() {
         const hints = windowMoveHints || {}
         const ba = hyprlandData && hyprlandData.windowByAddress ? hyprlandData.windowByAddress : {}
@@ -234,6 +243,19 @@ Item {
         if (changed) windowMoveHints = nh
     }
 
+    // ── live previews of cell tiles (for a flicker-free drop hand-off) ─
+
+    function previewKey(addr, wsId) { return String(addr||"").toLowerCase() + "@" + wsId }
+    function isPreviewLive(addr, wsId) { return !!livePreviews[previewKey(addr, wsId)] }
+    function setPreviewLive(addr, wsId, live) {
+        const k = previewKey(addr, wsId)
+        if (!!livePreviews[k] === live) return
+        const next = {}
+        for (const ek in livePreviews) if (ek !== k) next[ek] = livePreviews[ek]
+        if (live) next[k] = true
+        livePreviews = next
+    }
+
     // ── toplevel management ──────────────────────────────────
 
     function normalizeToplevelAddress(tlv) {
@@ -244,7 +266,7 @@ Item {
         refreshTimer.stop()
         draggingFromWorkspace = -1; draggingTargetWorkspace = -1; draggingAddress = ""
         settlingAddress = ""; hoveredAddress = ""; pressedAddress = ""
-        windowMoveHints = ({}); _toplevelSig = ""
+        windowMoveHints = ({}); livePreviews = ({}); _toplevelSig = ""
         if (windowToplevels.length > 0) windowToplevels = []
     }
     function scheduleRefresh() {
@@ -265,6 +287,8 @@ Item {
         }
         if (sig === _toplevelSig) return
         _toplevelSig = sig
+        // The Repeaters rebuild every tile; the new tiles report their previews again.
+        livePreviews = ({})
         windowToplevels = next
     }
 
@@ -383,10 +407,7 @@ Item {
                                             delegate: WorkspaceOverviewWindow {
                                                 id: clippedTile
                                                 required property var modelData
-                                                readonly property string addr: {
-                                                    const ra = modelData&&modelData.HyprlandToplevel ? String(modelData.HyprlandToplevel.address||"") : ""
-                                                    return ra.startsWith("0x") ? ra.toLowerCase() : ("0x"+ra).toLowerCase()
-                                                }
+                                                readonly property string addr: root.normalizeToplevelAddress(modelData)
                                                 readonly property var vwd: root.hyprlandData&&root.hyprlandData.windowByAddress ? root.hyprlandData.windowByAddress[addr] : null
                                                 readonly property var mh: root.windowMoveHint(addr)
                                                 readonly property int wsId: mh&&mh.workspace!==undefined ? mh.workspace : (vwd&&vwd.workspace ? vwd.workspace.id : -1)
@@ -400,7 +421,11 @@ Item {
                                                 visible: wsId === wsCell.wsValue
                                                 windowData: vwd; toplevel: modelData
                                                 previewEnabled: root.previewsEnabled
-                                                forcePreviewActive: root.previewsEnabled && (addr===root.draggingAddress||addr===root.settlingAddress)
+                                                // Keep streaming while hidden behind the drag tile, so the hand-off is seamless;
+                                                // only in the one cell that shows this window.
+                                                forcePreviewActive: visible && root.previewsEnabled && (addr===root.draggingAddress||addr===root.settlingAddress)
+                                                onPreviewLiveChanged: root.setPreviewLive(addr, wsCell.wsValue, previewLive && wsId === wsCell.wsValue)
+                                                onWsIdChanged: root.setPreviewLive(addr, wsCell.wsValue, previewLive && wsId === wsCell.wsValue)
                                                 positionOverride: ph; scale: root.scale
                                                 monitorData: srcMon||root.monitorData; widgetMonitor: root.monitorData
                                                 xOffset: 0; yOffset: 0; centerIcons: root.centerIcons
@@ -469,10 +494,7 @@ Item {
                     delegate: WorkspaceOverviewWindow {
                         id: dragTile
                         required property var modelData
-                        readonly property string addr: {
-                            const ra = modelData&&modelData.HyprlandToplevel ? String(modelData.HyprlandToplevel.address||"") : ""
-                            return ra.startsWith("0x") ? ra.toLowerCase() : ("0x"+ra).toLowerCase()
-                        }
+                        readonly property string addr: root.normalizeToplevelAddress(modelData)
                         readonly property var mh: root.windowMoveHint(addr)
                         readonly property int wsId: mh&&mh.workspace!==undefined ? mh.workspace : (windowData&&windowData.workspace ? windowData.workspace.id : -1)
                         readonly property var ph: mh&&mh.x!==undefined&&mh.y!==undefined ? mh : null
@@ -489,7 +511,9 @@ Item {
                         property bool atL: wsCol===0; property bool atR: wsCol===root.columns-1
                         property bool atT: wsRow===0; property bool atB: wsRow===root.rows-1
                         property bool settling: false
-                        property int settleTarget: -1
+                        property bool settleConfirmed: false
+                        property bool settleRevealed: false
+                        readonly property bool landingPreviewLive: root.isPreviewLive(addr, wsId)
                         property real lastMouseX: 0
                         property real lastMouseY: 0
 
@@ -512,32 +536,85 @@ Item {
                         z: Drag.active?99999:(windowData&&windowData.fullscreen?30:20)+(windowData&&windowData.floating?5:0)
 
                         // ── settle helpers ──
+                        //
+                        // After a drop this tile stays on top, showing the window, while:
+                        //  1. Hyprland confirms the move: the move hint is cleared by
+                        //     clearMatchedWindowMoveHints. Geometry changes are no usable signal,
+                        //     since e.g. dwindle may keep the moved window at the same spot;
+                        //  2. it animates into the window's final place;
+                        //  3. the window's tile in the destination cell is revealed right
+                        //     underneath it (same geometry) and gets a live preview. It has to be
+                        //     revealed first: Qt does not render layers inside an opacity-0
+                        //     subtree, so a hidden tile cannot hold a frame to show.
+                        // Only then does this tile disappear, so nothing blinks.
+                        //
+                        // Dragging overwrites x/y, which drops their bindings to initX/initY.
+                        // They must be re-bound (not just assigned once) so that later layout
+                        // changes keep this tile and its MouseArea aligned with the window.
 
-                        Timer { id: restoreTimer; interval:80; repeat:false; onTriggered:{ dragTile.x=Math.round(dragTile.initX); dragTile.y=Math.round(dragTile.initY) } }
-                        Timer { id: settleTimer; interval:700; repeat:false
+                        Timer { id: restoreTimer; interval:80; repeat:false; onTriggered: dragTile.followLayout() }
+                        Timer { id: settleTimeout; interval:1000; repeat:false
                             onTriggered: {
-                                if (!dragTile.settling||finishTimer.running) return
-                                const o = root.workspaceOffset(dragTile.settleTarget)
-                                const mx = o.x+Math.max(0,root.workspaceImplicitWidth-dragTile.width)
-                                const my = o.y+Math.max(0,root.workspaceImplicitHeight-dragTile.height)
-                                dragTile.x = Math.round(root.clamp(dragTile.x,o.x,mx))
-                                dragTile.y = Math.round(root.clamp(dragTile.y,o.y,my))
-                                finishTimer.restart()
+                                if (!dragTile.settleConfirmed) {
+                                    // Hyprland never confirmed the move: fall back to its data.
+                                    root.clearWindowMoveHint(dragTile.addr)
+                                    dragTile.maybeSettle()
+                                    settleTimeout.restart()
+                                } else {
+                                    // The destination preview never went live: hand off anyway.
+                                    dragTile.finishSettle()
+                                }
                             }
                         }
-                        Timer { id: finishTimer; interval:230; repeat:false; onTriggered: finishSettle() }
+                        // Covers the 160 ms move-into-place animation.
+                        Timer { id: revealTimer; interval:200; repeat:false; onTriggered: dragTile.revealLanding() }
+                        // Lets the revealed tile render a couple of frames before it is uncovered.
+                        Timer { id: handoffTimer; interval:50; repeat:false; onTriggered: dragTile.finishSettle() }
 
-                        function beginSettle(ws) { restoreTimer.stop(); settleTimer.stop(); finishTimer.stop(); settleTarget=ws; settling=true; root.settlingAddress=addr; settleTimer.restart() }
-                        function maybeSettle() {
-                            if (!settling||finishTimer.running||wsId!==settleTarget) return
-                            settleTimer.stop(); x=Math.round(initX); y=Math.round(initY); finishTimer.restart()
+                        function followLayout() {
+                            x = Qt.binding(() => dragTile.initX)
+                            y = Qt.binding(() => dragTile.initY)
                         }
-                        function finishSettle() { settleTimer.stop(); finishTimer.stop(); settling=false; settleTarget=-1; if(root.settlingAddress===addr) root.settlingAddress=""; x=Math.round(initX); y=Math.round(initY) }
+                        function resetSettle() {
+                            restoreTimer.stop(); settleTimeout.stop(); revealTimer.stop(); handoffTimer.stop()
+                            settling = false; settleConfirmed = false; settleRevealed = false
+                            if (root.settlingAddress === addr) root.settlingAddress = ""
+                        }
+                        function beginSettle() {
+                            resetSettle()
+                            settling = true; root.settlingAddress = addr
+                            settleTimeout.restart()
+                        }
+                        function maybeSettle() {
+                            if (!settling || settleConfirmed || mh !== null) return
+                            settleConfirmed = true
+                            followLayout(); revealTimer.restart()
+                        }
+                        function revealLanding() {
+                            settleRevealed = true
+                            if (root.settlingAddress === addr) root.settlingAddress = ""
+                            tryHandoff()
+                        }
+                        function tryHandoff() {
+                            if (settling && settleRevealed && landingPreviewLive && !handoffTimer.running) handoffTimer.restart()
+                        }
+                        function finishSettle() {
+                            resetSettle()
+                            followLayout()
+                        }
                         function inWorkspace(lx,ly) {
                             const px=x+lx, py=y+ly
                             return px>=offX&&px<=offX+root.workspaceImplicitWidth&&py>=offY&&py<=offY+root.workspaceImplicitHeight
                         }
-                        onWsIdChanged: maybeSettle(); onInitXChanged: maybeSettle(); onInitYChanged: maybeSettle()
+                        onMhChanged: maybeSettle()
+                        onLandingPreviewLiveChanged: tryHandoff()
+                        Component.onDestruction: {
+                            // The Repeater rebuilds every delegate when the window list changes;
+                            // don't leave this window hidden in its workspace cell.
+                            if (root.settlingAddress === addr) root.settlingAddress = ""
+                            if (root.draggingAddress === addr) root.draggingAddress = ""
+                            if (root.pressedAddress === addr) root.pressedAddress = ""
+                        }
 
                         Drag.hotSpot.x: width/2
                         Drag.hotSpot.y: height/2
@@ -559,8 +636,8 @@ Item {
                                 dragTile.lastMouseX = dragTile.x + mouse.x
                                 dragTile.lastMouseY = dragTile.y + mouse.y
                                 root.draggingAddress = dragTile.addr
-                                if (root.settlingAddress===dragTile.addr) root.settlingAddress=""
-                                root.draggingFromWorkspace = dragTile.windowData&&dragTile.windowData.workspace ? dragTile.windowData.workspace.id : -1
+                                dragTile.resetSettle()
+                                root.draggingFromWorkspace = dragTile.wsId
                                 dragTile.Drag.active = true; dragTile.Drag.source = dragTile
                                 dragTile.Drag.hotSpot.x = mouse.x; dragTile.Drag.hotSpot.y = mouse.y
                             }
@@ -578,47 +655,56 @@ Item {
                                 if (root.pressedAddress===dragTile.addr) root.pressedAddress=""
                                 if (!draggingWindow) return
                                 draggingWindow = false
-                                const isFloating = dragTile.windowData && dragTile.windowData.floating
-                                let targetWs
-                                if (isFloating) targetWs = root.workspaceAtPoint(dragTile.x+dragTile.width/2, dragTile.y+dragTile.height/2)
-                                else { targetWs = root.workspaceAtPoint(dragTile.lastMouseX, dragTile.lastMouseY); if (targetWs===-1) targetWs = root.workspaceAtPoint(dragTile.x+dragTile.width/2, dragTile.y+dragTile.height/2) }
-                                const moveWs = targetWs!==-1 && dragTile.windowData && dragTile.windowData.workspace && targetWs!==dragTile.windowData.workspace.id
-                                const moveFl = !moveWs && moved && isFloating
+
+                                const isFloating = !!(dragTile.windowData && dragTile.windowData.floating)
+                                let targetWs = isFloating ? -1 : root.workspaceAtPoint(dragTile.lastMouseX, dragTile.lastMouseY)
+                                if (targetWs === -1) targetWs = root.workspaceAtPoint(dragTile.x+dragTile.width/2, dragTile.y+dragTile.height/2)
+                                const moveWs = targetWs !== -1 && dragTile.wsId > 0 && targetWs !== dragTile.wsId
+                                const moveFloating = isFloating && (moveWs || moved)
+                                const destWs = moveWs ? targetWs : dragTile.wsId
+                                const dest = moveFloating ? root.floatingWindowPosition(dragTile, destWs) : null
+
+                                // Enter the settle state before leaving the drag state, so this tile
+                                // stays visible and keeps its preview stream across the drop.
+                                if (moveWs || moveFloating) {
+                                    root.setWindowMoveHint(dragTile.addr, destWs, dest ? dest.x : undefined, dest ? dest.y : undefined)
+                                    dragTile.beginSettle()
+                                }
 
                                 dragTile.Drag.active = false
-
-                                if (moveWs) {
-                                    if (isFloating) { const dp = root.floatingWindowPosition(dragTile, targetWs); root.setWindowMoveHint(dragTile.addr, targetWs, dp.x, dp.y) }
-                                    else root.setWindowMoveHint(dragTile.addr, targetWs)
-                                    dragTile.beginSettle(targetWs)
-                                } else if (moveFl) {
-                                    const dp = root.floatingWindowPosition(dragTile, dragTile.wsId)
-                                    root.setWindowMoveHint(dragTile.addr, dragTile.wsId, dp.x, dp.y)
-                                    dragTile.beginSettle(dragTile.wsId)
-                                }
-
-                                if (moveWs && !isFloating) {
-                                    const to = root.workspaceOffset(targetWs)
-                                    const vx = root.clamp(dragTile.x, to.x, to.x+Math.max(0,root.workspaceImplicitWidth-dragTile.width))
-                                    const vy = root.clamp(dragTile.y, to.y, to.y+Math.max(0,root.workspaceImplicitHeight-dragTile.height))
-                                    dragTile.x = vx; dragTile.y = vy
-                                }
-
                                 root.draggingFromWorkspace = -1; root.draggingTargetWorkspace = -1
                                 if (root.draggingAddress===dragTile.addr) root.draggingAddress=""
-                                if (moveWs) {
-                                    hyprDispatch.moveWindowToWorkspace(dragTile.addr, targetWs, false)
-                                    if (isFloating) { const dp = root.floatingWindowPosition(dragTile, targetWs); hyprDispatch.moveWindowToPosition(dragTile.addr, dp.x, dp.y, false) }
-                                } else if (moveFl) {
-                                    const dp = root.floatingWindowPosition(dragTile, dragTile.wsId)
-                                    hyprDispatch.moveWindowToPosition(dragTile.addr, dp.x, dp.y, false)
-                                } else if (!moved) {
-                                    root.closeRequested()
-                                    hyprDispatch.focusWindow(dragTile.addr)
+
+                                if (!moveWs && !moveFloating) {
+                                    if (!moved) {
+                                        root.closeRequested()
+                                        hyprDispatch.focusWindow(dragTile.addr)
+                                    }
                                     restoreTimer.restart()
-                                } else restoreTimer.restart()
+                                    return
+                                }
+
+                                if (!isFloating) {
+                                    // Keep the dropped preview inside the target cell until Hyprland retiles it.
+                                    const to = root.workspaceOffset(destWs)
+                                    dragTile.x = root.clamp(dragTile.x, to.x, to.x+Math.max(0,root.workspaceImplicitWidth-dragTile.width))
+                                    dragTile.y = root.clamp(dragTile.y, to.y, to.y+Math.max(0,root.workspaceImplicitHeight-dragTile.height))
+                                }
+
+                                if (moveWs) hyprDispatch.moveWindowToWorkspace(dragTile.addr, destWs, false)
+                                if (dest) hyprDispatch.moveWindowToPosition(dragTile.addr, dest.x, dest.y, false)
+                                // Re-read clients right away to confirm (and clear) the move hint quickly,
+                                // plus a follow-up snapshot in case the first one raced the dispatch.
+                                // This is also the only confirmation for repositioning a floating
+                                // window, for which Hyprland emits no event.
+                                root.hyprlandData.requestRefresh(true, false, false, false, true)
+                                root.hyprlandData.queueRefresh(true, false, false, false)
                             }
                             onCanceled: {
+                                if (!draggingWindow) {
+                                    if (root.pressedAddress===dragTile.addr) root.pressedAddress=""
+                                    return
+                                }
                                 draggingWindow = false; dragTile.Drag.active = false
                                 root.draggingFromWorkspace = -1; root.draggingTargetWorkspace = -1
                                 if (root.draggingAddress===dragTile.addr) root.draggingAddress=""

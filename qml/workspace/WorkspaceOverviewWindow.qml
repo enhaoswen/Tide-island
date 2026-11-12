@@ -80,6 +80,48 @@ Item {
     readonly property real baseOpacity: !windowData ? 0 : (widgetMonitor && windowData.monitor === widgetMonitor.id ? 1 : 0.46)
     readonly property bool previewActive: previewEnabled && !!toplevel && (forcePreviewActive || (visible && opacity > 0))
 
+    // Preview capture is managed imperatively so a lost stream can be re-created;
+    // see the comment at `preview` below for why that is needed.
+    readonly property bool previewLive: preview.hasContent
+    property int captureFailures: 0
+
+    function syncCapture() {
+        const source = previewActive ? toplevel : null;
+        if (preview.captureSource === source)
+            return;
+
+        preview.captureSource = source;
+        if (source) {
+            armFirstFrameWatchdog();
+        } else {
+            captureRetryTimer.stop();
+            firstFrameWatchdog.stop();
+            captureFailures = 0;
+        }
+    }
+
+    function restartCapture() {
+        if (!previewActive || !toplevel)
+            return;
+
+        preview.captureSource = null;
+        preview.captureSource = toplevel;
+        armFirstFrameWatchdog();
+    }
+
+    function captureLost() {
+        firstFrameWatchdog.stop();
+        captureFailures++;
+        // Retry immediately after a one-off failure; back off only while restarts keep failing.
+        captureRetryTimer.interval = captureFailures <= 1 ? 0 : Math.min(25 * Math.pow(2, captureFailures - 1), 1500);
+        captureRetryTimer.restart();
+    }
+
+    function armFirstFrameWatchdog() {
+        if (!preview.hasContent)
+            firstFrameWatchdog.restart();
+    }
+
     function resolveIconThemeName(rawName) {
         const name = String(rawName === undefined || rawName === null ? "" : rawName).trim();
         if (name === "")
@@ -98,6 +140,30 @@ Item {
                 : name;
         }
     }
+    // Deactivate lazily: bindings can pass through a transient inactive state (e.g. a forced
+    // flag dropping before the opacity that replaces it rises), and tearing the stream down
+    // then would blank the preview for no reason.
+    onPreviewActiveChanged: previewActive ? syncCapture() : Qt.callLater(syncCapture)
+    onToplevelChanged: syncCapture()
+    Component.onCompleted: syncCapture()
+
+    Timer {
+        id: captureRetryTimer
+
+        repeat: false
+        onTriggered: root.restartCapture()
+    }
+
+    // A capture that fails before delivering its first frame produces no signal; a first
+    // frame normally arrives within a couple of compositor frames.
+    Timer {
+        id: firstFrameWatchdog
+
+        interval: 150
+        repeat: false
+        onTriggered: root.captureLost()
+    }
+
     x: initX
     y: initY
     width: targetWindowWidth
@@ -148,11 +214,41 @@ Item {
         border.width: 1
         border.color: root.hovered ? "#77ffffff" : "#33ffffff"
 
+        // Hyprland 0.57 captures a window at its current (animated) size and fails any
+        // in-flight frame once that size changes, so every retile (a window moved into or
+        // out of a workspace) kills the capture. Quickshell 0.3 then destroys the stream and
+        // drops the last frame without emitting ScreencopyView.stopped(); a stream that fails
+        // before its first frame gives no signal at all.
+        //
+        // To keep previews seamless, the view is shown through `previewFrame`, which freezes
+        // on the last frame while there is no live content, and the stream is re-created
+        // right away when it is lost (see restartCapture()).
         ScreencopyView {
+            id: preview
+
             anchors.fill: parent
-            captureSource: root.previewActive ? root.toplevel : null
             constraintSize: Qt.size(Math.max(1, Math.round(root.width)), Math.max(1, Math.round(root.height)))
             live: root.previewActive
+
+            onHasContentChanged: {
+                if (hasContent) {
+                    root.captureFailures = 0;
+                    firstFrameWatchdog.stop();
+                } else if (captureSource && root.previewActive) {
+                    root.captureLost();
+                }
+            }
+        }
+
+        ShaderEffectSource {
+            id: previewFrame
+
+            anchors.fill: parent
+            sourceItem: preview
+            hideSource: true
+            // Updated synchronously when the stream drops its frame, so the layer is never
+            // re-rendered from the emptied view.
+            live: preview.hasContent
         }
 
         Rectangle {
