@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Services.Pam
 import Quickshell.Services.Mpris
@@ -15,6 +16,8 @@ Scope {
     readonly property bool secure: sessionLock.secure
     property bool savedWatchFiles: true
     property bool unlockAuthorized: false
+    property bool capsLock: false
+    property bool capsProbePending: false
     signal lockFailed(string reason)
     signal clearInputs()
 
@@ -27,6 +30,37 @@ Scope {
         Quickshell.watchFiles = false;
         sessionLock.locked = true;
         acquisitionTimeout.restart();
+    }
+
+    // Keyboard LEDs mirror the compositor's lock state on every Linux backend, so
+    // this works the same under Hyprland and niri without compositor IPC.
+    function probeCapsLock() {
+        if (!sessionLock.locked) return;
+        if (capsProbe.running) capsProbePending = true;
+        else capsProbe.running = true;
+    }
+    Process {
+        id: capsProbe
+        command: ["sh", "-c", "cat /sys/class/leds/*::capslock/brightness 2>/dev/null"]
+        stdout: StdioCollector {
+            onStreamFinished: root.capsLock = this.text.split("\n").some(line => line.trim() !== "" && line.trim() !== "0")
+        }
+        onRunningChanged: if (!running && root.capsProbePending) {
+            root.capsProbePending = false;
+            running = true;
+        }
+    }
+    Timer { id: capsDebounce; interval: 40; onTriggered: root.probeCapsLock() }
+
+    function runPowerAction(action) {
+        // Only an established, secure lock may act; the view merely asks.
+        if (!sessionLock.secure || root.unlockAuthorized || !(UserConfig.lockScreen.showPowerActions ?? true)) return;
+        const commands = {
+            suspend: ["systemctl", "suspend"],
+            reboot: ["systemctl", "reboot"],
+            poweroff: ["systemctl", "poweroff"]
+        };
+        if (commands[action]) Quickshell.execDetached(commands[action]);
     }
 
     PamContext { id: pamContext; config: "login" }
@@ -72,9 +106,13 @@ Scope {
 
     WlSessionLock {
         id: sessionLock
-        onSecureChanged: if (secure) acquisitionTimeout.stop()
+        onSecureChanged: if (secure) {
+            acquisitionTimeout.stop();
+            root.probeCapsLock();
+        }
         onLockedChanged: {
             if (!locked) {
+                root.capsLock = false;
                 root.unlockAuthorized = false;
                 authentication.cancel();
                 root.clearInputs();
@@ -105,6 +143,7 @@ Scope {
                 authError: authentication.failed
                 prompt: authentication.prompt
                 responseVisible: authentication.responseVisible
+                capsLock: root.capsLock
 
                 readonly property var media: mediaLoader.item
                 readonly property var player: media ? media.activePlayer : null
@@ -150,10 +189,20 @@ Scope {
                     else if (player.canPlay) player.play();
                 }
                 onFavoriteRequested: if (canFavorite) SpotifyBridge.setFavorite(spotifyUri, !favorite)
+                onPowerRequested: action => root.runPowerAction(action)
+                onInputActivity: capsDebounce.restart()
 
                 Timer { interval: 1000; running: true; repeat: true; onTriggered: view.now = new Date() }
                 Connections { target: root; function onClearInputs() { view.clearInput(); } }
-                Connections { target: surface; function onVisibleChanged() { if (surface.visible) view.focusInput(); } }
+                Connections {
+                    target: surface
+                    function onVisibleChanged() {
+                        if (!surface.visible) return;
+                        view.focusInput();
+                        view.wake();
+                        root.probeCapsLock();
+                    }
+                }
             }
         }
     }

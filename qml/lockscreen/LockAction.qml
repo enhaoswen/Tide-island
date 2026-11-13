@@ -7,29 +7,46 @@ Button {
     property bool prominent: false
     property bool selected: false
     property bool transport: false
+    // Frosted round button for chrome such as power actions.
+    property bool glass: false
+    property bool armed: false
+    property bool spinning: false
+    property real glyphSize: transport ? (glyph === "heart" ? 17 : glyph === "play" || glyph === "pause" ? 22 : 19) : glass ? 18 : 16
     property var styleTokens: null
     property color accent: styleTokens ? styleTokens.accent : "#0a84ff"
     property color foreground: styleTokens ? styleTokens.textPrimary : "#f5f5f7"
-    property color buttonFill: styleTokens ? styleTokens.buttonFill : "#f5f5f7"
-    property color buttonFillHover: styleTokens ? styleTokens.buttonFillHover : "#ffffff"
-    property color buttonFillPressed: styleTokens ? styleTokens.buttonFillPressed : "#e9e9ec"
-    implicitWidth: 48
-    implicitHeight: 48
+    property color danger: styleTokens ? styleTokens.error : "#ff7c72"
+    implicitWidth: transport ? 36 : 40
+    implicitHeight: implicitWidth
     padding: 0
     hoverEnabled: true
+    focusPolicy: Qt.NoFocus
     Accessible.name: text
-    opacity: enabled ? 1 : 0.4
-    background: Rectangle {
-        radius: 12
-        color: root.prominent ? (root.down ? root.buttonFillPressed : root.hovered ? root.buttonFillHover : root.buttonFill) : root.down ? "#10ffffff" : root.hovered ? "#08ffffff" : "transparent"
-        border.width: root.activeFocus ? 1.5 : 0
-        border.color: root.accent
-        antialiasing: true
-        Behavior on scale {
-            NumberAnimation {
-                duration: 110
-            }
+    opacity: enabled ? 1 : (prominent ? 0.55 : 0.35)
+    Behavior on opacity {
+        NumberAnimation {
+            duration: 160
         }
+    }
+
+    HoverHandler {
+        cursorShape: root.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+    }
+
+    background: Rectangle {
+        radius: width / 2
+        antialiasing: true
+        color: {
+            if (root.prominent)
+                return root.enabled ? Qt.rgba(1, 1, 1, root.down ? 0.78 : root.hovered ? 1 : 0.92) : Qt.rgba(1, 1, 1, 0.14);
+            if (root.armed)
+                return Qt.rgba(root.danger.r, root.danger.g, root.danger.b, root.down ? 0.55 : 0.42);
+            if (root.glass)
+                return Qt.rgba(1, 1, 1, root.down ? 0.2 : root.hovered ? 0.16 : 0.09);
+            return Qt.rgba(1, 1, 1, root.down ? 0.16 : root.hovered ? 0.09 : 0);
+        }
+        border.width: root.glass && !root.armed ? 1 : 0
+        border.color: Qt.rgba(1, 1, 1, 0.12)
         Behavior on color {
             ColorAnimation {
                 duration: 140
@@ -38,22 +55,33 @@ Button {
     }
     contentItem: Item {
         LockGlyph {
+            id: glyphItem
             anchors.centerIn: parent
-            width: root.transport ? (root.glyph === "heart" ? 24 : 28) : 20
+            width: root.glyphSize
             height: width
-            name: root.glyph
-            ink: root.prominent ? "#202125" : root.down ? "#b6b6bf" : root.foreground
-            filled: root.glyph === "heart" ? root.selected : root.transport
-            scale: root.down ? 0.84 : 1
+            name: root.spinning ? "spinner" : root.glyph
+            stroke: root.prominent ? 2.1 : 1.8
+            ink: root.prominent && root.enabled ? "#141518" : root.foreground
+            filled: !root.spinning && (root.glyph === "heart" ? root.selected : root.transport)
+            scale: root.down ? 0.86 : 1
             Behavior on scale {
                 NumberAnimation {
-                    duration: 100
+                    duration: 110
                     easing.type: Easing.OutCubic
                 }
             }
+            RotationAnimator on rotation {
+                running: root.spinning
+                from: 0
+                to: 360
+                duration: 900
+                loops: Animation.Infinite
+            }
+            onNameChanged: if (!root.spinning)
+                rotation = 0
         }
     }
-    ToolTip.visible: hovered && text.length > 0
+    ToolTip.visible: hovered && text.length > 0 && !armed
     ToolTip.text: text
     ToolTip.delay: 650
 }

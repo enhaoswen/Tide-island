@@ -190,7 +190,8 @@ PagePanel {
                         temperature: "23°"
                         weatherCondition: "Partly cloudy"
                         weatherLocation: "Local weather"
-                        weatherType: "cloudy"
+                        weatherRange: "26° / 19°"
+                        weatherType: "partly_cloudy"
                         feelsLike: "24°"
                         humidity: "64%"
                         hasBattery: true
@@ -304,7 +305,7 @@ PagePanel {
 
                 NumberRow {
                     title: "Background dimming"
-                    hint: "Darken the wallpaper behind the cards (0–100%)"
+                    hint: "Darken the wallpaper behind the time and controls (0–100%)"
                     settingKey: "dim"
                 }
 
@@ -312,9 +313,19 @@ PagePanel {
                     width: parent.width
                 }
 
+                ToggleRow {
+                    title: "Dim when idle"
+                    hint: "After a few seconds without input, leave only the time on screen"
+                    settingKey: "idleDim"
+                }
+
+                SplitLine {
+                    width: parent.width
+                }
+
                 NumberRow {
-                    title: "Card opacity"
-                    hint: "Background opacity of lock screen cards (0–100%)"
+                    title: "Glass opacity"
+                    hint: "Opacity of the music player and password field (0–100%)"
                     settingKey: "cardOpacity"
                 }
 
@@ -324,7 +335,7 @@ PagePanel {
 
                 NumberRow {
                     title: "Corner radius"
-                    hint: "Corner radius of lock screen cards (12–40 px)"
+                    hint: "Corner radius of the music player (12–40 px)"
                     settingKey: "radius"
                     minimum: 12
                     maximum: 40
@@ -394,7 +405,7 @@ PagePanel {
 
                 TextRow {
                     title: "Lock screen message"
-                    hint: "A short message displayed below the clock"
+                    hint: "A short line shown at the bottom of the screen"
                     settingKey: "message"
                     placeholderText: "Leave empty to hide"
                     maximumLength: 180
@@ -490,14 +501,24 @@ PagePanel {
 
                 ToggleRow {
                     title: "Battery & charging"
-                    hint: "Show battery level and power status in the profile card"
+                    hint: "Show battery level and charging state in the top-right corner"
                     settingKey: "showBattery"
+                }
+
+                SplitLine {
+                    width: parent.width
+                }
+
+                ToggleRow {
+                    title: "Power actions"
+                    hint: "Sleep, restart and shut down buttons. Each asks for a second click to confirm."
+                    settingKey: "showPowerActions"
                 }
             }
 
             Text {
                 width: parent.width
-                text: "Unlock with your system password. Open the lock screen from the power menu, Lock now, or a shortcut configured on the Shortcut page. Music favorites require a connected Spotify player."
+                text: "Unlock with your system password. Open the lock screen from the power menu, Lock now, or a shortcut configured on the Shortcut page. A Caps Lock warning appears under the password field when needed. Music favorites require a connected Spotify player."
                 wrapMode: Text.Wrap
                 color: Theme.secondaryTextColor
                 font.family: Theme.textFontFamily

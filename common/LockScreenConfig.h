@@ -14,6 +14,7 @@ inline QVariantMap normalized(const QJsonObject &input = {})
         {"showDate", true}, {"showMusic", true}, {"showWeather", true},
         {"showTrackInfo", true}, {"showAlbumArt", true},
         {"showBattery", true}, {"showSeconds", false}, {"use24Hour", true},
+        {"showPowerActions", true}, {"idleDim", true},
         {"customLayoutEnabled", false},
         {"displayName", ""}, {"avatarPath", ""}, {"wallpaperPath", ""},
         {"message", ""}, {"layout", "dashboard"},
