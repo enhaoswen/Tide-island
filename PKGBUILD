@@ -1,7 +1,7 @@
 # Maintainer: Swen <enhaoswen@gmail.com>
 # Contributor: whysooraj <whysooraj.official@gmail.com>
 pkgname=tide-island
-pkgver=1.0.50
+pkgver=1.0.51
 pkgrel=1
 _srcdir=Tide-island-$pkgver
 _builddir=build-$pkgver
@@ -57,7 +57,8 @@ optdepends=(
 conflicts=('tide-island-git')
 install='tide-island.install'
 source=("$pkgname-$pkgver.tar.xz::https://github.com/enhaoswen/Tide-island/releases/download/$pkgver/tide-island-source.tar.xz")
-sha256sums=('5e9047dab280c7f0da737438f708471e756ccec2485ef34b5cb5d786329b98e1')
+# Pinned to the published source asset after the release workflow completes.
+sha256sums=('SKIP')
 
 build() {
   cmake -S "$_srcdir" -B "$_builddir" \
